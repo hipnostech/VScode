@@ -487,6 +487,7 @@ const LECTERN = { x: -7.5, z: -5 };
 const BOUND = 240;
 const DUN = { x: 150, y: -60, z: 150, k: 0 }; // masmorra: bem longe, debaixo da terra
 const DGP = { x: -320, z0: -220, dz: 110, y: -60 }; // andares da Dungeon das Sombras
+const SHADOW_ACTORS = []; // { o: objeto, r: raio da sombra }
 const BE = { x: 300, z: 40, y: DUN.y, k: 0, inside: false, busy: false }; // interior do Bolsão (longe, debaixo da terra)
 const inDun = (x, z) => (Math.abs(x - DUN.x) < 70 && Math.abs(z - DUN.z) < 70) || (Math.abs(x - BE.x) < 16 && z > BE.z - 4 && z < BE.z + 30) || (x > DGP.x - 6 && x < DGP.x + 81 && z > DGP.z0 - 6 && z < DGP.z0 + 3 * DGP.dz + 81);
 const DGE = { x: -95, z: 40 }; { const l = Math.hypot(DGE.x, DGE.z); DGE.fx = -DGE.x / l; DGE.fz = -DGE.z / l; } // entrada no campo
@@ -3174,6 +3175,7 @@ function makePerson(o) {
   if (acc.mug) { cyl(arms[1], 0.06, 0.055, 0.13, 0, -0.56, 0.07, matC(0x8a5a2a), 8); ps(arms[1], 0.05, 0, -0.49, 0.07, matC(0xf4efe4), 1, 0.4, 1); }
   if (acc.book) pb(arms[0], 0.22, 0.04, 0.3, 0, -0.56, 0.12, matC(acc.book));
   const hit = invis(g, gBox(0.7, 1.9, 0.7), 0, 0.95 * (o.scale || 1), 0); hit.userData.keep = true;
+  SHADOW_ACTORS.push({ o: g, r: 0.5 * (o.scale || 1) });
   mergeTreeVC(g);
   return { g, root, torso, head, arms, legs, hit, orb };
 }
@@ -7275,6 +7277,31 @@ function updateCull() { // brilhos que de longe ficariam com menos de ~2 pixels 
   }
 }
 
+
+/* sombras de contato: manchas suaves no chão debaixo das árvores, pessoas e bichos */
+{
+  const tex = canvasTex(64, 64, g => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.62)'); gr.addColorStop(0.55, 'rgba(0,0,0,.32)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+  const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
+  const trees = [...TREES.map(q => ({ x: q.x, z: q.z, r: q.r * 1.15 })), ...shTrees.map(q => ({ x: q.x, z: q.z, r: (q.k ? 2.6 : 2.2) * q.s }))];
+  const tm = new THREE.InstancedMesh(geo, mat, trees.length);
+  trees.forEach((q, i) => { dummy.position.set(q.x, terrainH(q.x, q.z) + 0.06, q.z); dummy.rotation.set(0, i, 0); dummy.scale.set(q.r * 2, 1, q.r * 2); dummy.updateMatrix(); tm.setMatrixAt(i, dummy.matrix); });
+  tm.instanceMatrix.needsUpdate = true; tm.renderOrder = 1; scene.add(tm);
+  SHADOW_ACTORS.push(...cats.map(c => ({ o: c.root, r: 0.32 })), { o: horse.root, r: 1.3 }, { o: DG.root, r: 4.2, fly: true });
+  const am = new THREE.InstancedMesh(geo, mat, SHADOW_ACTORS.length); am.frustumCulled = false; am.renderOrder = 1; am.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(am);
+  const p = V3(0, 0, 0), hide = new THREE.Matrix4().makeScale(0, 0, 0);
+  var updateShadows = () => {
+    for (let i = 0; i < SHADOW_ACTORS.length; i++) {
+      const a = SHADOW_ACTORS[i]; a.o.getWorldPosition(p);
+      if (!isShown(a.o) || p.distanceToSquared(camera.position) > 4900) { am.setMatrixAt(i, hide); continue; }
+      const fy = floorY(p.x, p.z), h = Math.max(0, p.y - fy), k = a.fly ? clamp(1 - h / 40, 0, 1) : h > 1.2 ? 0 : 1, sc = a.r * 2 * (a.fly ? 1 + h * 0.03 : 1) * k;
+      if (sc < 0.01) { am.setMatrixAt(i, hide); continue; }
+      dummy.position.set(p.x, fy + 0.05, p.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(sc, 1, sc); dummy.updateMatrix(); am.setMatrixAt(i, dummy.matrix);
+    }
+    am.instanceMatrix.needsUpdate = true;
+  };
+}
+
 const FX = { composer: null, bloom: null, on: false };
 if (!LOW && renderer.capabilities.isWebGL2) {
   try {
@@ -7291,7 +7318,17 @@ if (!LOW && renderer.capabilities.isWebGL2) {
       fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); bvec4 bad = bvec4(isnan(c.r) || isinf(c.r), isnan(c.g) || isinf(c.g), isnan(c.b) || isinf(c.b), isnan(c.a) || isinf(c.a)); gl_FragColor = any(bad) ? vec4(0.0, 0.0, 0.0, 1.0) : clamp(c, 0.0, 1.0); }',
     }));
     FX.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.35, 0.85); FX.composer.addPass(FX.bloom);
-    FX.composer.addPass(new ShaderPass(CopyShader));
+    FX.composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main(){ vec4 c = texture2D(tDiffuse, vUv); vec3 x = c.rgb; float l = dot(x, vec3(.2126, .7152, .0722));
+          x = mix(vec3(l), x, 1.07);
+          x = mix(x, x * x * (3. - 2. * x), .12);
+          x *= mix(vec3(.985, .995, 1.025), vec3(1.025, 1., .975), smoothstep(.15, .7, l));
+          vec2 d = vUv - .5; x *= 1. - .32 * dot(d, d);
+          gl_FragColor = vec4(clamp(x, 0., 1.), c.a); }`,
+    }));
     FX.composer.setPixelRatio(renderer.getPixelRatio()); FX.composer.setSize(innerWidth, innerHeight);
     FX.on = true;
   } catch (e) { console.warn('bloom desligado', e); FX.composer = null; }
@@ -7495,7 +7532,7 @@ function frame() {
   updateHeld();
   updatePhrases(dt);
   updateMap(dt);
-  updateCull(); updatePerf();
+  updateCull(); updatePerf(); updateShadows();
   renderFrame(dt);
   requestAnimationFrame(frame);
 }
