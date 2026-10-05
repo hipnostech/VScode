@@ -7285,7 +7285,12 @@ if (!LOW && renderer.capabilities.isWebGL2) {
     FX.composer = new EffectComposer(renderer, rt);
     for (const r of [FX.composer.renderTarget1, FX.composer.renderTarget2]) { r.isXRRenderTarget = true; r.texture.colorSpace = THREE.SRGBColorSpace; } // as cores ficam iguais às de desenhar direto na tela
     FX.composer.addPass(new RenderPass(scene, camera));
-    FX.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.45, 0.7); FX.composer.addPass(FX.bloom);
+    FX.composer.addPass(new ShaderPass({ // limpeza: valores inválidos (NaN/infinito) viram preto e o brilho é limitado, senão o bloom espalha e escurece/pisca a tela
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); bvec4 bad = bvec4(isnan(c.r) || isinf(c.r), isnan(c.g) || isinf(c.g), isnan(c.b) || isinf(c.b), isnan(c.a) || isinf(c.a)); gl_FragColor = any(bad) ? vec4(0.0, 0.0, 0.0, 1.0) : clamp(c, 0.0, 1.0); }',
+    }));
+    FX.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.35, 0.85); FX.composer.addPass(FX.bloom);
     FX.composer.addPass(new ShaderPass(CopyShader));
     FX.composer.setPixelRatio(renderer.getPixelRatio()); FX.composer.setSize(innerWidth, innerHeight);
     FX.on = true;
@@ -7294,8 +7299,8 @@ if (!LOW && renderer.capabilities.isWebGL2) {
 function renderFrame(dt) {
   if (FX.on) {
     const inside = BE.inside || DW.inside || DGM.inside;
-    FX.bloom.threshold = inside ? 1.02 : lerp(0.7, 0.97, uDay.value);
-    FX.bloom.strength = (inside ? 0.55 : lerp(0.7, 0.18, uDay.value)) * (mode === 'scope' ? 0.6 : 1);
+    FX.bloom.threshold = inside ? 0.97 : lerp(0.85, 0.98, uDay.value);
+    FX.bloom.strength = (inside ? 0.4 : lerp(0.5, 0.15, uDay.value)) * (mode === 'scope' ? 0.5 : 1);
     FX.composer.render(dt);
   } else renderer.render(scene, camera);
 }
