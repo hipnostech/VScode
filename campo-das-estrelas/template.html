@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Campo das Estrelas</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" crossorigin>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
 <style>
@@ -263,7 +266,7 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%;touch-action:
 </div>
 
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import * as THREE from 'three';
 
 const PHOTOS = /*__PHOTOS__*/[];
 const MUSIC = /*__MUSIC__*/[];
@@ -2818,7 +2821,7 @@ for (const [x, z] of [[-5.5, 9.2], [-8.5, 9.2], [5.5, 9.2], [8.5, 9.2], [11.5, 1
   const lf = new THREE.MeshLambertMaterial({ color: 0x1f4a26, flatShading: true }), rm = new THREE.MeshLambertMaterial({ color: 0x5a0a14 });
   for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), lf); b.position.set(rv(0.35), 0.45 + Math.random() * 0.2, rv(0.35)); g.add(b); }
   const heads = [];
-  for (let i = 0; i < 7; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), rm); h.position.set(rv(0.45), 0.75 + Math.random() * 0.3, rv(0.45)); g.add(h); heads.push(h); }
+  for (let i = 0; i < 7; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), rm); h.position.set(rv(0.45), 0.75 + Math.random() * 0.3, rv(0.45)); h.userData.keep = true; g.add(h); heads.push(h); }
   const bush = { heads, rm, k: 0, target: 0 };
   W3.roses.push(bush);
   addInteract([invis(g, new THREE.SphereGeometry(0.9, 8, 6), 0, 0.6, 0)], () => {
@@ -4259,6 +4262,7 @@ const lakeX = { swans: [] };
   ps(boat, 1, 0, 0, 0, M.wood, 0.62, 0.32, 1.5); ps(boat, 1, 0, 0.06, 0, M.woodDark, 0.5, 0.25, 1.3);
   pb(boat, 1.0, 0.05, 0.25, 0, 0.16, 0.2, M.wood); for (const sx of [-1, 1]) { const o = pb(boat, 0.05, 0.05, 1.6, sx * 0.55, 0.2, -0.2, M.wood); o.rotation.y = sx * 0.3; }
   lakeX.boat = boat; lakeX.boatY = boat.position.y;
+  mergeSiblings(g);
   // colisão: anel em volta da água com uma abertura para o píer, e as laterais do píer
   const N = 96, R = LAKE.r + 1, a0 = Math.atan2(d.z, d.x);
   for (let i = 0; i < N; i++) {
@@ -7228,6 +7232,89 @@ function placeCamera(bob = 0) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Desempenho e gráficos: juntar peças, esconder brilhos minúsculos,
+ * resolução adaptativa e brilho suave nas luzes (bloom)
+ * ------------------------------------------------------------------ */
+function mergeSiblings(root, skip = null) { // junta peças irmãs com o mesmo material (cada grupo continua animável)
+  const mergeGroup = gr => {
+    const by = new Map();
+    for (const o of gr.children) {
+      if (!o.isMesh || o.isInstancedMesh || o.userData.keep || o.layers.mask !== 1 || o.children.length || Array.isArray(o.material) || o.material.transparent || o.renderOrder || !o.geometry.attributes.normal || o.geometry.morphAttributes.position) continue;
+      const g = o.geometry, key = o.material.uuid + (g.attributes.uv ? 'u' : '') + (g.attributes.color ? 'c' : '');
+      if (!by.has(key)) by.set(key, []); by.get(key).push(o);
+    }
+    for (const list of by.values()) {
+      if (list.length < 2) continue;
+      const geos = list.map(o => {
+        o.updateMatrix(); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g.applyMatrix4(o.matrix);
+        if (o.matrix.determinant() < 0) for (const a of Object.values(g.attributes)) { const n = a.itemSize, arr = a.array; for (let i = 0; i < arr.length; i += n * 3) for (let k = 0; k < n; k++) { const t = arr[i + n + k]; arr[i + n + k] = arr[i + 2 * n + k]; arr[i + 2 * n + k] = t; } }
+        return g;
+      });
+      list.forEach(o => gr.remove(o));
+      const m = new THREE.Mesh(concatGeo(geos, ['position', 'normal', 'uv', 'color']), list[0].material); m.frustumCulled = list.every(o => o.frustumCulled); gr.add(m);
+    }
+  };
+  const walk = o => { if (skip && skip.has(o)) return; if (o.isMesh || o.isSprite || o.isPoints || o.isLine) return; mergeGroup(o); for (const c of [...o.children]) walk(c); };
+  walk(root);
+}
+DG.torso.userData.keep = true; // o peito do dragão respira (muda de escala)
+mergeSiblings(DG.root); cats.forEach(c => mergeSiblings(c.root));
+castle.updateMatrixWorld(true); mergeSiblings(castle, new Set([hall]));
+
+const cullList = [], cullV = V3(0, 0, 0), cullS = V3(0, 0, 0);
+{ const skipRoots = new Set([skyGroup, camera]); const walk = o => { if (skipRoots.has(o)) return; if (o.isSprite && o.layers.mask === 1) cullList.push(o); o.children.forEach(walk); }; scene.children.forEach(walk); }
+let cullI = 0;
+function updateCull() { // brilhos que de longe ficariam com menos de ~2 pixels não são desenhados
+  if (!cullList.length) return;
+  const F = innerHeight / 2 / Math.tan(camera.fov * deg / 2), n = Math.ceil(cullList.length / 10);
+  for (let k = 0; k < n; k++) {
+    const o = cullList[cullI = (cullI + 1) % cullList.length];
+    o.getWorldPosition(cullV); o.getWorldScale(cullS);
+    const px = Math.max(cullS.x, cullS.y) * 0.5 / Math.max(cullV.distanceTo(camera.position), 0.01) * F;
+    o.layers.set(px < 2 ? 5 : 0);
+  }
+}
+
+const FX = { composer: null, bloom: null, on: false };
+if (!LOW && renderer.capabilities.isWebGL2) {
+  try {
+    const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { ShaderPass }, { CopyShader }] = await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'), import('three/addons/postprocessing/UnrealBloomPass.js'),
+      import('three/addons/postprocessing/ShaderPass.js'), import('three/addons/shaders/CopyShader.js')]);
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    FX.composer = new EffectComposer(renderer, rt);
+    for (const r of [FX.composer.renderTarget1, FX.composer.renderTarget2]) { r.isXRRenderTarget = true; r.texture.colorSpace = THREE.SRGBColorSpace; } // as cores ficam iguais às de desenhar direto na tela
+    FX.composer.addPass(new RenderPass(scene, camera));
+    FX.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.45, 0.7); FX.composer.addPass(FX.bloom);
+    FX.composer.addPass(new ShaderPass(CopyShader));
+    FX.composer.setPixelRatio(renderer.getPixelRatio()); FX.composer.setSize(innerWidth, innerHeight);
+    FX.on = true;
+  } catch (e) { console.warn('bloom desligado', e); FX.composer = null; }
+}
+function renderFrame(dt) {
+  if (FX.on) {
+    const inside = BE.inside || DW.inside || DGM.inside;
+    FX.bloom.threshold = inside ? 1.02 : lerp(0.7, 0.97, uDay.value);
+    FX.bloom.strength = (inside ? 0.55 : lerp(0.7, 0.18, uDay.value)) * (mode === 'scope' ? 0.6 : 1);
+    FX.composer.render(dt);
+  } else renderer.render(scene, camera);
+}
+const PERF = { base: renderer.getPixelRatio(), pr: renderer.getPixelRatio(), t0: performance.now(), n: 0, cool: 4, last: 0, capped: false };
+PERF.min = Math.max(0.6, PERF.base * 0.5);
+function setPR(pr) { PERF.pr = pr; renderer.setPixelRatio(pr); if (FX.composer) { FX.composer.setPixelRatio(pr); FX.composer.setSize(innerWidth, innerHeight); } }
+function updatePerf() { // se o aparelho não aguenta, a imagem perde um pouco de nitidez em vez de travar
+  PERF.n++; const now = performance.now(), el = (now - PERF.t0) / 1000; if (el < 1.5) return;
+  const fps = PERF.n / el; PERF.t0 = now; PERF.n = 0;
+  if (document.hidden || (PERF.cool -= el) > 0) return;
+  if (PERF.last && fps < PERF.last * 1.08 && PERF.pr < PERF.lastPr) { PERF.capped = true; setPR(PERF.lastPr); PERF.cool = 4; PERF.last = 0; return; } // a tela tem limite de quadros: baixar a resolução não ajuda
+  PERF.last = 0;
+  if (fps < 45 && !PERF.capped) {
+    if (PERF.pr > PERF.min + 0.01) { PERF.last = fps; PERF.lastPr = PERF.pr; setPR(Math.max(PERF.min, PERF.pr * 0.85)); PERF.cool = 3; }
+    else if (FX.on) { FX.on = false; PERF.cool = 3; }
+  } else if (fps > 57 && PERF.pr < PERF.base - 0.01) { setPR(Math.min(PERF.base, PERF.pr * 1.12)); PERF.cool = 6; }
+}
+
+/* ------------------------------------------------------------------ *
  * Mapa: minimapa no canto (gira com você) e o mapa grande do reino
  * ------------------------------------------------------------------ */
 const MAPR = 255, MAPS = 1024, mapPx = v => (v + MAPR) / (2 * MAPR) * MAPS;
@@ -7354,6 +7441,7 @@ if (isTouch) setTimeout(() => { if (innerHeight > innerWidth && mode === 'walk' 
  * ------------------------------------------------------------------ */
 function onResize() {
   renderer.setSize(innerWidth, innerHeight, false);
+  if (FX.composer) FX.composer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   if (mode === 'scope' && !slewing) setFov(targetView().fov); else camera.updateProjectionMatrix();
 }
@@ -7402,7 +7490,8 @@ function frame() {
   updateHeld();
   updatePhrases(dt);
   updateMap(dt);
-  renderer.render(scene, camera);
+  updateCull(); updatePerf();
+  renderFrame(dt);
   requestAnimationFrame(frame);
 }
 
