@@ -9514,7 +9514,13 @@ function pvLoop() {
 #rpgGold{font-size:13px;color:#ffe6a8;margin-top:3px;font-style:italic}
 #rpgClock{font-size:12.5px;color:#cfe0ff;margin-top:2px;font-style:italic;white-space:nowrap}
 #rpgTrack{position:fixed;right:calc(14px + env(safe-area-inset-right));top:calc(64px + env(safe-area-inset-top));z-index:19;width:min(250px,42vw);padding:9px 12px 10px;border-radius:12px;
-  background:linear-gradient(180deg,rgba(12,16,34,.72),rgba(12,16,34,.5));border:1px solid rgba(255,220,163,.18);cursor:pointer;transition:opacity .5s;font-size:14.5px;line-height:1.25}
+  background:linear-gradient(180deg,rgba(12,16,34,.72),rgba(12,16,34,.5));border:1px solid rgba(255,220,163,.18);cursor:pointer;transition:opacity .5s,transform .35s ease;font-size:14.5px;line-height:1.25}
+#rpgTrack.tuck{transform:translateX(calc(100% + 16px + env(safe-area-inset-right)))}
+#rpgTrack .tab{position:absolute;left:-31px;top:6px;width:28px;height:36px;border-radius:10px 0 0 10px;background:rgba(12,16,34,.78);border:1px solid rgba(255,220,163,.3);border-right:none;color:var(--gold);display:grid;place-items:center;font-size:13px;font-style:normal;padding:0;cursor:pointer}
+#rpgTrack .tab:hover{background:rgba(30,34,60,.9)}
+#rpgTrack .tab.ping{animation:tabPing .9s ease 4}
+@keyframes tabPing{50%{box-shadow:0 0 14px 3px rgba(255,214,140,.75);color:#fff}}
+.touch #rpgTrack .tab{width:34px;height:44px;left:-37px}
 #rpgTrack .t{color:var(--gold);font-weight:500;font-size:15.5px;margin-bottom:4px}
 #rpgTrack .o{color:#e8ecff;opacity:.9;margin:2px 0;padding-left:16px;position:relative;font-style:italic} #rpgTrack .o:before{content:'◇';position:absolute;left:0;color:var(--gold)} #rpgTrack .o.ok{opacity:.5;text-decoration:line-through} #rpgTrack .o.ok:before{content:'✔'}
 #rpgBar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;display:flex;gap:7px;padding:6px 8px;border-radius:28px;background:rgba(12,16,34,.6);border:1px solid rgba(255,220,163,.16);transition:opacity .5s}
@@ -9641,11 +9647,15 @@ function hudUpdate() {
   $r('rpgCamB').classList.toggle('tp', RPG.opt.tp);
   trackUpdate();
 }
+const TRACK_TAB = (() => { const b = document.createElement('button'); b.className = 'tab'; b.title = 'Esconder/mostrar missões';
+  b.addEventListener('click', e => { e.stopPropagation(); RPG.opt.trackTuck = !RPG.opt.trackTuck; b.classList.remove('ping'); trackTuckApply(); rpgSave(); sfx.whoosh(0.05, 0.2); }); return b; })();
+function trackTuckApply() { const t = !!RPG.opt.trackTuck; $r('rpgTrack').classList.toggle('tuck', t); TRACK_TAB.textContent = t ? '◀' : '▶'; TRACK_TAB.setAttribute('aria-label', t ? 'mostrar missões' : 'esconder missões'); }
 function trackUpdate() {
   const el = $r('rpgTrack'), id = RPG.track, q = QUESTS[id], st = RPG.q[id], hq = q && st && st.s === 'active', hn = RPG.hunt, evt = typeof EV !== 'undefined' && EV.on?.txt ? EV.on.txt() : '';
   if (!hq && !hn && !evt) { el.classList.add('hidden'); HUDC.track = ''; return; }
-  const sig = (hq ? id + JSON.stringify(qProg(id).map(o => o.cur)) + qReady(id) : '') + (hn ? 'h' + huntCur() : '') + evt; if (HUDC.track === sig && el.childElementCount) return; HUDC.track = sig;
-  el.replaceChildren();
+  const sig = (hq ? id + JSON.stringify(qProg(id).map(o => o.cur)) + qReady(id) : '') + (hn ? 'h' + huntCur() : '') + evt; if (HUDC.track === sig && el.childElementCount) return; const changed = HUDC.track && HUDC.track !== sig; HUDC.track = sig;
+  el.replaceChildren(); el.appendChild(TRACK_TAB); trackTuckApply();
+  if (changed && RPG.opt.trackTuck) { TRACK_TAB.classList.remove('ping'); void TRACK_TAB.offsetWidth; TRACK_TAB.classList.add('ping'); } // escondido e chegou novidade: a abinha brilha
   if (evt) { const t = h$('div', 't', '✦ Acontecendo agora', el); h$('div', 'o', evt, el); t.style.color = '#ffc8a0'; }
   if (hn) { const t = h$('div', 't', '🎯 Caçada', el), c = huntCur(); h$('div', 'o' + (c >= hn.n ? ' ok' : ''), `Derrote ${hn.n} × ${MON[hn.type].n} (${Math.min(c, hn.n)}/${hn.n})`, el); if (c >= hn.n) h$('div', 'o', 'Volte a um quadro de caçadas para receber', el); if (hq) t.style.marginBottom = '2px'; }
   if (hq) { const t = document.createElement('div'); t.className = 't'; t.textContent = (q.main ? '👑 ' : '📜 ') + q.t; el.appendChild(t); }
