@@ -449,6 +449,30 @@ const TRAVEL_HORSE = '🐴 Para onde vamos, Majestade?';
 const TRAVEL_DRAGON = '🐉 Para onde voamos, Majestade?';
 const TRAVEL_NOPATH = '— o cavalinho não achou caminho até lá…';
 const CHICKEN_LINES = ['cocoricó! 🐔', 'có-có-có… (a galinha fez uma reverência)', 'piu? 🐣'];
+const GUARD_LINES = ['— Bem-vinda à Cidade Real, Majestade! Os portões estão sempre abertos para a senhora 🛡', '— Nenhum dragão passa por aqui… a não ser o seu, claro 🐉', '— O rei mandou dobrar a guarda: disse que a cidade guarda o tesouro mais precioso do reino', '— Ordem do rei: toda vez que a rainha passar, a guarda inteira bate continência!', '— Lá de cima da muralha dá pra ver o reino todo… e nada é mais bonito que a senhora chegando'];
+const CITIZEN_LINES = ['— Bom dia, Majestade! 👑', '— Olha, a rainha! Que honra!', '— A cidade inteira fica mais bonita quando a senhora passeia por ela ✨', '— Vai ter festa na praça hoje à noite, em homenagem a vocês dois!', '— O rei fala da senhora o dia inteiro, sabia?', '— Já viu a estátua nova da praça? Ficou quase tão linda quanto a senhora'];
+const STATUE_LINES = ['✦ a estátua da Rainha dos Cachos, no meio da praça… o povo jura que ela sorri quando a senhora passa', '✦ na placa está escrito: "à rainha mais amada que este reino já teve — com amor, o rei"', '🪙 você jogou uma moedinha no chafariz da praça: dizem que aqui todo pedido de amor se realiza'];
+const CATHEDRAL_LINES = ['🔔 os sinos da Catedral da Estrela tocaram sozinhos… dizem que eles tocam quando a rainha passa', '✦ os vitrais brilham em azul e dourado: contam a história de um rei que atravessou o céu para encontrar sua rainha', '🔔 na porta está gravado: "que este amor dure enquanto houver estrelas no céu"'];
+const PARK_LINES = ['🌷 o Jardim Real: cada flor foi plantada pelo rei, uma para cada sorriso da rainha', '✦ o coreto do jardim… perfeito para uma dança à luz da lua', '🌹 os jardineiros dizem que as flores daqui só abrem quando ouvem o nome da senhora'];
+const FRONTIER_LINES = ['🧭 a Estrada do Norte segue para reinos distantes que a senhora ainda vai conhecer… um dia o rei te leva até lá ✦', '🧭 Fronteira do Reino: daqui pra frente, novas aventuras (em breve!)', '✦ dizem que além das montanhas existem reinos de gelo, de areia e de mar… todos esperando a visita da rainha'];
+const CITY_SHOPS = [
+  { n: '🥐 Padaria Real', c: ['#b8323c', '#f3e6cc'], l: ['— Pão quentinho, Majestade! Fiz um em formato de coração pra senhora 🥐', '— O rei encomenda um bolo de mel toda semana… diz que é o seu preferido'] },
+  { n: '🌹 Floricultura', c: ['#d86a90', '#fff4e8'], l: ['— Rosas vermelhas para a rainha! O rei já pagou todas, até o fim dos tempos 🌹', '— Cada flor daqui tem o nome de uma qualidade da senhora… faltou flor!'] },
+  { n: '💍 Joalheria', c: ['#3a2a6a', '#d8b25a'], l: ['— Nenhuma joia brilha como os olhos da senhora, Majestade 💎', '— O rei passou aqui… estava olhando anéis. Mas eu não contei nada!'] },
+  { n: '🧵 Alfaiataria', c: ['#2f6fb0', '#f3e6cc'], l: ['— Um vestido novo para o baile? Já tenho as medidas… do coração do rei 🧵', '— Seda, veludo e fio de ouro: tudo digno de uma rainha'] },
+  { n: '📚 Livraria', c: ['#5a3a1a', '#e8d8b0'], l: ['— Temos todos os livros do reino… e o mais bonito ainda está sendo escrito: o de vocês dois 📖', '— Poemas de amor? Uma prateleira inteira, Majestade'] },
+  { n: '🍰 Confeitaria', c: ['#d8902a', '#fff4e0'], l: ['— Torta de morango, bolo de chocolate… prove, é por conta do rei 🍰', '— Doce assim, só o sorriso da senhora'] },
+  { n: '🧴 Perfumaria', c: ['#8a3fa0', '#f3e6f0'], l: ['— Um perfume de rosas e estrelas, feito só para a rainha ✨', '— Este aqui se chama "Saudade do Rei". É o mais vendido!'] },
+  { n: '🌿 Boticário', c: ['#2f7a3e', '#e8f0d8'], l: ['— Chá de camomila para dormir bem, e um de canela para sonhar com o rei 🍵', '— Remédio para coração apaixonado? Não tem cura, Majestade… ainda bem!'] },
+  { n: '🍺 Estalagem da Lua Cheia', c: ['#6a1c1a', '#f3e6cc'], l: ['— Quarto com vista para as estrelas, Majestade? O melhor é sempre da senhora 🌙', '— Sopa quente, lareira acesa e música até tarde! 🍺'] },
+  { n: '🕯 Velas e Lanternas', c: ['#d8a03a', '#2a1a10'], l: ['— Uma lanterna para iluminar o caminho de volta pra casa… e pro coração do rei 🕯'] },
+  { n: '🎻 Luthier', c: ['#7a4a22', '#f0e0c0'], l: ['— Este violino toca sozinho a música preferida da senhora 🎻'] },
+  { n: '⚒ Armaria', c: ['#3a3a44', '#d0d4dc'], l: ['— Espadas e escudos… mas a melhor armadura é o amor do rei, Majestade ⚔'] },
+  { n: '☕ Casa de Chá', c: ['#3a7a6a', '#f3efe0'], l: ['— Chá com bolinhos para dois? A mesa perto da janela é de vocês ☕'] },
+  { n: '🧀 Queijaria', c: ['#e8b23a', '#4a2a10'], l: ['— Queijos do reino inteiro! O do Condado é o mais fofinho 🧀'] },
+  { n: '🎨 Ateliê', c: ['#2a5a8a', '#f8e8d0'], l: ['— Estou pintando um retrato da senhora… mas nenhuma tinta tem o brilho certo 🎨'] },
+  { n: '🍷 Adega', c: ['#5a1a2a', '#e8d0b0'], l: ['— Um vinho guardado há cem anos para um brinde especial: o amor de vocês 🍷'] },
+];
 const WISH_DONE = '✦ seu desejo virou uma lanterna no céu';
 const GALAXY_POEM = [
   ['Existem bilhões de galáxias lá fora,', 'cada uma com bilhões de sóis acesos.', 'E no meio de todo esse infinito,', 'o universo deu um jeito de me levar até você.'],
@@ -470,12 +494,15 @@ const Q = LOW
 /* ------------------------------------------------------------------ *
  * Mundo: relevo, trilha e utilidades
  * ------------------------------------------------------------------ */
-const CASTLE = { x: -55.4, z: -101, y: 4.5, rot: 0.29 };
+const CASTLE = { x: -75.4, z: -168.1, y: 4.5, rot: 0.29 }; // castelo no coração da Cidade Real, ao norte do campo
 const DRAGON = { x: 26, z: -6, yaw: 1.97 };
 const LAKE = { x: 85, z: -65, r: 38 }, TREE_E = { x: -24, z: 16 }, SWING = { x: 15, z: 13 }, MUSH = { x: -30, z: 2 };
-const VIL = (() => { const l = Math.hypot(LAKE.x, LAKE.z), bx = LAKE.x / l, bz = LAKE.z / l; return { x: LAKE.x + bx * 86, z: LAKE.z + bz * 86, bx, bz }; })(); // aldeia élfica
+const VIL = (() => { const l = Math.hypot(LAKE.x, LAKE.z), bx = LAKE.x / l, bz = LAKE.z / l; return { x: LAKE.x + bx * 200, z: LAKE.z + bz * 200, bx, bz }; })(); // aldeia élfica: lá no alto, entre as montanhas, rio acima
 const RIV = (() => { const rot = (a, d) => ({ x: VIL.x + (VIL.bx * Math.cos(a) - VIL.bz * Math.sin(a)) * d, z: VIL.z + (VIL.bx * Math.sin(a) + VIL.bz * Math.cos(a)) * d }), s1 = rot(-0.62, 27), s2 = rot(0.62, 27);
   return { x0: VIL.x + VIL.bx * 25, z0: VIL.z + VIL.bz * 25, x1: LAKE.x + VIL.bx * (LAKE.r - 3), z1: LAKE.z + VIL.bz * (LAKE.r - 3), sx1: s1.x, sz1: s1.z, sx2: s2.x, sz2: s2.z }; })();
+const VF = { x: -VIL.bx, z: -VIL.bz }, VS = { x: VF.z, z: -VF.x }, VYAW = Math.atan2(VF.x, VF.z); // F: do vale para o lago (descendo a garganta)
+const vW = (sx, fz) => ({ x: VIL.x + VS.x * sx + VF.x * fz, z: VIL.z + VS.z * sx + VF.z * fz });
+const vL = (x, z) => { const dx = x - VIL.x, dz = z - VIL.z; return { sx: dx * VS.x + dz * VS.z, fz: dx * VF.x + dz * VF.z }; };
 const SUNDIAL = { x: -5, z: 7 }, WAND_SPOT = { x: -3.6, z: 1.6 };
 const nearSpecial = (x, z, m) => [LAKE, TREE_E, SWING, MUSH, SUNDIAL, WAND_SPOT].some(q => Math.hypot(x - q.x, z - q.z) < (q.r || 0) + m);
 const TELESCOPE = { x: 3.5, z: -3 };
@@ -484,7 +511,7 @@ const WINDMILL = { x: 78, z: -112 };
 const SPAWN = { x: -1.2, z: 9 };
 const BLANKET = { x: 8.5, z: 3 };
 const LECTERN = { x: -7.5, z: -5 };
-const BOUND = 240;
+const BOUND = 470; // o reino ficou bem maior
 const DUN = { x: 150, y: -60, z: 150, k: 0 }; // masmorra: bem longe, debaixo da terra
 const DGP = { x: -320, z0: -220, dz: 110, y: -60 }; // andares da Dungeon das Sombras
 const SHADOW_ACTORS = []; // { o: objeto, r: raio da sombra }
@@ -492,15 +519,25 @@ const BE = { x: 300, z: 40, y: DUN.y, k: 0, inside: false, busy: false }; // int
 const inDun = (x, z) => (Math.abs(x - DUN.x) < 70 && Math.abs(z - DUN.z) < 70) || (Math.abs(x - BE.x) < 16 && z > BE.z - 4 && z < BE.z + 30) || (x > DGP.x - 6 && x < DGP.x + 81 && z > DGP.z0 - 6 && z < DGP.z0 + 3 * DGP.dz + 81);
 const DGE = { x: -95, z: 40 }; { const l = Math.hypot(DGE.x, DGE.z); DGE.fx = -DGE.x / l; DGE.fz = -DGE.z / l; } // entrada no campo
 let bridgeY = () => -1e9;
-const FV = { x: 40, z: 125 }; // Vila das Fadas (clareira ao sul)
+const FV = { x: 125, z: 262 }; // Vila das Fadas: clareira no coração da Floresta Encantada (sudeste)
+const fvIn = r => { const l = Math.hypot(FV.x, FV.z); return { x: FV.x - FV.x / l * r, z: FV.z - FV.z / l * r }; }; // pela entrada da floresta
 let pierY = () => -1e9;
 
 const ss = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
 const CRc = Math.cos(CASTLE.rot), CRs = Math.sin(CASTLE.rot);
 const CRECT = { cz: 15, hx: 41.8, hz: 42.8 }; // área da muralha externa (coordenadas do castelo)
+/* Cidade Real: muralha em volta de todo o castelo (coordenadas do castelo: +z aponta para o portão e para o campo) */
+const CITY = { W: -115, E: 85, N: -100, S: 112, ch: 24 }; Object.assign(CITY, { cx: (CITY.W + CITY.E) / 2, cz: (CITY.N + CITY.S) / 2, hx: (CITY.E - CITY.W) / 2, hz: (CITY.S - CITY.N) / 2 });
+const PARK = { x: -65.25, z: 49.5, hx: 13.25, hz: 12 }; // Jardim Real (sem calçamento)
+const c2w = (lx, lz) => ({ x: CASTLE.x + lx * CRc + lz * CRs, z: CASTLE.z - lx * CRs + lz * CRc });
+const w2c = (x, z) => { const dx = x - CASTLE.x, dz = z - CASTLE.z; return { x: dx * CRc - dz * CRs, z: dx * CRs + dz * CRc }; };
+function cityPolyD(lx, lz) { const qx = Math.abs(lx - CITY.cx) - CITY.hx, qz = Math.abs(lz - CITY.cz) - CITY.hz; return Math.max(qx, qz, (qx + qz + CITY.ch) * Math.SQRT1_2); } // < 0: dentro da muralha
+const cityD = (x, z) => { const l = w2c(x, z); return cityPolyD(l.x, l.z); };
+const CGATE = { S: { x: 0, z: CITY.S, nx: 0, nz: 1, n: 'Portão Sul' }, E: { x: CITY.E, z: 0, nx: 1, nz: 0, n: 'Portão Leste' }, W: { x: CITY.W, z: 0, nx: -1, nz: 0, n: 'Portão Oeste' }, N: { x: 0, z: CITY.N, nx: 0, nz: -1, n: 'Portão Norte' } };
+const gateOut = (k, d) => { const g = CGATE[k]; return c2w(g.x + g.nx * d, g.z + g.nz * d); };
 function castleRectDist(x, z) { const dx = x - CASTLE.x, dz = z - CASTLE.z, lx = dx * CRc - dz * CRs, lz = dx * CRs + dz * CRc; return Math.hypot(Math.max(Math.abs(lx) - CRECT.hx, 0), Math.max(Math.abs(lz - CRECT.cz) - CRECT.hz, 0)); }
 /* Condado dos hobbits: vale a sudoeste com colinas e tocas, riachos, lagos e um paredão de cachoeiras */
-const SH = { x: -85, z: 147 };
+const SH = { x: -145.2, z: 251.1 }; // bem longe, no meio do campo verde
 { const l = Math.hypot(SH.x, SH.z); SH.fx = -SH.x / l; SH.fz = -SH.z / l; SH.sx = SH.fz; SH.sz = -SH.fx; SH.yaw = Math.atan2(SH.fx, SH.fz); } // F: para a entrada (campo)
 const shW = (sx, fz) => ({ x: SH.x + SH.sx * sx + SH.fx * fz, z: SH.z + SH.sz * sx + SH.fz * fz });
 const shL = (x, z) => { const dx = x - SH.x, dz = z - SH.z; return { sx: dx * SH.sx + dz * SH.sz, fz: dx * SH.fx + dz * SH.fz }; };
@@ -572,7 +609,24 @@ function terrainBase(x, z) {
   const r = Math.hypot(x, z);
   let h = 1.6 * Math.sin(x * .031) * Math.cos(z * .027) + 0.8 * Math.sin(x * .071 + z * .053 + 1.3) + 0.35 * Math.sin(x * .17 - z * .13);
   h *= 0.3 + 0.7 * ss(6, 40, r);
-  return h + ss(170, 420, r) * (12 + 7 * Math.sin(Math.atan2(z, x) * 4 + 1));
+  h += 4.5 * ss(140, 260, r) * (Math.sin(x * .0123 + .7) * Math.cos(z * .0109 - .4) + .5 * Math.sin(x * .0061 - z * .0083 + 2.1)); // colinas largas entre as regiões
+  return h + ss(470, 640, r) * (12 + 7 * Math.sin(Math.atan2(z, x) * 4 + 1));
+}
+function elfM(x, z) { // montanhas em volta do vale élfico, com uma garganta aberta descendo até o lago
+  const dx = x - VIL.x, dz = z - VIL.z, d = Math.hypot(dx, dz); if (d > 185) return 0;
+  const fz = dx * VF.x + dz * VF.z, sx = dx * VS.x + dz * VS.z, gw = 20 + Math.max(fz, 0) * 0.22;
+  const open = ss(-10, 25, fz) * (1 - ss(gw, gw + 24, Math.abs(sx)));
+  const r1 = 1 - Math.abs(Math.sin(x * .031 + z * .017)), r2 = 1 - Math.abs(Math.sin(x * .019 - z * .037 + 1.7));
+  const n = .35 + .4 * r1 * r1 + .35 * r2 * r2 + .12 * Math.sin(x * .13) * Math.sin(z * .11);
+  const an = Math.atan2(dz, dx), R0 = 118 + 24 * Math.sin(an * 3 + .7) + 14 * Math.sin(an * 5 + 2.1); // borda irregular
+  return 64 * n * ss(36, 72, d) * (1 - ss(R0, R0 + 42, d)) * (1 - open) * (.75 + .25 * Math.sin(an * 7 + 1.3));
+}
+function elfH(x, z, h) {
+  const dx = x - VIL.x, dz = z - VIL.z, d = Math.hypot(dx, dz); if (d > 185) return h;
+  const fz = dx * VF.x + dz * VF.z, sx = dx * VS.x + dz * VS.z, gw = 20 + Math.max(fz, 0) * 0.22;
+  const g = ss(-5, 30, fz) * (1 - ss(gw * .7, gw + 6, Math.abs(sx))) * (1 - ss(130, 155, fz)); // fundo da garganta desce suave do vale até o lago
+  h += (VIL.h + (LAKE.b + 1.2 - VIL.h) * ss(25, 160, fz) - h) * g;
+  return h + elfM(x, z);
 }
 function riverD(x, z) {
   const vx = RIV.x1 - RIV.x0, vz = RIV.z1 - RIV.z0, t = Math.min(1, Math.max(0, ((x - RIV.x0) * vx + (z - RIV.z0) * vz) / (vx * vx + vz * vz)));
@@ -583,19 +637,46 @@ function terrainH(x, z) {
   h += (LAKE.b - 1.8 - h) * (1 - ss(LAKE.r - 3, LAKE.r + 4, Math.hypot(x - LAKE.x, z - LAKE.z)));
   const vx = x - VIL.x, vz = z - VIL.z, vd = Math.hypot(vx, vz);
   if (vd < 95) { h += (VIL.h - h) * (1 - ss(28, 36, vd)); h += 24 * ss(29, 41, vd) * ss(-0.45, 0.15, vd > 1e-3 ? (vx * VIL.bx + vz * VIL.bz) / vd : 0) * (1 - ss(70, 90, vd)); } // vale com paredão
+  h = elfH(x, z, h);
   h -= 1.1 * (1 - ss(1.6, 3.2, riverD(x, z)));
   h = shireH(x, z, h);
-  const w = 1 - ss(6, 36, castleRectDist(x, z));
+  const l = w2c(x, z), w = 1 - ss(3, 26, Math.max(cityPolyD(l.x, l.z), 0)); // a cidade inteira fica num platô
   return h + (CASTLE.y - h) * w;
 }
 LAKE.b = terrainBase(LAKE.x, LAKE.z); VIL.h = terrainBase(VIL.x, VIL.z) + 0.6;
 const pathCenter = z => 0.58 * z + 8 * Math.sin(z * .035);
-const ROAD = (() => { const cw = (lx, lz) => ({ x: CASTLE.x + lx * CRc + lz * CRs, z: CASTLE.z - lx * CRs + lz * CRc }); return { A: { x: pathCenter(-26), z: -26 }, C: cw(0, 66), B: cw(0, 58.5) }; })(); // estrada calçada até o portão
-function roadInfo(x, z) {
-  const seg = (P, Q, w0, w1) => { const vx = Q.x - P.x, vz = Q.z - P.z, t = Math.min(1, Math.max(0, ((x - P.x) * vx + (z - P.z) * vz) / (vx * vx + vz * vz))); return { d: Math.hypot(x - P.x - vx * t, z - P.z - vz * t), w: w0 + (w1 - w0) * t }; };
-  const a = seg(ROAD.A, ROAD.C, 2.0, 3.6), b = seg(ROAD.C, ROAD.B, 3.6, 4.4); return a.d - a.w < b.d - b.w ? a : b;
-}
-const pathDist = (x, z) => { const t = (z > 12 || z < -28) ? 1e9 : Math.abs(x - pathCenter(z)) * 0.86, r = roadInfo(x, z); return Math.min(t, Math.max(0, r.d - r.w + 1.7)); };
+/* estradas do reino: saem dos portões da Cidade Real e levam a cada vila (pedra perto da cidade, terra no campo) */
+const TRAIL_END = { x: pathCenter(-26), z: -26 };
+const NORTH_END = { x: -160, z: -421 }; // fim da Estrada do Norte: fronteira com os reinos que ainda vamos visitar
+const ROADS = [
+  { n: 'Estrada Real', stone: true, w: 3.4, pts: [TRAIL_END, gateOut('S', 12), gateOut('S', -4)] },
+  { n: 'Estrada do Leste', stone: true, w: 3.2, pts: [gateOut('E', -4), gateOut('E', 40)] },
+  { n: 'Estrada dos Elfos', w: 2.3, pts: [gateOut('E', 40), vW(-12, 150), vW(-12, 95), vW(-12, 55), vW(-11, 34)] },
+  { n: 'Estrada do Oeste', stone: true, w: 3.2, pts: [gateOut('W', -4), gateOut('W', 40)] },
+  { n: 'Estrada do Condado', w: 2.3, pts: [gateOut('W', 40), { x: -185, z: -40 }, { x: -138, z: 42 }, { x: -112, z: 112 }, shW(0, 96), shW(0, 80)] },
+  { n: 'Trilha do Condado', w: 1.9, pts: [{ x: -10, z: 30 }, { x: -58, z: 72 }, { x: -112, z: 112 }] },
+  { n: 'Estrada das Fadas', w: 2.2, pts: [{ x: 8, z: 22 }, { x: 30, z: 70 }, fvIn(135), fvIn(40), fvIn(31)] },
+  { n: 'Estrada do Norte', stone: true, w: 3.2, pts: [gateOut('N', -4), gateOut('N', 30)] },
+  { n: 'Estrada do Norte', w: 2.4, pts: [gateOut('N', 30), { x: -150, z: -370 }, NORTH_END] },
+];
+const ROAD = { A: TRAIL_END, C: c2w(0, 66), B: c2w(0, 58.5) }; // pedaço dentro da cidade, até o portão do castelo
+function roadD(x, z) { let d = 1e9; for (const r of ROADS) for (let i = 0; i < r.pts.length - 1; i++) { const a = r.pts[i], b = r.pts[i + 1]; d = Math.min(d, segD(x, z, a.x, a.z, b.x, b.z) - r.w); } return d; }
+const pathDist = (x, z) => { const t = (z > 12 || z < -28) ? 1e9 : Math.abs(x - pathCenter(z)) * 0.86; return Math.min(t, Math.max(0, roadD(x, z) + 1.7)); };
+const FIELDS = [[40, -150, 22, 13, 0.5], [-60, -345, 20, 13, 0.3], [-232, -62, 20, 14, 1.1], [-172, 122, 18, 12, 0.2]].map(([x, z, hx, hz, a]) => ({ x, z, hx, hz, a, c: Math.cos(a), s: Math.sin(a) })); // plantações de trigo
+function fieldAt(x, z, m = 3) { for (const f of FIELDS) { const dx = x - f.x, dz = z - f.z, u = dx * f.c + dz * f.s, v = -dx * f.s + dz * f.c; if (Math.abs(u) < f.hx + m && Math.abs(v) < f.hz + m) return 1; } return 0; }
+const FIELDS_GLSL = (() => { const f = v => v.toFixed(3); let g = 'vec2 fieldM(vec2 p){ vec2 r=vec2(0.), d; float u, v, m;\n';
+  for (const q of FIELDS) g += `  d=p-vec2(${f(q.x)},${f(q.z)}); u=d.x*${f(q.c)}+d.y*${f(q.s)}; v=-d.x*${f(q.s)}+d.y*${f(q.c)}; m=1.-smoothstep(-1.5,0.,max(abs(u)-${f(q.hx)},abs(v)-${f(q.hz)})); if(m>r.x) r=vec2(m,v);\n`;
+  return g + '  return r; }\n'; })();
+const ROADS_GLSL = (() => { // cada estrada só é testada dentro da sua caixa
+  const f = v => v.toFixed(2); let g = 'vec2 roadsM(vec2 p){ float st=0., dt=0., d;\n';
+  for (const r of ROADS) {
+    const xs = r.pts.map(q => q.x), zs = r.pts.map(q => q.z), m = r.w + 2;
+    g += `  if(p.x>${f(Math.min(...xs) - m)}&&p.x<${f(Math.max(...xs) + m)}&&p.y>${f(Math.min(...zs) - m)}&&p.y<${f(Math.max(...zs) + m)}){ d=1e9;`;
+    for (let i = 0; i < r.pts.length - 1; i++) g += ` d=min(d,sgD(p,vec2(${f(r.pts[i].x)},${f(r.pts[i].z)}),vec2(${f(r.pts[i + 1].x)},${f(r.pts[i + 1].z)})));`;
+    g += ` ${r.stone ? 'st' : 'dt'}=max(${r.stone ? 'st' : 'dt'},1.-smoothstep(${f(r.w - 0.5)},${f(r.w + 0.35)},d)); }\n`;
+  }
+  return g + '  return vec2(st,dt); }\n';
+})();
 
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const rnd = mulberry32(20260920);
@@ -631,30 +712,49 @@ const GLSL_COMMON = /* glsl */`
 #define RS1Z ${RIV.sz1.toFixed(2)}
 #define RS2X ${RIV.sx2.toFixed(2)}
 #define RS2Z ${RIV.sz2.toFixed(2)}
-#define RAX ${ROAD.A.x.toFixed(2)}
-#define RAZ ${ROAD.A.z.toFixed(2)}
-#define RCX ${ROAD.C.x.toFixed(2)}
-#define RCZ ${ROAD.C.z.toFixed(2)}
-#define RBX ${ROAD.B.x.toFixed(2)}
-#define RBZ ${ROAD.B.z.toFixed(2)}
+#define CICX ${CITY.cx.toFixed(2)}
+#define CICZ ${CITY.cz.toFixed(2)}
+#define CIHX ${CITY.hx.toFixed(2)}
+#define CIHZ ${CITY.hz.toFixed(2)}
+#define CICH ${CITY.ch.toFixed(2)}
+#define PKX ${PARK.x.toFixed(2)}
+#define PKZ ${PARK.z.toFixed(2)}
+#define PKHX ${PARK.hx.toFixed(2)}
+#define PKHZ ${PARK.hz.toFixed(2)}
+#define FVX ${FV.x.toFixed(2)}
+#define FVZ ${FV.z.toFixed(2)}
 float riverD(vec2 p){ vec2 a=vec2(RX0,RZ0), v=vec2(RX1,RZ1)-a; float t=clamp(dot(p-a,v)/dot(v,v),0.,1.);
   return min(min(length(p-a-v*t), length(p-a)-2.2), min(length(p-vec2(RS1X,RS1Z))-0.6, length(p-vec2(RS2X,RS2Z))-0.6)); }
 float segM(vec2 p, vec2 a, vec2 b, float w0, float w1){ vec2 v=b-a; float t=clamp(dot(p-a,v)/dot(v,v),0.,1.); return 1.-smoothstep(mix(w0,w1,t)-0.5,mix(w0,w1,t)+0.3,length(p-a-v*t)); }
-float roadMask(vec2 p){ return max(segM(p,vec2(RAX,RAZ),vec2(RCX,RCZ),2.0,3.6), segM(p,vec2(RCX,RCZ),vec2(RBX,RBZ),3.6,4.4)); }
 vec2 castleLocal(vec2 p){ vec2 d=p-vec2(CX,CZ); float c=cos(CR), s=sin(CR); return vec2(d.x*c-d.y*s, d.x*s+d.y*c); }
-${SHIRE_GLSL}float terrainH(vec2 p){
+float cityD(vec2 l){ vec2 q=abs(l-vec2(CICX,CICZ))-vec2(CIHX,CIHZ); return max(max(q.x,q.y),(q.x+q.y+CICH)*0.70710678); }
+float elfM(vec2 p){ vec2 q=p-vec2(VX,VZ); float d=length(q); if(d>185.) return 0.;
+  float fz=-dot(q,vec2(VBX,VBZ)), sx=dot(q,vec2(-VBZ,VBX)), gw=20.+max(fz,0.)*0.22;
+  float open=smoothstep(-10.,25.,fz)*(1.-smoothstep(gw,gw+24.,abs(sx)));
+  float r1=1.-abs(sin(p.x*.031+p.y*.017)), r2=1.-abs(sin(p.x*.019-p.y*.037+1.7));
+  float n=.35+.4*r1*r1+.35*r2*r2+.12*sin(p.x*.13)*sin(p.y*.11);
+  float an=atan(q.y,q.x), R0=118.+24.*sin(an*3.+.7)+14.*sin(an*5.+2.1);
+  return 64.*n*smoothstep(36.,72.,d)*(1.-smoothstep(R0,R0+42.,d))*(1.-open)*(.75+.25*sin(an*7.+1.3)); }
+float elfH(vec2 p, float h){ vec2 q=p-vec2(VX,VZ); float d=length(q); if(d>185.) return h;
+  float fz=-dot(q,vec2(VBX,VBZ)), sx=dot(q,vec2(-VBZ,VBX)), gw=20.+max(fz,0.)*0.22;
+  float g=smoothstep(-5.,30.,fz)*(1.-smoothstep(gw*.7,gw+6.,abs(sx)))*(1.-smoothstep(130.,155.,fz));
+  h=mix(h,VH+(LB+1.2-VH)*smoothstep(25.,160.,fz),g);
+  return h+elfM(p); }
+${SHIRE_GLSL}${ROADS_GLSL}${FIELDS_GLSL}float roadMask(vec2 p){ return roadsM(p).x; }
+float terrainH(vec2 p){
   float r=length(p);
   float h=1.6*sin(p.x*.031)*cos(p.y*.027)+0.8*sin(p.x*.071+p.y*.053+1.3)+0.35*sin(p.x*.17-p.y*.13);
   h*=0.3+0.7*smoothstep(6.,40.,r);
-  h+=smoothstep(170.,420.,r)*(12.+7.*sin(atan(p.y,p.x)*4.+1.));
+  h+=4.5*smoothstep(140.,260.,r)*(sin(p.x*.0123+.7)*cos(p.y*.0109-.4)+.5*sin(p.x*.0061-p.y*.0083+2.1));
+  h+=smoothstep(470.,640.,r)*(12.+7.*sin(atan(p.y,p.x)*4.+1.));
   h=mix(h,LB-1.8,1.-smoothstep(LR-3.,LR+4.,length(p-vec2(LX,LZ))));
   vec2 vq=p-vec2(VX,VZ); float vd=length(vq);
   h=mix(h,VH,1.-smoothstep(28.,36.,vd));
   h+=24.*smoothstep(29.,41.,vd)*smoothstep(-0.45,0.15,dot(vq,vec2(VBX,VBZ))/max(vd,1e-3))*(1.-smoothstep(70.,90.,vd));
+  h=elfH(p,h);
   h-=1.1*(1.-smoothstep(1.6,3.2,riverD(p)));
   h=shireH(p,h);
-  vec2 cq=max(abs(castleLocal(p)-vec2(0.,CRZ))-vec2(CRHX,CRHZ),0.);
-  return mix(h,CY,1.-smoothstep(6.,36.,length(cq)));
+  return mix(h,CY,1.-smoothstep(3.,26.,max(cityD(castleLocal(p)),0.)));
 }
 float pathMask(vec2 p){
   float pc=0.58*p.y+8.*sin(p.y*.035);
@@ -662,12 +762,14 @@ float pathMask(vec2 p){
   float m=1.-smoothstep(0.75,1.7,d);
   m*=1.-smoothstep(4.,12.,p.y);
   m*=smoothstep(-31.,-26.,p.y);
-  return max(m,shireLane(p));
+  return max(max(m,shireLane(p)),roadsM(p).y);
 }
-float castleMask(vec2 p){ vec2 q=abs(castleLocal(p)-vec2(0.,CRZ))-vec2(CRHX,CRHZ); return 1.-smoothstep(0.,1.2,max(q.x,q.y)); }
+float parkMask(vec2 l){ vec2 q=abs(l-vec2(PKX,PKZ))-vec2(PKHX,PKHZ); return 1.-smoothstep(-1.,0.,max(q.x,q.y)); }
+float castleMask(vec2 p){ vec2 l=castleLocal(p); return (1.-smoothstep(-0.8,0.6,cityD(l)))*(1.-parkMask(l)); } // calçamento da cidade inteira (menos o jardim)
+float fairyK(vec2 p){ return 1.-smoothstep(100.,128.,length(p-vec2(FVX,FVZ))); }
 float cleared(vec2 p){ vec2 d=(p-vec2(BX,BZ))*vec2(0.85,1.1); vec2 vq=p-vec2(VX,VZ); float vd=length(vq);
   float cliff=(smoothstep(29.,30.5,vd)-smoothstep(40.,42.,vd))*smoothstep(-0.45,0.15,dot(vq,vec2(VBX,VBZ))/max(vd,1e-3));
-  return max(max(max(1.-smoothstep(1.3,1.8,length(d)), max(castleMask(p),roadMask(p))), max(cliff,1.-smoothstep(1.4,2.8,riverD(p)))), max(1.-smoothstep(LR+1.,LR+2.5,length(p-vec2(LX,LZ))),shireWet(p))); }
+  return max(max(max(max(1.-smoothstep(1.3,1.8,length(d)),smoothstep(9.,16.,elfM(p))), max(castleMask(p),roadMask(p))), max(cliff,1.-smoothstep(1.4,2.8,riverD(p)))), max(1.-smoothstep(LR+1.,LR+2.5,length(p-vec2(LX,LZ))),shireWet(p))); }
 float hash21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
   float a=hash21(i),b=hash21(i+vec2(1.,0.)),c=hash21(i+vec2(0.,1.)),d=hash21(i+vec2(1.,1.));
@@ -912,14 +1014,14 @@ function mountainRing(radius, hMin, hMax, topHex, baseHex, seed) {
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide }));
   return m;
 }
-const mtns = [mountainRing(780, 60, 170, 0x1d2744, 0x141c33, 3), mountainRing(600, 30, 95, 0x131a2c, 0x121a2f, 11)];
+const mtns = [mountainRing(905, 70, 200, 0x1d2744, 0x141c33, 3), mountainRing(745, 38, 118, 0x131a2c, 0x121a2f, 11)];
 mtns.forEach(m => scene.add(m));
 
 /* ------------------------------------------------------------------ *
  * Terreno
  * ------------------------------------------------------------------ */
 {
-  const g = new THREE.PlaneGeometry(900, 900, LOW ? 220 : 300, LOW ? 220 : 300);
+  const g = new THREE.PlaneGeometry(1180, 1180, LOW ? 280 : 390, LOW ? 280 : 390);
   g.rotateX(-Math.PI / 2);
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, terrainH(p.getX(i), p.getZ(i)) - shSink(p.getX(i), p.getZ(i)));
@@ -939,13 +1041,18 @@ mtns.forEach(m => scene.add(m));
         float pm=pathMask(p);
         vec3 dirt=vec3(0.2,0.17,0.13)*(0.75+0.3*n2+0.25*n3);
         vec3 alb=mix(grass,dirt,smoothstep(0.15,0.75,pm));
-        alb=mix(alb,vec3(0.075,0.1,0.085),smoothstep(200.,420.,length(p)));
+        vec2 fd=fieldM(p); // plantações: fileiras de trigo e terra
+        if(fd.x>0.001){ float row=0.5+0.5*sin(fd.y*2.4); alb=mix(alb,mix(vec3(0.15,0.11,0.075)*(0.8+0.3*n2),vec3(0.34,0.27,0.11)*(0.8+0.3*n3),smoothstep(0.25,0.75,row)),fd.x*(1.-smoothstep(0.15,0.75,pm))); }
+        float fk=fairyK(p); // chão da Floresta Encantada: musgo azulado
+        alb=mix(alb,vec3(0.07,0.1,0.13)*(0.8+0.4*n2)+vec3(0.05,0.02,0.07)*n3,fk*(1.-smoothstep(0.15,0.75,pm)));
+        alb=mix(alb,vec3(0.075,0.1,0.085),smoothstep(420.,600.,length(p)));
         float cm=max(castleMask(p),roadMask(p));
         if(cm>0.001){ vec2 l=castleLocal(p)*0.55; l.x+=floor(l.y)*0.5; vec2 g=abs(fract(l)-0.5);
           float ln=smoothstep(0.42,0.48,max(g.x,g.y));
           vec3 st=vec3(0.25,0.245,0.26)*(0.75+0.35*vnoise(floor(l)*3.1)+0.15*n3)*(1.-0.5*ln); alb=mix(alb,st,cm); }
         vec3 N=normalize(vN);
-        alb=mix(alb,vec3(0.21,0.205,0.22)*(0.75+0.35*n2+0.15*n3),smoothstep(0.8,0.55,N.y)); // paredões de pedra
+        alb=mix(alb,vec3(0.21,0.205,0.22)*(0.75+0.35*n2+0.15*n3),max(smoothstep(0.8,0.55,N.y),smoothstep(10.,22.,elfM(p))*0.85)); // paredões e montanhas de pedra
+        alb=mix(alb,vec3(0.78,0.82,0.92)*(0.9+0.1*n3),smoothstep(36.,46.,vW.y+n1*9.)*smoothstep(0.35,0.6,N.y)); // neve nos picos
         alb=mix(alb,vec3(0.09,0.085,0.08),max(1.-smoothstep(1.4,2.8,riverD(p)),shireWet(p)*0.9));
         vec3 light=vec3(0.5,0.58,0.85)*0.85+vec3(0.72,0.8,1.0)*max(dot(N,uMoon),0.)*0.9;
         vec3 col=alb*light*1.2*mix(1.,3.,uDay);
@@ -998,12 +1105,13 @@ mtns.forEach(m => scene.add(m));
     vertexShader: GLSL_COMMON + /* glsl */`
       uniform float uTime, uSize, uFogDen; uniform vec3 uCam;
       attribute vec2 aOffset; attribute vec4 aParams;
-      varying float vT, vVar, vFog, vShade; varying vec3 vW;
+      varying float vT, vVar, vFog, vShade, vFk, vFd; varying vec3 vW;
       void main(){
         vec2 p=mod(aOffset-uCam.xz+uSize*.5,uSize)-uSize*.5+uCam.xz;
         float dist=length(p-uCam.xz);
         float fade=1.-smoothstep(uSize*.3,uSize*.49,dist);
-        float h=aParams.y*fade*(1.-pathMask(p)*0.95)*(1.-cleared(p))*(0.75+0.5*vnoise(p*0.07));
+        vec2 fd=fieldM(p); // nas plantações a grama vira trigo alto, em fileiras
+        float h=aParams.y*fade*(1.-pathMask(p)*0.95)*(1.-cleared(p))*(0.75+0.5*vnoise(p*0.07))*(1.+fd.x*(1.1*smoothstep(0.2,0.6,0.5+0.5*sin(fd.y*2.4))-0.2));
         float t=position.y;
         float c=cos(aParams.x), s=sin(aParams.x);
         float w=position.x*aParams.z;
@@ -1015,7 +1123,7 @@ mtns.forEach(m => scene.add(m));
         vec3 wp=vec3(p.x+w*c, terrainH(p), p.y+w*s);
         wp.xz+=(wdir*bend+vec2(-s,c)*0.25)*tb*h*0.85;
         wp.y+=t*h*(1.-0.22*bend*bend*t);
-        vW=wp; vT=t; vVar=aParams.w;
+        vW=wp; vT=t; vVar=aParams.w; vFk=fairyK(p); vFd=fd.x;
         vShade=0.78+0.22*sin(aParams.x*2.+1.3)+gust*0.18*t;
         vec4 mv=viewMatrix*vec4(wp,1.);
         vFog=1.-exp(-uFogDen*uFogDen*dot(mv.xyz,mv.xyz));
@@ -1023,10 +1131,12 @@ mtns.forEach(m => scene.add(m));
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uFog, uLantern; uniform float uFlicker, uDay;
-      varying float vT, vVar, vFog, vShade; varying vec3 vW;
+      varying float vT, vVar, vFog, vShade, vFk, vFd; varying vec3 vW;
       void main(){
         vec3 base=vec3(0.06,0.1,0.06);
         vec3 tip=mix(vec3(0.19,0.26,0.12),vec3(0.33,0.29,0.13),vVar);
+        tip=mix(tip,mix(vec3(0.16,0.3,0.32),vec3(0.3,0.2,0.36),vVar),vFk*0.75);
+        tip=mix(tip,mix(vec3(0.44,0.35,0.14),vec3(0.5,0.42,0.18),vVar),vFd*0.9);
         vec3 col=mix(base,tip,smoothstep(0.,1.,vT))*vShade;
         col+=vec3(0.05,0.07,0.12)*vT*vT;
         float ld=distance(vW,uLantern);
@@ -1103,7 +1213,7 @@ function makeDaisyTexture() {
     vertexShader: GLSL_COMMON + /* glsl */`
       uniform float uTime, uSize, uFogDen; uniform vec3 uCam;
       attribute vec2 aOffset; attribute vec4 aParams; attribute float aPart; attribute float aAlive;
-      varying vec2 vUv; varying float vPart, vFog, vVar; varying vec3 vW;
+      varying vec2 vUv; varying float vPart, vFog, vVar, vD, vEdge; varying vec3 vW;
       void main(){
         vec2 p=mod(aOffset-uCam.xz+uSize*.5,uSize)-uSize*.5+uCam.xz;
         float dist=length(p-uCam.xz);
@@ -1111,11 +1221,11 @@ function makeDaisyTexture() {
         fade*=(1.-pathMask(p))*(1.-cleared(p))*aAlive;
         float sh=aParams.y*fade, hs=aParams.z*fade;
         float c=cos(aParams.x), s=sin(aParams.x);
-        vec3 l;
+        vec3 l, pn=vec3(0.,1.,0.);
         if(aPart>0.5){
           vec2 q=vec2(position.x*c-position.z*s, position.x*s+position.z*c)*hs;
           vec2 tilt=vec2(cos(aParams.w*6.28),sin(aParams.w*6.28))*0.35;
-          l=vec3(q.x, sh+dot(q,tilt), q.y);
+          l=vec3(q.x, sh+dot(q,tilt), q.y); pn=normalize(vec3(-tilt.x,1.,-tilt.y));
         } else {
           l=vec3(position.x*0.012*c, position.y*sh, position.x*0.012*s+position.z*0.012);
         }
@@ -1130,11 +1240,13 @@ function makeDaisyTexture() {
         vW=wp; vUv=uv; vPart=aPart; vVar=aParams.w;
         vec4 mv=viewMatrix*vec4(wp,1.);
         vFog=1.-exp(-uFogDen*uFogDen*dot(mv.xyz,mv.xyz));
+        vD=length(mv.xyz);
+        vEdge=abs(dot(pn,normalize(cameraPosition-wp))); // pétalas vistas de lado viram um risquinho
         gl_Position=projectionMatrix*mv;
       }`,
     fragmentShader: /* glsl */`
       uniform sampler2D uTex; uniform vec3 uFog, uLantern; uniform float uFlicker, uDay;
-      varying vec2 vUv; varying float vPart, vFog, vVar; varying vec3 vW;
+      varying vec2 vUv; varying float vPart, vFog, vVar, vD, vEdge; varying vec3 vW;
       void main(){
         vec3 col;
         float ld=distance(vW,uLantern);
@@ -1144,6 +1256,7 @@ function makeDaisyTexture() {
           if(tx.a<0.5) discard;
           col=tx.rgb*vec3(0.74,0.8,0.95)*(0.9+0.15*vVar);
           col+=tx.rgb*warm*0.35;
+          col*=mix(1.,0.72,smoothstep(8.,26.,vD))*mix(0.3,1.,smoothstep(0.05,0.28,vEdge)); // de longe as pétalas ficam do tamanho de um pixel: mais suaves, para não cintilarem quando você anda
         } else {
           col=vec3(0.07,0.13,0.07)+vec3(0.07,0.13,0.07)*warm;
         }
@@ -1196,17 +1309,20 @@ const TREES = []; // copas, para as folhas de outono caírem delas
 { // árvores
   const spots = [];
   let guard = 0;
-  while (spots.length < (LOW ? 34 : 46) && guard++ < 4000) {
+  const GROVES = [[-320, -60], [-30, 170], [200, 60], [70, -330], [250, 180], [-300, 150], [-250, -260]]; // bosques pelo caminho
+  while (spots.length < (LOW ? 110 : 175) && guard++ < 12000) {
     let x, z;
     if (spots.length < 12) { // pequeno bosque à direita
       x = 42 + (rnd() - .5) * 40; z = -38 + (rnd() - .5) * 36;
-    } else {
+    } else if (spots.length < (LOW ? 34 : 46)) { // em volta do campo, como antes
       const a = rnd() * Math.PI * 2, r = 30 + Math.sqrt(rnd()) * 150;
       x = Math.cos(a) * r; z = Math.sin(a) * r;
-    }
+    } else if (rnd() < 0.55) { const [gx, gz] = GROVES[Math.floor(rnd() * GROVES.length)], a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 34; x = gx + Math.cos(a) * r; z = gz + Math.sin(a) * r; }
+    else { const a = rnd() * Math.PI * 2, r = 60 + Math.sqrt(rnd()) * 390; x = Math.cos(a) * r; z = Math.sin(a) * r; }
+    if (Math.hypot(x, z) > BOUND - 8 || fieldAt(x, z) > 0 || Math.hypot(x - VIL.x, z - VIL.z) < 190 || Math.hypot(x - FV.x, z - FV.z) < 128) continue;
     if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 18 || Math.hypot(x - TELESCOPE.x, z - TELESCOPE.z) < 16) continue;
     if (pathDist(x, z) < 5 || inShire(x, z, 6)) continue;
-    if (Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 14 || castleRectDist(x, z) < 16 || Math.hypot(x - VIL.x, z - VIL.z) < 50 || Math.hypot(x - DGE.x, z - DGE.z) < 14 || Math.hypot(x - FV.x, z - FV.z) < 38 || Math.hypot(x - DRAGON.x, z - DRAGON.z) < 16 || nearSpecial(x, z, 7)) continue;
+    if (Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 14 || cityD(x, z) < 14 || Math.hypot(x - VIL.x, z - VIL.z) < 50 || Math.hypot(x - DGE.x, z - DGE.z) < 14 || Math.hypot(x - FV.x, z - FV.z) < 38 || Math.hypot(x - DRAGON.x, z - DRAGON.z) < 16 || nearSpecial(x, z, 7)) continue;
     if (spots.some(s => Math.hypot(s.x - x, s.z - z) < 6)) continue;
     spots.push({ x, z, s: 0.8 + rnd() * 0.7 });
   }
@@ -1239,13 +1355,13 @@ const TREES = []; // copas, para as folhas de outono caírem delas
 }
 
 { // pedras
-  const n = LOW ? 36 : 60;
+  const n = LOW ? 70 : 110;
   const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: 0x6d7280, flatShading: true }), n);
   let i = 0, guard = 0;
   while (i < n && guard++ < 3000) {
-    const a = rnd() * Math.PI * 2, r = 8 + Math.sqrt(rnd()) * 165;
+    const a = rnd() * Math.PI * 2, r = 8 + Math.sqrt(rnd()) * (i < 50 ? 165 : 440);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (inShire(x, z, 4) || pathDist(x, z) < 2.5 || Math.hypot(x - TELESCOPE.x, z - TELESCOPE.z) < 5 || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 5 || Math.hypot(x - BLANKET.x, z - BLANKET.z) < 4 || Math.hypot(x - LECTERN.x, z - LECTERN.z) < 4 || castleRectDist(x, z) < 4 || Math.hypot(x - VIL.x, z - VIL.z) < 45 || Math.hypot(x - DGE.x, z - DGE.z) < 10 || Math.hypot(x - FV.x, z - FV.z) < 34 || Math.hypot(x - DRAGON.x, z - DRAGON.z) < 10 || nearSpecial(x, z, 3)) continue;
+    if (inShire(x, z, 4) || pathDist(x, z) < 2.5 || Math.hypot(x - TELESCOPE.x, z - TELESCOPE.z) < 5 || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 5 || Math.hypot(x - BLANKET.x, z - BLANKET.z) < 4 || Math.hypot(x - LECTERN.x, z - LECTERN.z) < 4 || cityD(x, z) < 6 || Math.hypot(x - VIL.x, z - VIL.z) < 45 || Math.hypot(x - FV.x, z - FV.z) < 120 || Math.hypot(x - DGE.x, z - DGE.z) < 10 || Math.hypot(x - FV.x, z - FV.z) < 34 || Math.hypot(x - DRAGON.x, z - DRAGON.z) < 10 || nearSpecial(x, z, 3)) continue;
     const s = 0.25 + Math.pow(rnd(), 2.5) * 1.3;
     dummy.position.set(x, terrainH(x, z) - s * 0.35, z);
     dummy.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
@@ -1733,14 +1849,14 @@ const castleOuter = new THREE.Group(); castle.add(castleOuter); // partes parada
     for (let k = 0; k < 3; k++) { const a = rnd() * Math.PI * 2, w = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.2), M.warm); w.position.set(x + Math.sin(a) * (r + 0.05), h * (0.35 + k * 0.22), z + Math.cos(a) * (r + 0.05)); w.rotation.y = a; O.add(w); }
     circC(x, z, r + 0.2);
   };
-  for (const sx of [-1, 1]) { tower(sx * X, Z0, 4.6, 20); tower(sx * X, Z1, 4.6, 20); tower(sx * X, 15, 3.8, 17); tower(sx * 20, Z0, 3.6, 16); tower(sx * 24, Z1, 3.6, 17); tower(sx * 6.4, Z1 + 0.6, 3.2, 17.5); }
+  for (const sx of [-1, 1]) { tower(sx * X, Z0, 5.2, 34); tower(sx * X, Z1, 4.8, 27); tower(sx * X, 15, 4.0, 24); tower(sx * 20, Z0, 4.0, 28); tower(sx * 24, Z1, 3.6, 20); tower(sx * 6.4, Z1 + 0.6, 3.2, 17.5); } // castelo maior: torres bem altas, vistas de longe
   // casa do portão com a grade levantada
   box(O, 12.8, 6, T + 1.6, 0, 10.5, Z1 + 0.2, M.stone); box(O, 13.4, 0.6, T + 2.2, 0, 13.6, Z1 + 0.2, M.stoneDark);
   for (let x = -5.6; x <= 5.7; x += 2.8) box(O, 1.3, 1.3, 1.2, x, 14.5, Z1 + 2.2, M.stone);
   box(O, 7.2, 0.25, 0.25, 0, 7.55, Z1 + 1.9, M.iron);
   for (let x = -2.9; x <= 2.95; x += 0.58) { box(O, 0.1, 0.9, 0.1, x, 7.1, Z1 + 1.9, M.iron); const sp = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 6), M.iron); sp.rotation.x = Math.PI; sp.position.set(x, 6.55, Z1 + 1.9); O.add(sp); }
   const flagMat = new THREE.MeshLambertMaterial({ color: 0x8a1f2a, side: THREE.DoubleSide });
-  for (const [x, y, z] of [[0, 22, -7], [-X, 31.9, Z0], [X, 31.9, Z0], [-X, 31.9, Z1], [X, 31.9, Z1], [-6.4, 26.2, Z1 + 0.6], [6.4, 26.2, Z1 + 0.6]]) {
+  for (const [x, y, z] of [[-X, 47.4, Z0], [X, 47.4, Z0], [-X, 39.6, Z1], [X, 39.6, Z1], [-20, 38.4, Z0], [20, 38.4, Z0], [-6.4, 26.2, Z1 + 0.6], [6.4, 26.2, Z1 + 0.6]]) {
     cyl(O, 0.08, 0.08, 4, x, y + 2, z, M.stoneDark, 5);
     const fg = new THREE.PlaneGeometry(2.6, 1.5, 8, 1); fg.translate(1.3, 0, 0);
     const f = new THREE.Mesh(fg, flagMat); f.position.set(x, y + 3.2, z); f.userData.keep = true; O.add(f);
@@ -1756,6 +1872,18 @@ const castleOuter = new THREE.Group(); castle.add(castleOuter); // partes parada
   const wr = new THREE.Mesh(new THREE.ConeGeometry(1.7, 0.9, 4), M.roof); wr.rotation.y = Math.PI / 4; wr.position.set(-12, 2.6, 12); O.add(wr);
   circC(-12, 12, 1.4);
   for (const [x, z] of [[14, 17], [15.2, 16.2], [14.4, 15.1]]) { cyl(O, 0.45, 0.4, 1, x, 0.5, z, M.wood); circC(x, z, 0.5); }
+}
+{ // Torre Real: a torre mais alta do reino, saindo do telhado do salão
+  const O = castleOuter, z = -12;
+  cyl(O, 4.6, 5.0, 48, 0, 38, z, M.stone, 16); cyl(O, 5.3, 4.8, 1.6, 0, 62.4, z, M.stoneDark, 16);
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; box(O, 1.2, 1.4, 1.2, Math.sin(a) * 5.0, 63.8, z + Math.cos(a) * 5.0, M.stone); }
+  const c = new THREE.Mesh(new THREE.ConeGeometry(6.2, 16, 16), M.roof); c.position.set(0, 72.2, z); O.add(c);
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + 0.4, w = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8), M.warm); w.position.set(Math.sin(a) * 4.85, 26 + (k % 4) * 8.5, z + Math.cos(a) * 4.85); w.rotation.y = a; O.add(w); }
+  for (const sx of [-1, 1]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, 12, 10), M.stone); t.position.set(sx * 4.6, 54, z + 2.4); O.add(t); const cc = new THREE.Mesh(new THREE.ConeGeometry(2.0, 5.2, 10), M.roof); cc.position.set(sx * 4.6, 62.6, z + 2.4); O.add(cc); }
+  cyl(O, 0.1, 0.1, 5, 0, 82.5, z, M.stoneDark, 5);
+  const fg = new THREE.PlaneGeometry(3.6, 2.1, 8, 1); fg.translate(1.8, 0, 0);
+  const f = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ color: 0x8a1f2a, side: THREE.DoubleSide })); f.position.set(0, 84.1, z); f.userData.keep = true; O.add(f);
+  flags.push({ mesh: f, base: fg.attributes.position.array.slice(), phase: 1.3 });
 }
 function makeDoorPair(z, hx, w, h, radius) {
   const d = { k: 0, leaves: [], at: castleToWorld(0, z), r: radius, opened: false };
@@ -2362,7 +2490,7 @@ function updateFly(dt) {
     climb = clamp((Math.max(terrainH(fly.pos.x, fly.pos.z), terrainH(q.x, q.z)) + 50 - fly.pos.y) / 20, -0.7, 0.7);
     if (Math.hypot(dx, dz) < 90 && !fly.landing) { fly.landing = true; landDragon(q); }
   }
-  if (Math.hypot(fly.pos.x, fly.pos.z) > 300) turn = clamp(-wrapAngle(Math.atan2(fly.pos.x, fly.pos.z) - fly.yaw) * 2, -1, 1);
+  if (Math.hypot(fly.pos.x, fly.pos.z) > BOUND + 30) turn = clamp(-wrapAngle(Math.atan2(fly.pos.x, fly.pos.z) - fly.yaw) * 2, -1, 1);
   fly.yaw -= turn * 0.85 * dt;
   fly.bank += (-turn * 0.6 - fly.bank) * Math.min(1, dt * 2.5);
   let pt = climb * 0.45;
@@ -2550,7 +2678,7 @@ const uAurora = { value: 0.5 };
 }
 
 function updateWorld2(dt) {
-  updateWorld3(dt); updateRideWorld(dt); updateCastle(dt); updateCats(dt); updateDragon(dt); updateLanterns(dt); updateMarket(dt); updateCourt(dt); updateDungeon(dt); updateDG(dt); updateDGE(dt); updateLakeExtras(dt); updateVillage(dt); updateFairies(dt); updateShire(dt); updateAutumn(dt); updateFX(dt);
+  updateWorld3(dt); updateRideWorld(dt); updateCastle(dt); updateCats(dt); updateDragon(dt); updateLanterns(dt); updateMarket(dt); updateCourt(dt); updateDungeon(dt); updateDG(dt); updateDGE(dt); updateLakeExtras(dt); updateCity(dt); updateVillage(dt); updateFairies(dt); updateShire(dt); updateAutumn(dt); updateFX(dt);
   uAurora.value += ((mode === 'fly' ? 1 : 0.5) * (1 - uDay.value) - uAurora.value) * Math.min(1, dt);
 }
 
@@ -2858,7 +2986,7 @@ document.getElementById('wishSend').addEventListener('click', () => {
 }
 function nextRing() {
   const a0 = Math.atan2(fly.pos.z + 40, fly.pos.x);
-  if (!W3.rings.length) { const a = a0 + 0.5; return V3(Math.cos(a) * 150, 75 + 25 * Math.sin(uTime.value * 0.07), -40 + Math.sin(a) * 150); }
+  if (!W3.rings.length) { const a = a0 + 0.5; return V3(Math.cos(a) * 230, 85 + 25 * Math.sin(uTime.value * 0.07), -40 + Math.sin(a) * 230); }
   let best = W3.rings[0], bd = 9;
   for (const r of W3.rings) { const d = (((r.a - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2); if (d > 0.12 && d < bd) { bd = d; best = r; } }
   return best.p;
@@ -2995,7 +3123,7 @@ function rideHorse() { // abre o menu de destinos
   openTravel('horse');
 }
 function updateRide(dt) {
-  const sp = keys['shift'] ? 13 : 8;
+  const sp = (keys['shift'] ? 13 : 8) * (ride.len > 160 ? 1.6 : 1); // nas viagens longas o cavalinho galopa
   ride.s = Math.min(ride.len, ride.s + sp * dt);
   let i = 1; while (i < ride.cum.length - 1 && ride.cum[i] < ride.s) i++;
   const a = ride.pts[i - 1], b = ride.pts[i], k = (ride.s - ride.cum[i - 1]) / ((ride.cum[i] - ride.cum[i - 1]) || 1);
@@ -3081,7 +3209,12 @@ const boardTex = (txt, bg, w = 256, h = 80, fs = 34) => canvasTex(w, h, g => {
   g.font = `bold ${fs}px Georgia, serif`; const tw = g.measureText(txt).width; if (tw > w - 34) g.font = `bold ${fs * (w - 34) / tw | 0}px Georgia, serif`;
   g.fillStyle = '#fff3d6'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, w / 2, h / 2 + 2);
 });
-const signBox = (par, tex, w, h, x, y, z) => { const sm = new THREE.MeshLambertMaterial({ map: tex }), wd = M.woodDark; return mmesh(par, new THREE.BoxGeometry(w, h, 0.05), [wd, wd, wd, wd, sm, sm], x, y, z); };
+const signBox = (par, tex, w, h, x, y, z) => { // placa: tábua de madeira com o desenho nas duas faces (poucas malhas, juntáveis)
+  const g = new THREE.Group(), sm = new THREE.MeshLambertMaterial({ map: tex }), pg = new THREE.PlaneGeometry(w, h); g.position.set(x, y, z); par.add(g);
+  g.add(new THREE.Mesh(gBox(w + 0.04, h + 0.04, 0.05), M.woodDark));
+  for (const s of [1, -1]) { const p = new THREE.Mesh(pg, sm); p.position.z = s * 0.027; if (s < 0) p.rotation.y = Math.PI; g.add(p); }
+  return g;
+};
 const noteTex = canvasTex(64, 64, g => { g.fillStyle = '#ffe6a0'; g.font = 'bold 50px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♪', 32, 34); });
 
 /* juntar malhas: cores lisas viram cor por vértice (bem menos draw calls) */
@@ -3112,17 +3245,19 @@ function mergeTreeVC(root) { // junta as malhas de cada grupo (sem mexer nos sub
     }
   }
 }
+const VC_BASIC = new THREE.MeshBasicMaterial({ vertexColors: true }); // janelas acesas e vitrais: cor por vértice, sem luz
+const vcBasic = m => m && !Array.isArray(m) && m.isMeshBasicMaterial && !m.map && !m.transparent && !m.vertexColors && m.side === THREE.FrontSide && m.fog && m.blending === THREE.NormalBlending && m.depthWrite && m.depthTest;
 function bakeStatic(root) { // junta tudo o que fica parado: cor lisa por vértice, o resto por material
   root.updateMatrixWorld(true);
   const inv = root.matrixWorld.clone().invert(), groups = new Map(), drop = [];
   root.traverse(o => {
     if (!o.isMesh || o.isInstancedMesh || o.userData.keep || (o.layers.mask & 2) || Array.isArray(o.material) || !o.geometry.attributes.normal) return;
-    const vc = vcable(o.material), key = vc ? (o.material.flatShading ? VC_FLAT : VC_MAT) : o.material, mtx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    let geo; if (vc) geo = vcGeo(o, mtx); else { geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(mtx); }
+    const vc = vcable(o.material), vb = !vc && vcBasic(o.material), key = vc ? (o.material.flatShading ? VC_FLAT : VC_MAT) : vb ? VC_BASIC : o.material, mtx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    let geo; if (vc || vb) geo = vcGeo(o, mtx); else { geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(mtx); }
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(geo); drop.push(o);
   });
   for (const o of drop) o.parent.remove(o);
-  for (const [m, list] of groups) root.add(new THREE.Mesh(concatGeo(list, m === VC_MAT || m === VC_FLAT ? ['position', 'normal', 'color'] : ['position', 'normal', 'uv']), m));
+  for (const [m, list] of groups) root.add(new THREE.Mesh(concatGeo(list, m === VC_MAT || m === VC_FLAT || m === VC_BASIC ? ['position', 'normal', 'color'] : ['position', 'normal', 'uv']), m));
 }
 
 /* figurantes: um bonequinho com braços, pernas e cabeça articulados */
@@ -3588,7 +3723,7 @@ const leafCol = () => LEAF_COLS[Math.floor(Math.random() * LEAF_COLS.length)];
 
 { // montinhos de folhas embaixo das árvores (e alguns pela trilha e pela feira)
   const piles = [];
-  for (const t of TREES) for (let k = 0; k < 2; k++) { const a = Math.random() * Math.PI * 2, d = t.r * 0.5 + 0.6 + Math.random() * 0.8; piles.push({ x: t.x + Math.cos(a) * d, z: t.z + Math.sin(a) * d, R: 0.8 + Math.random() * 0.5, H: 0.42 + Math.random() * 0.16, n: LOW ? 14 : 22, spread: t.r + 1.2 }); }
+  for (const t of TREES) if (Math.hypot(t.x, t.z) < 170) for (let k = 0; k < 2; k++) { const a = Math.random() * Math.PI * 2, d = t.r * 0.5 + 0.6 + Math.random() * 0.8; piles.push({ x: t.x + Math.cos(a) * d, z: t.z + Math.sin(a) * d, R: 0.8 + Math.random() * 0.5, H: 0.42 + Math.random() * 0.16, n: LOW ? 14 : 22, spread: t.r + 1.2 }); }
   for (const z of [-8, -20, -32, -42]) piles.push({ x: pathCenter(z) + 3.6, z, R: 0.9, H: 0.45, n: 20, spread: 1.6 });
   for (const [lx, lz] of [[-8, 47], [7.2, 46], [-10, 27.5]]) { const q = castleToWorld(lx, lz); piles.push({ x: q.x, z: q.z, R: 0.95, H: 0.45, n: 22, spread: 1.6 }); }
   const mounds = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffffff }), piles.length);
@@ -4303,13 +4438,341 @@ function updateLakeExtras(dt) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Cidade Real: muralha com torres e quatro portões, ruas calçadas,
+ * casas e lojas, praça com a estátua da rainha, catedral, jardim,
+ * guardas, lojistas e moradores passeando
+ * ------------------------------------------------------------------ */
+const city = new THREE.Group(); city.position.set(CASTLE.x, CASTLE.y, CASTLE.z); city.rotation.y = CASTLE.rot; scene.add(city);
+const cityA = new THREE.Group(); scene.add(cityA); // guardas, lojistas e moradores (coordenadas do mundo)
+const CTY = { walkers: [], guards: [], keepers: [], foot: [], trees: [], chunks: new Map(), sprayT: 0 };
+const cr = mulberry32(777), pickC = l => l[Math.floor(cr() * l.length)];
+const cityChunk = (lx, lz) => { const k = Math.floor((lx + 130) / 66) + ',' + Math.floor((lz + 115) / 66); let g = CTY.chunks.get(k); if (!g) { g = new THREE.Group(); city.add(g); CTY.chunks.set(k, g); } return g; }; // pedaços separados: o que está fora da tela não é desenhado
+const cPut = (obj, lx, lz, a = 0) => { obj.position.set(lx, 0, lz); obj.rotation.y = a; cityChunk(lx, lz).add(obj); return obj; };
+const cityPoly = [[CITY.W + CITY.ch, CITY.N], [CITY.E - CITY.ch, CITY.N], [CITY.E, CITY.N + CITY.ch], [CITY.E, CITY.S - CITY.ch], [CITY.E - CITY.ch, CITY.S], [CITY.W + CITY.ch, CITY.S], [CITY.W, CITY.S - CITY.ch], [CITY.W, CITY.N + CITY.ch]];
+const faceA = (nx, nz) => Math.atan2(nx, nz); // ângulo para a frente (+z) olhar para (nx, nz)
+const winOn = matC(0xffc070, true), winOff = matC(0x262c3c), awnM = {}, AWN = [['#b8323c', '#f3e6cc'], ['#2f6fb0', '#f3e6cc'], ['#2f7a3e', '#f3e6cc'], ['#d8902a', '#fff4e0'], ['#6a3a8a', '#f3e6f0']];
+function lampPost(lx, lz) { // poste com lampião (coordenadas do castelo)
+  const g = cPut(new THREE.Group(), lx, lz);
+  cyl(g, 0.08, 0.12, 3.4, 0, 1.7, 0, M.iron, 6); pb(g, 0.38, 0.34, 0.38, 0, 3.55, 0, M.iron); addFlame(g, 0, 3.56, 0, 0.32);
+  cone(g, 0.34, 0.32, 0, 3.88, 0, M.iron, 4).rotation.y = Math.PI / 4;
+  circC(lx, lz, 0.2);
+}
+function signpost(x, z, list) { // placa de madeira com setas apontando para cada lugar (coordenadas do mundo)
+  const g = new THREE.Group(); g.position.set(x, terrainH(x, z), z); scene.add(g);
+  cyl(g, 0.09, 0.11, 3.2, 0, 1.6, 0, M.woodDark, 6); ps(g, 0.11, 0, 3.22, 0, M.woodDark);
+  list.forEach(([txt, to], i) => {
+    const dx = to.x - x, dz = to.z - z, L = Math.hypot(dx, dz) || 1, b = new THREE.Group(); b.position.y = 2.75 - i * 0.42; b.rotation.y = Math.atan2(-dz, dx); g.add(b);
+    signBox(b, boardTex(txt, '#4a3220', 512, 84, 40), 1.9, 0.32, 1.0, 0, 0);
+    const tip = cone(b, 0.2, 0.3, 2.02, 0, 0, M.woodDark, 4); tip.rotation.z = -Math.PI / 2;
+  });
+  bakeStatic(g); colliders.push({ x, z, r: 0.25 });
+  return g;
+}
+
+{ // muralha da cidade: torres, ameias, contrafortes e os quatro portões
+  const H = 11, T = 2.8, merl = [], gates = Object.values(CGATE), GW = 6;
+  const tower = (x, z, r, h, flag) => {
+    const g = cPut(new THREE.Group(), x, z);
+    cyl(g, r, r * 1.1, h, 0, h / 2, 0, M.stone, 14); cyl(g, r * 1.22, r * 1.12, 1.8, 0, 0.9, 0, M.stoneDark, 14); cyl(g, r * 1.18, r * 1.05, 1.2, 0, h + 0.2, 0, M.stoneDark, 14);
+    cone(g, r * 1.3, r * 2.3, 0, h + 0.8 + r * 1.15, 0, M.roof, 14);
+    for (let k = 0; k < 3; k++) { const a = cr() * Math.PI * 2, w = pb(g, 0.6, 1.1, 0.05, Math.sin(a) * (r + 0.03), h * (0.4 + k * 0.2), Math.cos(a) * (r + 0.03), winOn); w.rotation.y = a; }
+    if (flag) {
+      const y = h + 0.8 + r * 2.3; cyl(g, 0.07, 0.07, 3.4, 0, y + 1.5, 0, M.stoneDark, 5);
+      const fg = new THREE.PlaneGeometry(2.4, 1.4, 8, 1); fg.translate(1.2, 0, 0);
+      const f = new THREE.Mesh(fg, flagMatC); f.position.set(0, y + 2.6, 0); f.userData.keep = true; g.add(f);
+      flags.push({ mesh: f, base: fg.attributes.position.array.slice(), phase: cr() * 6 });
+    }
+    circC(x, z, r + 0.2);
+  };
+  const flagMatC = new THREE.MeshLambertMaterial({ color: 0x8a1f2a, side: THREE.DoubleSide });
+  cityPoly.forEach(([x, z]) => tower(x, z, 4.4, 17, false));
+  for (let i = 0; i < cityPoly.length; i++) {
+    const [ax, az] = cityPoly[i], [bx, bz] = cityPoly[(i + 1) % cityPoly.length], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L, nx = uz, nz = -ux, ang = Math.atan2(-uz, ux);
+    const gs = gates.filter(g => segD(g.x, g.z, ax, az, bx, bz) < 0.5).map(g => (g.x - ax) * ux + (g.z - az) * uz);
+    let cuts = [[0, L]];
+    for (const s of gs) cuts = cuts.flatMap(([a, b]) => s > a && s < b ? [[a, s - GW], [s + GW, b]] : [[a, b]]);
+    for (const [s0, s1] of cuts) {
+      const len = s1 - s0, m = (s0 + s1) / 2, x = ax + ux * m, z = az + uz * m, ch = cityChunk(x, z);
+      const wb = (h, d, y, off, mat) => { const o = new THREE.Mesh(new THREE.BoxGeometry(len, h, d), mat); o.position.set(x + nx * off, y, z + nz * off); o.rotation.y = ang; ch.add(o); };
+      wb(H, T, H / 2, 0, M.stone); wb(1.8, T + 1.2, 0.9, 0, M.stoneDark); wb(0.5, T + 0.5, H - 0.25, 0, M.stoneDark);
+      wallC(ax + ux * s0, az + uz * s0, ax + ux * s1, az + uz * s1, 1.6);
+      for (let s = s0 + 1.3; s < s1 - 0.6; s += 2.6) merl.push([ax + ux * s, az + uz * s, ang]);
+      for (let s = s0 + 7; s < s1 - 4; s += 12) { const b = pb(ch, 1.8, H * 0.7, 1.4, ax + ux * s + nx * (T / 2 + 0.6), H * 0.35, az + uz * s + nz * (T / 2 + 0.6), M.stone); b.rotation.y = ang; }
+      const n = Math.round(len / 34); // torres no meio dos trechos compridos
+      for (let k = 1; k < n; k++) { const s = s0 + len * k / n; if (gs.every(g => Math.abs(g - s) > 16)) tower(ax + ux * s, az + uz * s, 3.3, 15); }
+    }
+  }
+  const mm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.3, 1.5, T + 0.3), M.stone, merl.length);
+  merl.forEach(([x, z, a], i) => { dummy.position.set(x, H + 0.75, z); dummy.rotation.set(0, a, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); mm.setMatrixAt(i, dummy.matrix); });
+  city.add(mm);
+  for (const gt of gates) { // portão: duas torres, arco, grade levantada, portas abertas, placa e guardas
+    const ux = -gt.nz, uz = gt.nx, ang = Math.atan2(-uz, ux), G = cPut(new THREE.Group(), gt.x, gt.z, ang); // no grupo: +z aponta para dentro da cidade
+    for (const sx of [-1, 1]) tower(gt.x + ux * sx * 8.4, gt.z + uz * sx * 8.4, 3.8, 19, true);
+    pb(G, 13.4, 4.4, T + 1.6, 0, H - 1.2 + 0.2, 0, M.stone); pb(G, 14, 0.5, T + 2.2, 0, H + 1.2, 0, M.stoneDark);
+    for (let x = -5.6; x <= 5.7; x += 2.8) pb(G, 1.3, 1.3, 1.2, x, H + 2.1, -(T / 2 + 0.6), M.stone);
+    pb(G, 9, 0.25, 0.25, 0, 7.6, -0.9, M.iron);
+    for (let x = -4.2; x <= 4.25; x += 0.6) { pb(G, 0.1, 1.0, 0.1, x, 7.1, -0.9, M.iron); cone(G, 0.08, 0.25, x, 6.5, -0.9, M.iron, 6).rotation.x = Math.PI; }
+    for (const sx of [-1, 1]) { const d = pb(G, 0.25, 6.4, 4.2, sx * 5.6, 3.2, 3.2, M.woodDark); for (const y of [1.6, 4.8]) pb(G, 0.3, 0.16, 4.2, sx * 5.6, y, 3.2, M.iron); }
+    signBox(G, boardTex(`✦ Cidade Real · ${gt.n} ✦`, '#6a1c1a', 640, 110, 44), 7.2, 1.25, 0, 9.0, -(T / 2 + 0.85));
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) torch(G, sx * 6.4, 5.4, sz * (T / 2 + 0.75));
+    for (const sx of [-1, 1]) { // guardas do lado de fora
+      const lx = gt.x + ux * sx * 4.4 + gt.nx * 3.6, lz = gt.z + uz * sx * 4.4 + gt.nz * 3.6;
+      const p = makePerson({ body: 0x8a1f2a, sleeve: 0x6a6a76, legs: 0x3a3a44, belt: 0x3a2618, skin: pickC([0xd9a87e, 0xc68a5e, 0x8a5a3a, 0xe0b48e]), hair: 0x2a1a10, hat: 'helm', acc: { cape: 0x2a3a6a, sword: true }, scale: 1.06 });
+      const sp = new THREE.Group(); sp.position.set(0, -0.52, 0.06); p.arms[1].add(sp); cyl(sp, 0.025, 0.03, 2.4, 0, 0.7, 0, M.woodDark, 6); cone(sp, 0.06, 0.28, 0, 2.02, 0, STEEL, 6);
+      placeL(p.g, lx, lz, faceA(gt.nx, gt.nz), cityA); colL(lx, lz, 0.4);
+      const gd = { p, ph: cr() * 9, wave: 0 }; CTY.guards.push(gd);
+      addInteract([p.hit], () => chat(gd, GUARD_LINES), { at: castleToWorld(lx + gt.nx * 1.6, lz + gt.nz * 1.6), near: 3.5 });
+    }
+  }
+}
+
+/* ruas e quarteirões (coordenadas do castelo): ruas norte-sul em x, leste-oeste em z; o castelo, a praça,
+   a catedral e o jardim ocupam alguns quarteirões e o resto vira fileiras de casas e lojas */
+const CXS = [[-82, 7], [-48, 8], [-24, 6], [0, 12], [24, 6], [48, 8]], CZS = [[-68, 7], [-36, 8], [0, 7], [34, 7], [65, 7], [88, 6]];
+const CXE = [CITY.W + 10, ...CXS.map(s => s[0]), CITY.E - 10], CZE = [CITY.N + 10, ...CZS.map(s => s[0]), CITY.S - 10];
+const CXW = [0, ...CXS.map(s => s[1]), 0], CZW = [0, ...CZS.map(s => s[1]), 0];
+const WALLC = [0xe8dcc0, 0xe6cfa8, 0xd9c4a0, 0xefe6d6, 0xe8c8b0, 0xc8d4dc, 0xd8c890, 0xdcc8b8, 0xe0d0e0], ROOFC = [0x8a3a24, 0x9a4a2a, 0x34446a, 0x5a3a2a, 0x3a5a4a, 0x7a2a2a, 0x6a3a2a, 0x4a4a5a];
+const roofMs = ROOFC.map(c => new THREE.MeshLambertMaterial({ color: c, flatShading: true }));
+let shopI = 0;
+function cityHouse(lx, lz, a, W, D, shop) { // casa da cidade: frente = +z local; 1 a 3 andares, telhado de duas águas
+  const g = new THREE.Group(), fl = shop ? 2 + (cr() < .4) : 1 + (cr() < .62) + (cr() < .28), h1 = 3.1, hu = 2.7, wall = matC(pickC(WALLC)), base = cr() < .45 ? M.stone : wall;
+  pb(g, W, h1, D, 0, h1 / 2, 0, base);
+  let y = h1;
+  for (let f = 1; f < fl; f++) {
+    pb(g, W + 0.3, hu, D + 0.3, 0, y + hu / 2, 0, wall); pb(g, W + 0.5, 0.16, D + 0.5, 0, y + 0.06, 0, beam);
+    for (const x of [-W / 2 - 0.1, W / 2 + 0.1, 0]) pb(g, 0.14, hu, 0.06, x, y + hu / 2, D / 2 + 0.18, beam);
+    const nw = W > 7 ? 2 : 1; for (let k = 0; k < nw; k++) { const x = (k - (nw - 1) / 2) * (W / nw) + (nw === 1 ? W / 4 : 0); pb(g, 0.7, 0.95, 0.06, x, y + 1.35, D / 2 + 0.19, cr() < .62 ? winOn : winOff); if (nw === 1) pb(g, 0.7, 0.95, 0.06, -W / 4, y + 1.35, D / 2 + 0.19, cr() < .62 ? winOn : winOff); }
+    if (!LOW) pb(g, 0.7, 0.95, 0.06, (cr() - .5) * W * 0.5, y + 1.35, -D / 2 - 0.19, cr() < .5 ? winOn : winOff);
+    y += hu;
+  }
+  const Hr = 1.6 + D * 0.3, rm = pickC(roofMs), ridgeZ = cr() < .5; // empena virada para a rua ou beiral virado para a rua
+  if (ridgeZ) gable(g, W + 0.9, D + 0.9, Hr, 0, y, 0, rm);
+  else { const r = new THREE.Group(); r.rotation.y = Math.PI / 2; g.add(r); gable(r, D + 0.9, W + 0.9, Hr, 0, y, 0, rm); }
+  if (cr() < .6) pb(g, 0.6, Hr + 0.9, 0.6, W * 0.3 * (cr() < .5 ? -1 : 1), y + (Hr + 0.9) / 2, -D * 0.2, M.stone);
+  const dx = shop ? -W / 2 + 1.0 : (cr() - .5) * (W - 2.4);
+  pb(g, 1.1, 2.15, 0.08, dx, 1.08, D / 2 + 0.04, M.woodDark); pb(g, 1.35, 0.14, 0.12, dx, 2.2, D / 2 + 0.06, beam);
+  if (shop) { // vitrine, toldo listrado e placa pendurada
+    const sw = W - 2.6; pb(g, sw, 1.4, 0.06, dx + 0.85 + sw / 2, 1.55, D / 2 + 0.04, winOn); pb(g, sw + 0.3, 0.14, 0.14, dx + 0.85 + sw / 2, 2.32, D / 2 + 0.08, beam);
+    const k = shopI % AWN.length, am = awnM[k] || (awnM[k] = new THREE.MeshLambertMaterial({ map: stripeTex(...AWN[k]), side: THREE.DoubleSide }));
+    const aw = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.6, 1.5), am); aw.rotation.x = -Math.PI / 2 + 0.42; aw.position.set(0, 2.62, D / 2 + 0.72); g.add(aw);
+    pb(g, 0.06, 0.06, 1.0, W / 2 - 0.5, 3.45, D / 2 + 0.55, M.iron);
+    signBox(g, boardTex(shop.n, shop.c[0], 512, 100, 44), 1.7, 0.4, W / 2 - 0.5, 3.1, D / 2 + 0.9).rotation.y = Math.PI / 2;
+    cyl(g, 0.3, 0.27, 0.75, -W / 2 + 0.2, 0.38, D / 2 + 0.7, M.wood, 10); pb(g, 0.6, 0.5, 0.6, W / 2 - 0.6, 0.25, D / 2 + 0.75, matC(0x7a5434));
+  } else pb(g, 0.75, 0.85, 0.06, dx + (dx > 0 ? -1.6 : 1.6), 1.7, D / 2 + 0.04, cr() < .55 ? winOn : winOff);
+  cPut(g, lx, lz, a); rectC(lx, lz, a, W + 0.3, D + 0.3);
+  CTY.foot.push({ x: lx, z: lz, a, W, D, c: rm.color.getHex() });
+  if (shop && shop.l && CTY.keepers.length < 9) { // lojista na porta
+    const q = rotL(dx, D / 2 + 1.1, a), p = makePerson({ body: pickC([0x8a5a3a, 0x3a5a8a, 0x7a3a5a, 0x4a6a3a, 0xa0522d]), apron: 0xf2ead8, skin: pickC([0xe0b48e, 0xc68a5e, 0x8a5a3a, 0xf0c8a8]), hair: pickC([0x2a1a10, 0x7a4a22, 0xc8783a, 0xdedede]), skirt: cr() < .5 ? pickC([0x6a3a5a, 0x3a4a6a]) : undefined, long: cr() < .5 });
+    placeL(p.g, lx + q.x, lz + q.z, a, cityA); colL(lx + q.x, lz + q.z, 0.35);
+    const kp = { p, ph: cr() * 9, wave: 0 }; CTY.keepers.push(kp);
+    const at = rotL(dx, D / 2 + 2.6, a); addInteract([p.hit], () => chat(kp, shop.l), { at: castleToWorld(lx + at.x, lz + at.z), near: 3.5 });
+  }
+}
+const insideCity = (x, z, hx, hz, m = 9) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].every(([sx, sz]) => cityPolyD(x + sx * hx, z + sz * hz) < -m);
+function houseRow(a0, a1, at, ang, D, shopP) { // fileira de casas grudadinhas ao longo de um lado do quarteirão
+  let s = a0;
+  while (a1 - s > 4.4) {
+    let w = 5.4 + cr() * 3.2; if (a1 - s - w < 4.4) w = a1 - s; if (w > 10.5) w = (a1 - s) / 2;
+    const [x, z] = at(s + w / 2), side = Math.abs(Math.sin(ang)) > 0.5;
+    if (insideCity(x, z, (side ? D : w) / 2, (side ? w : D) / 2)) cityHouse(x, z, ang, w - 0.06, D, cr() < shopP && shopI < CITY_SHOPS.length ? CITY_SHOPS[shopI++] : null);
+    s += w;
+  }
+}
+const CBLOCKS = [];
+for (let i = 0; i < CXE.length - 1; i++) for (let j = 0; j < CZE.length - 1; j++) {
+  const b = { i, j, x0: CXE[i] + CXW[i] / 2, x1: CXE[i + 1] - CXW[i + 1] / 2, z0: CZE[j] + CZW[j] / 2, z1: CZE[j + 1] - CZW[j + 1] / 2 };
+  b.kind = i >= 2 && i <= 5 && j >= 2 && j <= 4 ? 'castelo' : (i === 3 || i === 4) && j >= 5 ? 'praca' : i === 1 && j === 3 ? 'catedral' : i === 1 && j === 4 ? 'jardim' : 'casas';
+  CBLOCKS.push(b);
+}
+{ // lojas onde passa mais gente: em volta da praça, na avenida norte e nas ruas dos portões leste e oeste
+  const shopSide = (b, s) => (s === 'E' && b.i === 2 && b.j >= 5) || (s === 'W' && b.i === 5 && b.j >= 5) || (s === 'E' && b.i === 3 && b.j <= 1) || (s === 'W' && b.i === 4 && b.j <= 1) ||
+    (s === 'S' && b.j === 2 && (b.i <= 1 || b.i === 6)) || (s === 'N' && b.j === 3 && (b.i <= 1 || b.i === 6)) || (s === 'S' && b.j === 4 && b.i !== 1);
+  for (const b of CBLOCKS.filter(b => b.kind === 'casas')) {
+    const Wd = b.x1 - b.x0, Dp = b.z1 - b.z0, dS = Math.min(6.4 + cr() * 1.6, Dp / 2 - 0.3), dN = Math.min(6.4 + cr() * 1.6, Dp / 2 - 0.3), dW = Math.min(6.4 + cr() * 1.2, Wd / 2 - 0.3);
+    const P = s => shopSide(b, s) ? 0.8 : 0.04, dE = Math.min(6.4 + cr() * 1.2, Wd / 2 - 0.3);
+    if (shopSide(b, 'E') || shopSide(b, 'W')) { // fileiras compridas viradas para leste/oeste (de frente para a praça ou para a avenida)
+      houseRow(b.z0, b.z1, s => [b.x0 + dW / 2, s], -Math.PI / 2, dW, P('W')); houseRow(b.z0, b.z1, s => [b.x1 - dE / 2, s], Math.PI / 2, dE, P('E'));
+      if (Wd - dW - dE > 5) { houseRow(b.x0 + dW, b.x1 - dE, s => [s, b.z1 - dS / 2], 0, dS, P('S')); houseRow(b.x0 + dW, b.x1 - dE, s => [s, b.z0 + dN / 2], Math.PI, dN, P('N')); }
+    } else {
+      houseRow(b.x0, b.x1, s => [s, b.z1 - dS / 2], 0, dS, P('S'));
+      houseRow(b.x0, b.x1, s => [s, b.z0 + dN / 2], Math.PI, dN, P('N'));
+      if (Dp - dS - dN > 5) { houseRow(b.z0 + dN, b.z1 - dS, s => [b.x0 + dW / 2, s], -Math.PI / 2, dW, P('W')); houseRow(b.z0 + dN, b.z1 - dS, s => [b.x1 - dE / 2, s], Math.PI / 2, dE, P('E')); }
+    }
+    const ix = Wd - dW - dE, iz = Dp - dS - dN, mx = b.x0 + dW + ix / 2, mz = b.z0 + dN + iz / 2; // quintal no meio
+    if (ix > 4 && iz > 4 && insideCity(mx, mz, 1, 1)) { CTY.trees.push([mx + (cr() - .5) * (ix - 3), mz + (cr() - .5) * (iz - 3), 0.8 + cr() * 0.3]); if (ix > 9 && iz > 6) CTY.trees.push([mx + (cr() - .5) * (ix - 3), mz + (cr() - .5) * (iz - 3), 0.7 + cr() * 0.3]); }
+  }
+}
+
+{ // Praça da Rainha: chafariz com a estátua da rainha, barracas, bancos e lampiões
+  const PZ = 90, g = cPut(new THREE.Group(), 0, PZ);
+  cyl(g, 6.2, 6.4, 0.8, 0, 0.4, 0, M.stone, 32); const wat = new THREE.Mesh(new THREE.CircleGeometry(5.7, 32), new THREE.MeshLambertMaterial({ color: 0x2a4a7a, emissive: 0x0a1426 })); wat.rotation.x = -Math.PI / 2; wat.position.y = 0.72; g.add(wat);
+  cyl(g, 5.8, 5.8, 0.82, 0, 0.42, 0, M.stoneDark, 32);
+  cyl(g, 1.4, 1.7, 2.4, 0, 1.2, 0, M.stone, 12); cyl(g, 1.75, 1.75, 0.3, 0, 2.5, 0, M.stoneDark, 12);
+  const st = makePerson({ body: 0xd8d4cc, skin: 0xd8d4cc, skirt: 0xd0ccc4, hair: 0xd8d4cc, long: true, legs: 0xd8d4cc, hat: 'crown', acc: { cape: 0xcfcac0 }, scale: 1.6 });
+  st.g.position.y = 2.65; st.arms[1].rotation.set(-2.6, 0, 0.2); st.arms[0].rotation.set(-0.4, 0, -0.25); g.add(st.g);
+  const star = ps(g, 0.2, 0.15, 6.5, -0.35, matC(0xfff2c8, true)); star.userData.keep = true;
+  const sg = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xfff0c0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.75 })); sg.scale.setScalar(2.6); sg.position.set(0.15, 6.5, -0.35); g.add(sg);
+  signBox(g, boardTex('✦ Rainha dos Cachos ✦', '#3a2a4a', 512, 90, 40), 2.2, 0.4, 0, 1.4, 1.72);
+  for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + Math.PI / 4; cyl(g, 0.16, 0.2, 0.9, Math.sin(a) * 2.2, 1.1, Math.cos(a) * 2.2, M.stone, 8); }
+  circC(0, PZ, 6.6); CTY.fountain = castleToWorld(0, PZ);
+  const hit = invis(g, new THREE.CylinderGeometry(6.4, 6.4, 7, 12), 0, 3.5, 0); hit.userData.keep = true;
+  addInteract([hit], () => { if (mode !== 'walk') return; markInteracted(); CTY.li = (CTY.li ?? -1) + 1; whisper(STATUE_LINES[CTY.li % STATUE_LINES.length], 5); sfx.chime([659, 880, 1047], 0.08); spawnHearts(V3(CTY.fountain.x, CASTLE.y + 5, CTY.fountain.z), 6); }, { at: castleToWorld(0, PZ + 8), near: 9 });
+  for (const [lx, lz, a] of [[-9, PZ, Math.PI / 2], [9, PZ, -Math.PI / 2], [0, PZ - 9, 0], [0, PZ + 9, Math.PI]]) { // bancos de frente para o chafariz
+    const b = cPut(new THREE.Group(), lx, lz, a); pb(b, 2.2, 0.1, 0.55, 0, 0.48, 0, M.wood); pb(b, 2.2, 0.5, 0.08, 0, 0.78, -0.25, M.wood); for (const sx of [-1, 1]) pb(b, 0.1, 0.45, 0.5, sx * 0.95, 0.23, 0, M.iron);
+    rectC(lx, lz, a, 2.3, 0.6);
+  }
+  for (const [lx, lz] of [[-22.5, 70.5], [22.5, 70.5], [-22.5, 101.5], [22.5, 101.5], [-8, 107], [8, 107], [-8, 75], [8, 75]]) lampPost(lx, lz);
+  for (const [lx, lz] of [[-23, 86], [23, 86]]) CTY.trees.push([lx, lz, 1.1]);
+  for (const [lx, lz] of [[-5.2, -50], [5.2, -50], [-5.2, -80], [5.2, -80], [-50.5, -15], [50.5, -15], [-50.5, 20], [50.5, 20], [-50.5, 50], [50.5, 50]]) lampPost(lx, lz); // avenida norte e ruas em volta do castelo
+}
+const plazaS = new THREE.Group(); market.add(plazaS);
+{ const n0 = mStatic.children.length; [
+  { lx: -14, lz: 77, name: '🍏 Pomar Real', kind: 'fruit', c: ['#2f7a3e', '#f3e6cc'], cloth: 0x2a5a30, vendor: { body: 0x7a5a3a, apron: 0xe8dcc0, skin: 0xe0b48e, hair: 0x7a4a22, hat: 'cap', hatC: 0x3a5a2a } },
+  { lx: -14, lz: 99, name: '🥖 Forno da Praça', kind: 'bread', c: ['#b8323c', '#f3e6cc'], cloth: 0x8a1f2a, vendor: { body: 0xd8a070, apron: 0xf2ead8, skin: 0xc68a5e, hair: 0x2a1a10, hat: 'chef' } },
+  { lx: 14, lz: 77, name: '🌷 Rosas da Rainha', kind: 'flowers', c: ['#c2577a', '#fff4e8'], cloth: 0x9a3a5a, vendor: { body: 0xe8c8d8, skirt: 0x5a3a7a, skin: 0x8a5a3a, hair: 0x1a1008, long: true, hat: 'crown' } },
+  { lx: 14, lz: 99, name: '🍬 Doçaria', kind: 'sweets', c: ['#d8902a', '#fff4e0'], cloth: 0xb06a1a, vendor: { body: 0x6a3a7a, apron: 0xf4e4c8, skin: 0xf0c8a8, hair: 0xc8783a, long: true, skirt: 0x3a2a4a } },
+].forEach(buildStall); mStatic.children.slice(n0).forEach(o => plazaS.add(o)); bakeStatic(plazaS); } // as barracas da praça viram poucas malhas
+
+{ // Catedral da Estrela: nave alta, naves laterais, duas torres com flechas e rosácea
+  const lx = -65.25, lz = 17, a = Math.PI / 2, g = cPut(new THREE.Group(), lx, lz, a), stoneL = matC(0xcfc8bc), slate = new THREE.MeshLambertMaterial({ color: 0x3a4660, flatShading: true });
+  const glass = [matC(0x4a7ad8, true), matC(0xd84a5a, true), matC(0xe8b84a, true), matC(0x7a4ad8, true)];
+  pb(g, 20, 6.5, 22, 0, 3.25, -1, stoneL); pb(g, 12, 15, 24, 0, 7.5, 0, stoneL);
+  gable(g, 13, 25, 6, 0, 15, 0, slate);
+  for (const sx of [-1, 1]) { const r = pb(g, 4.8, 0.3, 22.4, sx * 8.2, 7.3, -1, slate); r.rotation.z = sx * 0.42; }
+  for (const sx of [-1, 1]) for (let z = -10; z <= 8; z += 4.5) {
+    pb(g, 1.2, 6.5, 1.2, sx * 10.4, 3.25, z, stoneL); // contrafortes
+    pb(g, 0.06, 2.6, 1.0, sx * 10.03, 3.4, z + 2.2, glass[(z + 10) / 4.5 % 4 | 0]);
+    pb(g, 0.06, 3.6, 1.2, sx * 6.03, 11.2, z + 2.2, glass[((z + 10) / 4.5 + 1) % 4 | 0]);
+  }
+  for (const sx of [-1, 1]) { // torres da fachada
+    pb(g, 5.2, 24, 5.2, sx * 6.6, 12, 11.4, stoneL); pb(g, 5.8, 0.6, 5.8, sx * 6.6, 24.2, 11.4, M.stoneDark);
+    cone(g, 3.6, 13, sx * 6.6, 31, 11.4, slate, 8); ps(g, 0.3, sx * 6.6, 37.7, 11.4, M.gold);
+    for (const y of [14, 19]) pb(g, 1.0, 2.6, 0.06, sx * 6.6, y, 14.03, glass[(y / 5 | 0) % 4]);
+  }
+  const rose = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), matC(0x9a6ad8, true)); rose.position.set(0, 10.5, 12.04); g.add(rose);
+  const rose2 = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.6, 12), matC(0xffd27a, true)); rose2.position.set(0, 10.5, 12.06); g.add(rose2);
+  mmesh(g, new THREE.TorusGeometry(2.5, 0.18, 6, 24), stoneL, 0, 10.5, 12.1);
+  pb(g, 2.8, 4.6, 0.1, 0, 2.3, 12.05, M.woodDark); const ar = new THREE.Mesh(new THREE.CircleGeometry(1.4, 16, 0, Math.PI), M.woodDark); ar.position.set(0, 4.6, 12.05); g.add(ar);
+  pb(g, 7, 0.3, 2.4, 0, 0.15, 13.2, M.stone);
+  for (const sx of [-1, 1]) torch(g, sx * 2.2, 3.2, 12.2);
+  rectC(lx, lz, a, 20.4, 26);
+  const hit = invis(g, gBox(14, 26, 4), 0, 13, 13); hit.userData.keep = true;
+  addInteract([hit], () => { if (mode !== 'walk') return; markInteracted(); CTY.ci = (CTY.ci ?? -1) + 1; whisper(CATHEDRAL_LINES[CTY.ci % CATHEDRAL_LINES.length], 5); sfx.chime([523, 659, 784, 1047, 784], 0.1); }, { at: castleToWorld(lx + 15, lz), near: 6 });
+  CTY.foot.push({ x: lx, z: lz, a, W: 20, D: 26, c: 0x3a4660 });
+}
+
+{ // Jardim Real: cerca viva, canteiros de flores, árvores e um coreto no meio
+  const { x: px, z: pz, hx, hz } = PARK, hedge = matC(0x2f5a2a);
+  for (const [x0, z0, x1, z1] of [[-hx, -hz, -2.5, -hz], [2.5, -hz, hx, -hz], [-hx, hz, -2.5, hz], [2.5, hz, hx, hz], [-hx, -hz, -hx, -2.5], [-hx, 2.5, -hx, hz], [hx, -hz, hx, -2.5], [hx, 2.5, hx, hz]]) {
+    const L = Math.hypot(x1 - x0, z1 - z0); pb(cityChunk(px, pz), x0 === x1 ? 0.9 : L, 1.0, x0 === x1 ? L : 0.9, px + (x0 + x1) / 2, 0.5, pz + (z0 + z1) / 2, hedge);
+    wallC(px + x0, pz + z0, px + x1, pz + z1, 0.5);
+  }
+  const gz = cPut(new THREE.Group(), px, pz); // coreto
+  cyl(gz, 3.6, 3.8, 0.5, 0, 0.25, 0, M.stone, 16);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; cyl(gz, 0.1, 0.12, 3.2, Math.sin(a) * 3.2, 2.1, Math.cos(a) * 3.2, matC(0xf3ead8), 8); }
+  cone(gz, 4.3, 2.6, 0, 4.9, 0, new THREE.MeshLambertMaterial({ color: 0x3a6a5a, flatShading: true }), 8); ps(gz, 0.22, 0, 6.3, 0, M.gold);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; circC(px + Math.sin(a) * 3.2, pz + Math.cos(a) * 3.2, 0.2); }
+  const hit = invis(gz, new THREE.CylinderGeometry(3.8, 3.8, 5, 10), 0, 2.5, 0); hit.userData.keep = true;
+  addInteract([hit], () => { if (mode !== 'walk') return; markInteracted(); CTY.pi = (CTY.pi ?? -1) + 1; whisper(PARK_LINES[CTY.pi % PARK_LINES.length], 5); spawnSparkles(V3(player.x, floorY(player.x, player.z) + 1.2, player.z), 16, 1.2, 0xffd0e8); }, { at: castleToWorld(px, pz + 6), near: 6 });
+  const fl = [0xff7aa8, 0xffe07a, 0xffffff, 0xd84a5a, 0xb08aff, 0xff9a40], N = LOW ? 90 : 160, fm = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.16, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), N), c = new THREE.Color();
+  let n = 0; for (let k = 0; k < N * 3 && n < N; k++) { const x = (cr() - .5) * (2 * hx - 3), z = (cr() - .5) * (2 * hz - 3); if (Math.hypot(x, z) < 5.5 || Math.abs(x) < 2.2 || Math.abs(z) < 2.2) continue; dummy.position.set(px + x, 0.28, pz + z); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(0.8 + cr() * 0.6); dummy.updateMatrix(); fm.setMatrixAt(n, dummy.matrix); fm.setColorAt(n++, c.set(pickC(fl))); }
+  fm.count = n; city.add(fm);
+  for (const [x, z] of [[-9, -8], [9, -8], [-9, 8], [9, 8]]) CTY.trees.push([px + x, pz + z, 1.15]);
+  CTY.foot.push({ x: px, z: pz, a: 0, W: 2 * hx, D: 2 * hz, c: 0x4a7a3a, park: true });
+}
+
+{ // árvores da cidade (quintais, praça e jardim)
+  const N = CTY.trees.length, trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 1, 7).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0x3b2a1e }), N);
+  const leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), N * 3), col = new THREE.Color();
+  CTY.trees.forEach(([x, z, s], i) => {
+    const th = 2.6 * s; dummy.position.set(x, 0, z); dummy.rotation.set(0, cr() * 6, 0); dummy.scale.set(s, th, s); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
+    const hue = cr() < .5 ? 0.25 + cr() * 0.08 : 0.03 + cr() * 0.09;
+    for (let k = 0; k < 3; k++) { const a = k * 2.1 + cr(), r = k ? 0.8 * s : 0; dummy.position.set(x + Math.cos(a) * r, th + (k ? 0.3 : 1.0) * s, z + Math.sin(a) * r); dummy.rotation.set(cr() * 3, cr() * 3, cr() * 3); dummy.scale.setScalar((k ? 1.4 : 1.9) * s); dummy.updateMatrix(); leaves.setMatrixAt(i * 3 + k, dummy.matrix); leaves.setColorAt(i * 3 + k, col.setHSL(hue, 0.6, 0.2 + cr() * 0.06)); }
+    circC(x, z, 0.4 * s); const q = castleToWorld(x, z); TREES.push({ x: q.x, z: q.z, y: CASTLE.y + th + 0.6 * s, r: 1.6 * s });
+  });
+  city.add(trunks, leaves);
+}
+for (const g of CTY.chunks.values()) bakeStatic(g);
+city.updateMatrixWorld(true); CTY.detail = []; // placas, toldos e vitrais: só aparecem de perto
+for (const g of CTY.chunks.values()) g.traverse(o => { if (o.isMesh && !o.isInstancedMesh && o.material !== VC_MAT && o.material !== VC_FLAT && o.material !== VC_BASIC && !o.userData.keep && !(o.layers.mask & 2)) { o.geometry.computeBoundingSphere(); const s = o.geometry.boundingSphere; CTY.detail.push({ o, c: o.localToWorld(s.center.clone()), r: s.radius }); } });
+
+{ // moradores passeando pelas ruas (voltas em torno dos quarteirões)
+  const loops = [
+    [[-48, -36], [48, -36], [48, 65], [-48, 65]], [[-18, 71], [18, 71], [18, 102], [-18, 102]], [[0, -36], [0, -68], [-48, -68], [-48, -36]], [[0, -36], [0, -92], [48, -92], [48, -36]],
+    [[-48, 0], [-82, 0], [-82, 34], [-48, 34]], [[48, 0], [77, 0], [77, 34], [48, 34]], [[-82, -68], [-82, -36], [-109, -36], [-109, -68]], [[-24, 65], [-82, 65], [-82, 88], [-24, 88]],
+    [[24, 65], [76, 65], [76, 88], [24, 88]], [[-48, -36], [-82, -36], [-82, 0], [-48, 0]],
+  ];
+  const looks = [{ body: 0x3a5a8a, legs: 0x3a3028, hair: 0x2a1a10, hat: 'cap', hatC: 0x6a3a1a }, { body: 0x8a3a5a, skirt: 0x4a2a3a, hair: 0xc8783a, long: true, basket: true }, { body: 0x5a7a3a, legs: 0x4a3a2c, hair: 0x7a4a22, beard: true },
+    { body: 0xc89a5a, skirt: 0x6a3a2a, hair: 0x1a1008, long: true, hat: 'scarf', hatC: 0x3a6a8a }, { body: 0x6a4a8a, sleeve: 0x4a3a6a, hair: 0xdedede, beard: true, hat: 'hood', hatC: 0x4a3a6a }, { body: 0xa0522d, apron: 0xf2ead8, hair: 0x5a3a22 },
+    { body: 0x2f6f6a, skirt: 0xd8b25a, hair: 0x2a1a10, long: true }, { body: 0x8a1f2a, legs: 0x2a2a30, hair: 0x7a4a22, acc: { cape: 0x2a3a6a, sword: true } }];
+  const N = LOW ? 10 : 16;
+  for (let i = 0; i < N; i++) {
+    const L = loops[i % loops.length].map(([x, z]) => castleToWorld(x, z)), o = { ...looks[i % looks.length], skin: pickC([0xd9a87e, 0xc68a5e, 0x8a5a3a, 0xe0b48e, 0xf0c8a8]) }, p = makePerson(o);
+    const k = Math.floor(cr() * L.length), q = L[k], w = { p, pts: i % 2 ? L.slice().reverse() : L, i: 0, x: q.x, z: q.z, hd: 0, wait: cr() * 3, amt: 0, ph: 0, wave: 0, spd: 0.85 + cr() * 0.35 };
+    w.i = w.pts.indexOf(q); cityA.add(p.g); p.g.position.set(q.x, CASTLE.y, q.z);
+    addInteract([p.hit], () => chat(w, CITIZEN_LINES), { near: 3.5 });
+    CTY.walkers.push(w);
+  }
+}
+
+/* placas nas encruzilhadas e a fronteira do norte */
+{
+  const S = { x: SPAWN.x, z: SPAWN.z }, CAP = gateOut('S', 0), side = (k, d, s) => { const g = CGATE[k]; return c2w(g.x + g.nx * d - g.nz * s, g.z + g.nz * d + g.nx * s); };
+  signpost(side('S', 16, 7).x, side('S', 16, 7).z, [['🌼 Campo das Margaridas', TRAIL_END], ['🧚 Floresta Encantada', { x: 30, z: 70 }], ['🍄 Condado', { x: -58, z: 72 }]]);
+  signpost(side('E', 16, 7).x, side('E', 16, 7).z, [['🧝 Montanhas Élficas', vW(-12, 150)], ['🦢 Lago', LAKE], ['🏰 Cidade Real', CAP]]);
+  signpost(side('W', 16, 7).x, side('W', 16, 7).z, [['🍄 Condado', { x: -185, z: -40 }], ['⚔ Dungeon das Sombras', DGE], ['🏰 Cidade Real', CAP]]);
+  signpost(side('N', 16, 7).x, side('N', 16, 7).z, [['🧭 Reinos do Norte', NORTH_END], ['🏰 Cidade Real', CAP]]);
+  signpost(2, 27, [['🏰 Cidade Real', TRAIL_END], ['🧚 Floresta Encantada', { x: 30, z: 70 }], ['🍄 Condado', { x: -58, z: 72 }]]);
+  signpost(-106, 108, [['🍄 Condado', shW(0, 96)], ['🏰 Cidade Real', { x: -138, z: 42 }], ['🌼 Campo das Margaridas', S]]);
+  signpost(fvIn(140).x + 5, fvIn(140).z, [['🧚 Vila das Fadas', fvIn(40)], ['🌼 Campo das Margaridas', S]]);
+  signpost(vW(-20, 152).x, vW(-20, 152).z, [['🧝 Aldeia Élfica', vW(-12, 95)], ['🏰 Cidade Real', gateOut('E', 40)]]);
+  // fronteira: arco de pedra no fim da Estrada do Norte, por onde um dia vamos viajar para outros reinos
+  const P = ROADS[ROADS.length - 1].pts, A = P[P.length - 2], B = P[P.length - 1], yaw = Math.atan2(B.x - A.x, B.z - A.z), g = new THREE.Group();
+  g.position.set(B.x, terrainH(B.x, B.z), B.z); g.rotation.y = yaw; scene.add(g);
+  for (const sx of [-1, 1]) { pb(g, 1.6, 7.5, 1.6, sx * 4.6, 3.75, 0, M.stone); pb(g, 2.1, 0.7, 2.1, sx * 4.6, 0.35, 0, M.stoneDark); cone(g, 1.3, 1.6, sx * 4.6, 8.3, 0, M.roof, 4).rotation.y = Math.PI / 4; colliders.push({ x: B.x + Math.cos(yaw) * sx * 4.6, z: B.z - Math.sin(yaw) * sx * 4.6, r: 1.1 }); }
+  pb(g, 10.8, 1.1, 1.4, 0, 7.6, 0, M.stone); signBox(g, boardTex('🧭 Fronteira do Reino 🧭', '#2a3a5a', 640, 110, 46), 6.4, 1.0, 0, 6.6, -0.75).rotation.y = Math.PI;
+  const fm = new THREE.MeshLambertMaterial({ color: 0x2a3a6a, side: THREE.DoubleSide });
+  for (const sx of [-1, 1]) { const fg = new THREE.PlaneGeometry(1.8, 1.1, 8, 1); fg.translate(0.9, 0, 0); const f = new THREE.Mesh(fg, fm); f.position.set(sx * 4.6, 10, 0); cyl(g, 0.06, 0.06, 3, sx * 4.6, 9.4, 0, M.stoneDark, 5); g.add(f); flags.push({ mesh: f, base: fg.attributes.position.array.slice(), phase: sx * 2 }); }
+  const sg = signpost(B.x - Math.cos(yaw) * 7 + Math.sin(yaw) * 2, B.z + Math.sin(yaw) * 7 + Math.cos(yaw) * 2, [['🧭 Reinos do Norte · em breve', { x: B.x + Math.sin(yaw) * 60, z: B.z + Math.cos(yaw) * 60 }], ['🏰 Cidade Real', gateOut('N', 30)]]);
+  const hit = invis(g, gBox(11, 9, 3), 0, 4.5, 0); hit.userData.keep = true;
+  addInteract([hit], () => { if (mode !== 'walk') return; markInteracted(); CTY.fi = (CTY.fi ?? -1) + 1; whisper(FRONTIER_LINES[CTY.fi % FRONTIER_LINES.length], 5.5); sfx.chime([523, 784, 1047], 0.08); }, { at: B, near: 8 });
+}
+
+function updateCity(dt) {
+  const cc = castleToWorld(CITY.cx, CITY.cz), d = Math.hypot(camera.position.x - cc.x, camera.position.z - cc.z);
+  city.visible = d < 480; cityA.visible = d < 165 && !inDun(camera.position.x, camera.position.z);
+  if ((CTY.detT = (CTY.detT || 0) - dt) < 0) { CTY.detT = 0.4; for (const q of CTY.detail) q.o.visible = q.c.distanceTo(camera.position) < 120 + q.r; }
+  if (!cityA.visible) return;
+  const t = uTime.value;
+  if ((CTY.sprayT -= dt) < 0 && Math.hypot(camera.position.x - CTY.fountain.x, camera.position.z - CTY.fountain.z) < 60) { // água do chafariz
+    CTY.sprayT = 0.07; const a = Math.random() * Math.PI * 2;
+    spawnFX(TEX.glow, V3(CTY.fountain.x + Math.cos(a) * 1.9, CASTLE.y + 1.2, CTY.fountain.z + Math.sin(a) * 1.9), { vel: V3(Math.cos(a) * 1.1, 1.6, Math.sin(a) * 1.1), life: 0.9, size: 0.35, grow: 0.5, color: 0xbfe0ff, grav: 3.2 });
+  }
+  if ((CTY.cullT = (CTY.cullT || 0) - dt) < 0) { CTY.cullT = 0.3; for (const c of cityA.children) c.visible = c.position.distanceToSquared(camera.position) < 4900; }
+  for (const o of [...CTY.guards, ...CTY.keepers]) {
+    if (!o.p.g.visible) continue;
+    lookAtPlayer(o.p, playerNear(o.p.g.position, 7), dt); o.wave = Math.max(0, o.wave - dt);
+    if (o.wave > 0) o.p.arms[0].rotation.set(0, 0, -2.6 + Math.sin(t * 14) * 0.25); else o.p.arms[0].rotation.set(Math.sin(t * 0.8 + o.ph) * 0.05, 0, 0);
+  }
+  for (const w of CTY.walkers) {
+    if (!w.p.g.visible) continue;
+    let moving = false;
+    if (w.wait > 0) w.wait -= dt;
+    else if (playerNear(w, 1.8)) w.wait = 0.6;
+    else { const tg = w.pts[(w.i + 1) % w.pts.length], dx = tg.x - w.x, dz = tg.z - w.z, dd = Math.hypot(dx, dz);
+      if (dd < 0.2) { w.i = (w.i + 1) % w.pts.length; if (Math.random() < 0.3) w.wait = 1 + Math.random() * 3; }
+      else { w.hd += clamp(wrapAngle(Math.atan2(dx, dz) - w.hd), -dt * 4, dt * 4); const st = Math.min(dd, w.spd * dt); w.x += dx / dd * st; w.z += dz / dd * st; moving = true; } }
+    w.amt += ((moving ? 1 : 0) - w.amt) * Math.min(1, dt * 6); w.ph += dt * 5.5 * w.amt;
+    w.p.g.position.set(w.x, CASTLE.y, w.z); w.p.g.rotation.y = w.hd; animPerson(w.p, w.ph, w.amt);
+    if (w.wave > 0) { w.wave -= dt; w.p.arms[0].rotation.set(0, 0, -2.6 + Math.sin(t * 14) * 0.25); }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Aldeia élfica atrás do grande lago: vale com cachoeiras, rio,
  * pontes, pavilhões, lanternas, luzinhas e elfos
  * ------------------------------------------------------------------ */
 const vil = new THREE.Group(), vStatic = new THREE.Group(), vActors = new THREE.Group(); vil.add(vStatic, vActors); scene.add(vil);
-const VF = { x: -VIL.bx, z: -VIL.bz }, VS = { x: VF.z, z: -VF.x }, VYAW = Math.atan2(VF.x, VF.z);
-const vW = (sx, fz) => ({ x: VIL.x + VS.x * sx + VF.x * fz, z: VIL.z + VS.z * sx + VF.z * fz });
-const vL = (x, z) => { const dx = x - VIL.x, dz = z - VIL.z; return { sx: dx * VS.x + dz * VS.z, fz: dx * VF.x + dz * VF.z }; };
 function placeV(obj, sx, fz, a = 0, par = vStatic) { const q = vW(sx, fz); obj.position.set(q.x, terrainH(q.x, q.z), q.z); obj.rotation.y = VYAW + a; par.add(obj); return obj; }
 const colV = (sx, fz, r) => { const q = vW(sx, fz); colliders.push({ x: q.x, z: q.z, r }); };
 const segV = (s0, f0, s1, f1, r = 0.25) => { const a = vW(s0, f0), b = vW(s1, f1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r }); };
@@ -4518,6 +4981,29 @@ for (const [sx, fz, s] of [[-24, 0, 1.1], [-21, 17, 1], [-6, 23, 0.9], [6.5, -20
 }
 bakeStatic(vStatic);
 
+{ // pinheiros nas encostas das montanhas élficas (acima deles, só pedra e neve)
+  const pr = mulberry32(4310), N = LOW ? 170 : 300, sp = [];
+  for (let guard = 0; sp.length < N && guard < 40000; guard++) {
+    const a = pr() * Math.PI * 2, r = 42 + pr() * 140, x = VIL.x + Math.cos(a) * r, z = VIL.z + Math.sin(a) * r;
+    if (Math.hypot(x, z) > BOUND - 4 || roadD(x, z) < 4 || riverD(x, z) < 5) continue;
+    const h = terrainH(x, z), sl = Math.hypot(terrainH(x + 1.5, z) - h, terrainH(x, z + 1.5) - h) / 1.5;
+    if (h > 33 || sl > 1.1 || (elfM(x, z) < 1.5 && pr() < 0.6)) continue;
+    sp.push({ x, z, y: h - 0.2, s: 0.75 + pr() * 0.7 });
+  }
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.24, 1, 6).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0x3a2a20 }), sp.length);
+  const cones = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), sp.length * 3), col = new THREE.Color();
+  sp.forEach((p, i) => {
+    dummy.rotation.set(0, pr() * 6, 0); dummy.position.set(p.x, p.y, p.z); dummy.scale.set(p.s, 2.2 * p.s, p.s); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
+    const snow = ss(18, 32, p.y);
+    [[2.3, 4.2, 1.3], [1.7, 3.4, 3.4], [1.05, 2.6, 5.3]].forEach(([w, h, y], k) => {
+      dummy.position.set(p.x, p.y + y * p.s, p.z); dummy.scale.set(w * p.s, h * p.s, w * p.s); dummy.updateMatrix(); cones.setMatrixAt(i * 3 + k, dummy.matrix);
+      cones.setColorAt(i * 3 + k, col.setHSL(0.36 + pr() * 0.06, 0.45, 0.13 + pr() * 0.05).lerp(new THREE.Color(0xdde6f0), snow * (0.25 + k * 0.25)));
+    });
+    colliders.push({ x: p.x, z: p.z, r: 0.45 * p.s + 0.15 });
+  });
+  vil.add(trunks, cones); vil.userData.pines = sp;
+}
+
 function playElfHarp() {
   if (mode !== 'walk' || vill.melody > 0) return; markInteracted(); whisper(ELF_HARP_MSG, 6);
   const N = [587.3, 659.3, 784, 880, 987.8, 1174.7, 1318.5, 1568], seq = [0, 2, 4, 5, 7, 5, 4, 2, 1, 3, 4, 6, 7, 6, 4, 3, 0, 2, 4, 7];
@@ -4526,7 +5012,7 @@ function playElfHarp() {
 }
 function updateVillage(dt) {
   const d = Math.hypot(camera.position.x - VIL.x, camera.position.z - VIL.z);
-  vil.visible = d < 210; vActors.visible = d < 85;
+  vil.visible = d < 380; vActors.visible = d < 85;
   if (!vil.visible) return;
   const t = uTime.value;
   if (d < 90 && (vill.mistT -= dt) < 0) { // névoa das cachoeiras
@@ -4902,7 +5388,7 @@ const outS = new THREE.Group(); scene.add(outS);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.3, 4), M.iron); cap.position.y = 3.6; cap.rotation.y = Math.PI / 4; g.add(cap);
     colliders.push({ x, z, r: 0.2 });
   };
-  for (const [P, Q, w0, w1] of [[ROAD.A, ROAD.C, 2.0, 3.6], [ROAD.C, ROAD.B, 3.6, 4.4]]) {
+  for (const [P, Q, w0, w1] of [[TRAIL_END, gateOut('S', 12), 2.6, 2.6]]) { // Estrada Real, do campo até o portão sul
     const vx = Q.x - P.x, vz = Q.z - P.z, L = Math.hypot(vx, vz), nx = -vz / L, nz = vx / L;
     for (let s = 4; s < L - 1; s += 7) { const t = s / L, w = w0 + (w1 - w0) * t + 1.1; for (const sd of [-1, 1]) post(P.x + vx * t + nx * w * sd, P.z + vz * t + nz * w * sd); }
   }
@@ -5147,9 +5633,54 @@ function makeFairy(c, hair) {
 }
 bakeStatic(fvS);
 
+/* Floresta Encantada: árvores mágicas só das fadas em volta da vila, cogumelos que brilham e vaga-lumes coloridos */
+const fForest = new THREE.Group(); scene.add(fForest);
+{
+  const fr = mulberry32(5150), N = LOW ? 190 : 330, spots = [];
+  for (let guard = 0; spots.length < N && guard < 30000; guard++) {
+    const a = fr() * Math.PI * 2, r = 40 + Math.pow(fr(), 0.85) * 82, x = FV.x + Math.cos(a) * r, z = FV.z + Math.sin(a) * r, s = 0.85 + fr() * 0.9;
+    if (roadD(x, z) < 3.5 || Math.hypot(x, z) > BOUND - 6 || spots.some(q => Math.hypot(q.x - x, q.z - z) < 2.6 + (q.s + s) * 1.25)) continue;
+    spots.push({ x, z, s, y: terrainH(x, z) - 0.2 });
+  }
+  const PAL = [0xb48ae0, 0x5ac8c0, 0xe890c8, 0x8ae0b0, 0x7a5ab8, 0x6a9ae8, 0xf0b0e0], col = new THREE.Color();
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.42, 1, 7).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0x5a4a62 }), spots.length);
+  const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, LOW ? 0 : 1), new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, emissive: 0x1a0c26 }), spots.length * 4);
+  const MN = spots.length * 2, caps = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff }), MN);
+  const stems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.35, 0.45, 1, 6).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0xe8e0d0 }), MN);
+  const MC2 = [0x8af0ff, 0xff8ad8, 0xc8a0ff, 0x9affc0, 0xffe08a];
+  let mi = 0;
+  spots.forEach((p, i) => {
+    const th = (3.6 + fr() * 2.6) * p.s; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set((fr() - .5) * .14, fr() * 6, (fr() - .5) * .14); dummy.scale.set(p.s, th, p.s); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
+    const base = PAL[Math.floor(fr() * PAL.length)];
+    for (let k = 0; k < 4; k++) {
+      const a = k / 4 * Math.PI * 2 + fr(), r = k ? (1.1 + fr() * 0.7) * p.s : 0, sc = (k ? 1.5 + fr() * 0.6 : 2.3) * p.s;
+      dummy.position.set(p.x + Math.cos(a) * r, p.y + th + (k ? fr() * 1.1 : 1.0) * p.s, p.z + Math.sin(a) * r); dummy.rotation.set(fr() * 3, fr() * 3, fr() * 3); dummy.scale.set(sc, sc * (0.8 + fr() * 0.3), sc); dummy.updateMatrix();
+      crowns.setMatrixAt(i * 4 + k, dummy.matrix); crowns.setColorAt(i * 4 + k, col.set(base).offsetHSL((fr() - .5) * 0.05, 0, (fr() - .5) * 0.12 - 0.12));
+    }
+    for (let k = 0; k < 2 && mi < MN; k++) { // cogumelos brilhantes no pé da árvore
+      const a = fr() * Math.PI * 2, d = 0.9 * p.s + 0.5 + fr() * 1.6, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d, y = terrainH(x, z), s = 0.18 + fr() * 0.22;
+      dummy.position.set(x, y, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(s * 0.45, s * 1.6, s * 0.45); dummy.updateMatrix(); stems.setMatrixAt(mi, dummy.matrix);
+      dummy.position.y = y + s * 1.55; dummy.scale.set(s * 1.4, s, s * 1.4); dummy.updateMatrix(); caps.setMatrixAt(mi, dummy.matrix); caps.setColorAt(mi++, col.set(MC2[Math.floor(fr() * MC2.length)]));
+    }
+    colliders.push({ x: p.x, z: p.z, r: 0.45 * p.s + 0.2 });
+  });
+  caps.count = stems.count = mi;
+  fForest.add(trunks, crowns, caps, stems);
+  fForest.userData.spots = spots;
+  const NF = LOW ? 260 : 480, pos = new Float32Array(NF * 3), fc = new Float32Array(NF * 3), ph = new Float32Array(NF); // vaga-lumes coloridos
+  for (let i = 0; i < NF; i++) { const a = fr() * Math.PI * 2, r = 28 + fr() * 95, x = FV.x + Math.cos(a) * r, z = FV.z + Math.sin(a) * r; pos.set([x, terrainH(x, z) + 0.6 + fr() * 6, z], i * 3); col.set(MC2[i % MC2.length]); fc.set([col.r, col.g, col.b], i * 3); ph[i] = fr(); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aCol', new THREE.BufferAttribute(fc, 3)); g.setAttribute('aPh', new THREE.BufferAttribute(ph, 1));
+  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uTime, uDay, uPR: { value: PR } },
+    vertexShader: `uniform float uTime, uPR; attribute vec3 aCol; attribute float aPh; varying vec3 vC; varying float vA;
+      void main(){ vec3 p=position; p.x+=sin(uTime*.5+aPh*6.)*1.4; p.y+=sin(uTime*.8+aPh*9.)*.6; p.z+=cos(uTime*.45+aPh*7.)*1.4;
+        vec4 mv=modelViewMatrix*vec4(p,1.); gl_Position=projectionMatrix*mv; vA=.45+.55*sin(uTime*2.+aPh*20.); vC=aCol; gl_PointSize=uPR*80./max(-mv.z,1.); }`,
+    fragmentShader: `uniform float uDay; varying vec3 vC; varying float vA; void main(){ float d=length(gl_PointCoord-.5); gl_FragColor=vec4(vC,exp(-d*d*22.)*vA*(1.-uDay*.75)); }` });
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false; fForest.add(pts);
+}
+
 function updateFairies(dt) {
   const d = Math.hypot(camera.position.x - FV.x, camera.position.z - FV.z);
-  fv.visible = d < 200; fvA.visible = d < 90;
+  fv.visible = d < 200; fvA.visible = d < 90; fForest.visible = d < 340;
   if (!fvA.visible) return;
   const t = uTime.value, gy = terrainH(FV.x, FV.z);
   fvx.dance = Math.max(0, fvx.dance - dt); fvx.bless = Math.max(0, fvx.bless - dt);
@@ -6189,7 +6720,9 @@ const TRAVEL = (() => {
   const ld = V3(-LAKE.x, 0, -LAKE.z).normalize(), wd = V3(-WINDMILL.x, 0, -WINDMILL.z).normalize(), at = (p, d, k) => ({ x: p.x + d.x * k, z: p.z + d.z * k });
   return [
     { id: 'campo', icon: '🌼', name: 'Campo das Margaridas', to: 'de volta ao campo', h: () => HORSE_HOME, d: null },
-    { id: 'castelo', icon: '🏰', name: 'Castelo', to: 'rumo ao castelo', h: () => castleToWorld(0, 72), hEnd: [[0, 60], [-1.5, 55.5], [-5, 53]], d: () => castleToWorld(0, 86) },
+    { id: 'castelo', icon: '🏰', name: 'Castelo Real', to: 'rumo ao castelo', h: () => castleToWorld(0, 72), hEnd: [[0, 60], [-1.5, 55.5], [-5, 53]], d: () => gateOut('S', 26) },
+    { id: 'cidade', icon: '⛲', name: 'Cidade Real (portão sul)', to: 'rumo à Cidade Real', h: () => gateOut('S', 14), d: null },
+    { id: 'norte', icon: '🧭', name: 'Fronteira do Norte', to: 'rumo à fronteira do reino', h: () => ({ x: NORTH_END.x + 8, z: NORTH_END.z + 22 }), d: () => ({ x: NORTH_END.x + 12, z: NORTH_END.z + 34 }) },
     { id: 'lago', icon: '🦢', name: 'Lago e píer', to: 'rumo ao lago', h: () => at(LAKE, ld, LAKE.r + 7), d: () => at(LAKE, ld, LAKE.r + 11) },
     { id: 'moinho', icon: '🌾', name: 'Moinho', to: 'rumo ao moinho', h: () => at(WINDMILL, wd, 9), d: () => at(WINDMILL, wd, 17) },
     { id: 'elfos', icon: '🧝', name: 'Aldeia Élfica', to: 'rumo à Aldeia Élfica', h: () => vW(-12, 30), d: () => vW(-16, 37) },
@@ -6232,7 +6765,7 @@ function openTravel(kind) {
 function closeTravel() { travelEl.classList.add('hidden'); }
 
 /* mapa em grade para o cavalo achar caminho (A*) */
-const NAV = { G: 2, N: 240, O: -240, grid: null };
+const NAV = { G: 2.5, N: 384, O: -480, grid: null };
 function navBuild() {
   const { G, N, O } = NAV, grid = new Uint8Array(N * N), m = 1.0;
   const dyn = new Set([horseCollider, dragonCollider, ...mk.walkers.map(w => w.col), ...mk.kids.map(k => k.col), ...court.runKids.map(k => k.col), ...court.carts.flatMap(c => [c.col, c.colH]), ...vill.walkers.map(w => w.col)]);
@@ -6245,7 +6778,7 @@ function navBuild() {
     if (s.r < 0) continue; const L = Math.hypot(s.bx - s.ax, s.bz - s.az), n = Math.max(1, Math.ceil(L / 0.7));
     for (let i = 0; i <= n; i++) disc(s.ax + (s.bx - s.ax) * i / n, s.az + (s.bz - s.az) * i / n, s.r + m);
   }
-  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) { const x = O + (ix + 0.5) * G, z = O + (iz + 0.5) * G; if (Math.hypot(x, z) > BOUND - 3) grid[iz * N + ix] = 1; }
+  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) { const x = O + (ix + 0.5) * G, z = O + (iz + 0.5) * G; if (Math.hypot(x, z) > BOUND - 3 || elfM(x, z) > 9) grid[iz * N + ix] = 1; }
   NAV.grid = grid;
 }
 function navCell(x, z) { // célula livre mais próxima
@@ -7273,7 +7806,7 @@ function updateCull() { // brilhos que de longe ficariam com menos de ~2 pixels 
     const o = cullList[cullI = (cullI + 1) % cullList.length];
     o.getWorldPosition(cullV); o.getWorldScale(cullS);
     const px = Math.max(cullS.x, cullS.y) * 0.5 / Math.max(cullV.distanceTo(camera.position), 0.01) * F;
-    o.layers.set(px < 2 ? 5 : 0);
+    o.layers.set((o.layers.mask === 1 ? px < 1.4 : px < 2.8) ? 5 : 0); // margem: perto do limite não fica acendendo e apagando enquanto você anda
   }
 }
 
@@ -7359,41 +7892,59 @@ function updatePerf() { // se o aparelho não aguenta, a imagem perde um pouco d
 /* ------------------------------------------------------------------ *
  * Mapa: minimapa no canto (gira com você) e o mapa grande do reino
  * ------------------------------------------------------------------ */
-const MAPR = 255, MAPS = 1024, mapPx = v => (v + MAPR) / (2 * MAPR) * MAPS;
+const MAPR = 480, MAPS = LOW ? 1536 : 2048, mapPx = v => (v + MAPR) / (2 * MAPR) * MAPS;
 const MAP_PLACES = [
-  { i: '🌼', n: 'Campo das Margaridas', ...SPAWN }, { i: '🔭', n: 'Telescópio', ...TELESCOPE, small: true }, { i: '🏰', n: 'Castelo', ...castleToWorld(0, 0) },
+  { i: '🌼', n: 'Campo das Margaridas', ...SPAWN }, { i: '🔭', n: 'Telescópio', ...TELESCOPE, small: true }, { i: '🏰', n: 'Castelo Real', ...castleToWorld(0, 0) },
+  { i: '⛲', n: 'Praça da Rainha', ...castleToWorld(0, 90), small: true }, { i: '⛪', n: 'Catedral', ...castleToWorld(-65, 17), small: true }, { i: '🌷', n: 'Jardim Real', ...castleToWorld(PARK.x, PARK.z), small: true },
   { i: '🦢', n: 'Lago', x: LAKE.x, z: LAKE.z }, { i: '🌾', n: 'Moinho', ...WINDMILL }, { i: '🧝', n: 'Aldeia Élfica', x: VIL.x, z: VIL.z },
   { i: '🧚', n: 'Vila das Fadas', ...FV }, { i: '⚔', n: 'Dungeon das Sombras', x: DGE.x, z: DGE.z }, { i: '🍄', n: 'Condado', ...shW(0, 30) },
-  { i: '🚪', n: 'Bolsão', ...shDoorAt(SHM[0]), small: true }, { i: '🐉', n: 'Dragão', x: DRAGON.x, z: DRAGON.z, small: true },
+  { i: '🚪', n: 'Bolsão', ...shDoorAt(SHM[0]), small: true }, { i: '🐉', n: 'Dragão', x: DRAGON.x, z: DRAGON.z, small: true }, { i: '🧭', n: 'Fronteira do Reino', ...NORTH_END },
 ];
+const MAP_REGIONS = [{ n: 'Cidade Real', ...castleToWorld(-15, -72) }, { n: 'Montanhas Élficas', ...vW(0, -112) }, { n: 'Floresta Encantada', ...fvIn(-104) }];
 const mapBg = document.createElement('canvas'); mapBg.width = mapBg.height = MAPS;
 {
   const g = mapBg.getContext('2d'), P = (x, z) => [mapPx(x), mapPx(z)], k = MAPS / (2 * MAPR);
   const line = (pts, w, c) => { g.strokeStyle = c; g.lineWidth = w * k; g.lineCap = g.lineJoin = 'round'; g.beginPath(); pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](...P(p.x, p.z))); g.stroke(); };
   const disc = (x, z, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(...P(x, z), r * k, 0, 7); g.fill(); };
   const poly = (pts, c) => { g.fillStyle = c; g.beginPath(); pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](...P(p.x, p.z))); g.closePath(); g.fill(); };
+  const rect = (x, z, a, W, D, c) => { const q = [[-W / 2, -D / 2], [W / 2, -D / 2], [W / 2, D / 2], [-W / 2, D / 2]].map(([u, v]) => { const r = rotL(u, v, a); return castleToWorld(x + r.x, z + r.z); }); poly(q, c); };
   g.fillStyle = '#1c2436'; g.fillRect(0, 0, MAPS, MAPS);
   const gr = g.createRadialGradient(MAPS / 2, MAPS / 2, 0, MAPS / 2, MAPS / 2, BOUND * k); gr.addColorStop(0, '#4c6e3a'); gr.addColorStop(0.75, '#3e5c32'); gr.addColorStop(1, '#33492c');
   g.fillStyle = gr; g.beginPath(); g.arc(MAPS / 2, MAPS / 2, BOUND * k, 0, 7); g.fill();
-  const r = mulberry32(3); for (let i = 0; i < 900; i++) { const a = r() * 6.283, d = Math.sqrt(r()) * BOUND; disc(Math.cos(a) * d, Math.sin(a) * d, 0.8 + r() * 1.6, `rgba(${90 + r() * 40 | 0},${120 + r() * 40 | 0},${60 + r() * 30 | 0},.35)`); }
+  const r = mulberry32(3); for (let i = 0; i < 2600; i++) { const a = r() * 6.283, d = Math.sqrt(r()) * BOUND; disc(Math.cos(a) * d, Math.sin(a) * d, 1 + r() * 2.4, `rgba(${90 + r() * 40 | 0},${120 + r() * 40 | 0},${60 + r() * 30 | 0},.35)`); }
+  // relevo: montanhas élficas (pedra e neve), floresta encantada e plantações
+  for (let x = VIL.x - 190; x < VIL.x + 190; x += 4) for (let z = VIL.z - 190; z < VIL.z + 190; z += 4) {
+    const m = elfM(x, z); if (m < 4 || Math.hypot(x, z) > BOUND) continue; const h = terrainH(x, z);
+    g.fillStyle = h > 40 ? `rgba(225,232,245,${Math.min(0.95, 0.5 + (h - 40) / 30)})` : `rgba(${110 + m * 1.2 | 0},${108 + m | 0},${118 + m | 0},${Math.min(0.85, m / 18)})`; g.fillRect(...P(x - 2, z - 2), 4.4 * k, 4.4 * k);
+  }
+  disc(FV.x, FV.z, 124, 'rgba(120,80,170,.35)'); disc(FV.x, FV.z, 100, 'rgba(110,70,160,.25)');
+  for (const f of FIELDS) { g.save(); g.translate(...P(f.x, f.z)); g.rotate(f.a); g.fillStyle = 'rgba(196,160,70,.85)'; g.fillRect(-f.hx * k, -f.hz * k, 2 * f.hx * k, 2 * f.hz * k); g.strokeStyle = 'rgba(120,90,40,.6)'; g.lineWidth = 0.9 * k; for (let v = -f.hz + 1.3; v < f.hz; v += 2.6) { g.beginPath(); g.moveTo(-f.hx * k, v * k); g.lineTo(f.hx * k, v * k); g.stroke(); } g.restore(); }
   // Condado: vale, paredão, riachos, lagos, trilhas e tocas
   poly([shW(-58, -40), shW(58, -40), shW(58, 80), shW(-58, 80)], 'rgba(120,170,80,.35)');
   g.strokeStyle = 'rgba(150,150,140,.8)'; g.lineWidth = 11 * k; g.beginPath(); for (let a = -2.6; a <= -0.54; a += 0.05) { const q = shW(Math.cos(a) * 47, Math.sin(a) * 47); g[a === -2.6 ? 'moveTo' : 'lineTo'](...P(q.x, q.z)); } g.stroke();
   for (const l of SHR) line(l, 3, '#4a8ac8'); for (const p of SHP) disc(p.x, p.z, p.r, '#4a8ac8');
   for (const sgm of SHLN) line([{ x: sgm.ax, z: sgm.az }, { x: sgm.bx, z: sgm.bz }], sgm.w * 1.6, 'rgba(200,170,120,.8)');
   for (const m of SHM) { disc(m.x, m.z, m.R * 0.75, 'rgba(110,160,70,.7)'); const d = shDoorAt(m); disc(d.x, d.z, m === SHM[0] ? 2.2 : 1.5, m === SHM[0] ? '#3f9a4a' : '#c87a3a'); }
-  // lago, rio e aldeia élfica, vila das fadas
-  disc(VIL.x, VIL.z, 32, 'rgba(200,190,140,.35)'); line([{ x: RIV.x0, z: RIV.z0 }, { x: RIV.x1, z: RIV.z1 }], 4, '#4a8ac8');
+  // lago, rio e aldeia élfica
+  disc(VIL.x, VIL.z, 32, 'rgba(200,190,140,.45)'); line([{ x: RIV.x0, z: RIV.z0 }, { x: RIV.x1, z: RIV.z1 }], 4, '#4a8ac8');
   disc(LAKE.x, LAKE.z, LAKE.r, '#3a78b8'); disc(LAKE.x, LAKE.z, LAKE.r - 3, '#4a8ac8');
-  disc(FV.x, FV.z, 30, 'rgba(230,140,210,.3)');
-  // estrada, trilha e castelo
-  line([ROAD.A, ROAD.C, ROAD.B], 6, 'rgba(170,165,160,.9)');
+  // estradas e trilha
+  for (const rd of ROADS) line(rd.pts, rd.w * 2.2, rd.stone ? 'rgba(175,170,165,.95)' : 'rgba(205,175,125,.9)');
   line(Array.from({ length: 20 }, (_, i) => { const z = 12 - i * 2; return { x: pathCenter(z), z }; }), 2.4, 'rgba(200,170,120,.85)');
-  poly([castleToWorld(-CRECT.hx, CRECT.cz - CRECT.hz), castleToWorld(CRECT.hx, CRECT.cz - CRECT.hz), castleToWorld(CRECT.hx, CRECT.cz + CRECT.hz), castleToWorld(-CRECT.hx, CRECT.cz + CRECT.hz)], 'rgba(150,150,160,.75)');
-  poly([castleToWorld(-9.4, -19.4), castleToWorld(9.4, -19.4), castleToWorld(9.4, 5.6), castleToWorld(-9.4, 5.6)], '#6a6a78');
-  // árvores
+  // Cidade Real: calçamento, casas, praça, jardim, castelo e muralha
+  poly(cityPoly.map(([x, z]) => castleToWorld(x, z)), 'rgba(150,146,150,.85)');
+  for (const h of CTY.foot) rect(h.x, h.z, h.a, h.W, h.D, h.park ? '#4f7f3c' : '#' + new THREE.Color(h.c).offsetHSL(0, 0.05, 0.08).getHexString());
+  { const c = castleToWorld(0, 90); disc(c.x, c.z, 6.4, '#8aa8c8'); }
+  rect(0, CRECT.cz, 0, CRECT.hx * 2, CRECT.hz * 2, 'rgba(120,120,135,.95)'); rect(0, -7, 0, 20, 26, '#6a6a78'); { const c = castleToWorld(0, -12); disc(c.x, c.z, 4.4, '#545468'); }
+  g.strokeStyle = '#3a3a48'; g.lineWidth = 2.8 * k; g.beginPath(); cityPoly.forEach(([x, z], i) => g[i ? 'lineTo' : 'moveTo'](...P(castleToWorld(x, z).x, castleToWorld(x, z).z))); g.closePath(); g.stroke();
+  for (const [x, z] of cityPoly) { const c = castleToWorld(x, z); disc(c.x, c.z, 4.6, '#2e2e3a'); }
+  for (const gt of Object.values(CGATE)) { const c = castleToWorld(gt.x, gt.z); disc(c.x, c.z, 3.4, '#c8a050'); }
+  // árvores: campo, Condado, floresta das fadas e pinheiros
   for (const q of [...TREES, ...shTrees]) disc(q.x, q.z, 2.2, 'rgba(30,60,30,.75)');
+  for (const q of fForest.userData.spots) disc(q.x, q.z, 2.6 * q.s, 'rgba(150,100,200,.75)');
+  for (const q of vil.userData.pines) disc(q.x, q.z, 1.8 * q.s, 'rgba(20,50,35,.85)');
   disc(DGE.x, DGE.z, 4, '#2a2230'); disc(BLANKET.x, BLANKET.z, 2, '#d85a6a');
+  { const P2 = ROADS[ROADS.length - 1].pts, B = P2[P2.length - 1]; disc(B.x, B.z, 5, '#3a4a7a'); }
 }
 const miniEl = document.getElementById('minimap'), bigEl = document.getElementById('bigmap'), bigCv = bigEl.querySelector('canvas');
 const mapCtx = miniEl.getContext('2d'), bigCtx = bigCv.getContext('2d');
@@ -7413,7 +7964,7 @@ function mapIcons() { const l = MAP_PLACES.slice(); if (typeof horse !== 'undefi
 function drawMini() {
   const dpr = Math.min(devicePixelRatio || 1, 2), W = miniEl.clientWidth, px = Math.round(W * dpr);
   if (miniEl.width !== px) { miniEl.width = miniEl.height = px; }
-  const g = mapCtx, c = px / 2, rad = c - 1, p = mapPos(), yaw = player.yaw, span = 85, k = rad / span;
+  const g = mapCtx, c = px / 2, rad = c - 1, p = mapPos(), yaw = player.yaw, span = 100, k = rad / span;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, px, px);
   g.save(); g.beginPath(); g.arc(c, c, rad, 0, 7); g.clip();
   g.fillStyle = '#1c2436'; g.fillRect(0, 0, px, px);
@@ -7444,6 +7995,8 @@ function drawBig() {
     if (q.small && q.n !== 'Bolsão') continue;
     g.font = `italic ${(q.small ? 11 : 14) * dpr}px Georgia, serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(10,12,24,.85)'; g.strokeText(q.n, x, y + 17 * dpr); g.fillStyle = '#fff0d8'; g.fillText(q.n, x, y + 17 * dpr);
   }
+  g.font = `italic bold ${15 * dpr}px Georgia, serif`; g.lineWidth = 4 * dpr; // nomes das regiões
+  for (const q of MAP_REGIONS) { const x = M(q.x), y = M(q.z); g.strokeStyle = 'rgba(10,12,24,.8)'; g.strokeText(q.n, x, y); g.fillStyle = '#ffd98a'; g.fillText(q.n, x, y); }
   const ax = M(p.x), ay = M(p.z);
   g.fillStyle = 'rgba(255,224,138,.25)'; g.beginPath(); g.arc(ax, ay, (14 + 4 * Math.sin(uTime.value * 4)) * dpr, 0, 7); g.fill();
   drawArrow(g, ax, ay, -player.yaw, 9 * dpr);
