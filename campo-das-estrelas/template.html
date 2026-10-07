@@ -9502,7 +9502,16 @@ function pvLoop() {
 #dgBoss{bottom:calc(96px + env(safe-area-inset-bottom))!important}
 .rpg{font-family:"Cormorant Garamond",Georgia,serif;color:var(--fg)}
 #rpgHud{position:fixed;left:calc(62px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:20;display:flex;gap:9px;align-items:center;padding:6px 12px 6px 6px;border-radius:30px;
-  background:linear-gradient(90deg,rgba(12,16,34,.78),rgba(12,16,34,.5));border:1px solid rgba(255,220,163,.22);cursor:pointer;transition:opacity .5s}
+  background:linear-gradient(90deg,rgba(12,16,34,.78),rgba(12,16,34,.5));border:1px solid rgba(255,220,163,.22);cursor:pointer;transition:opacity .5s,transform .35s ease}
+#rpgHud.tuck{transform:translateX(calc(-100% - 64px - env(safe-area-inset-left)))}
+#rpgHud .tab,#miniTab{position:absolute;right:-31px;bottom:8px;width:28px;height:32px;border-radius:0 10px 10px 0;background:rgba(12,16,34,.78);border:1px solid rgba(255,220,163,.3);border-left:none;color:var(--gold);display:grid;place-items:center;font-size:13px;font-style:normal;padding:0;cursor:pointer}
+#rpgHud .tab:hover,#miniTab:hover{background:rgba(30,34,60,.9)}
+#minimap{transition:transform .35s ease}
+#minimap.tuck{transform:translateX(calc(-100% - 22px - env(safe-area-inset-left)))}
+#miniTab{position:fixed;right:auto;bottom:auto;z-index:20;transition:left .35s ease}
+.touch #rpgHud .tab{width:32px;height:36px;right:-35px}
+.touch #miniTab{width:32px;height:40px}
+body.photo #miniTab{opacity:0!important;pointer-events:none!important}
 #rpgHud .pt{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:21px;font-style:normal;box-shadow:inset 0 0 0 2px rgba(255,220,163,.6),0 0 12px rgba(0,0,0,.4);position:relative}
 #rpgHud .lv{position:absolute;right:-5px;bottom:-4px;min-width:19px;height:19px;padding:0 4px;border-radius:10px;background:#2a1c10;border:1px solid #ffdca3;color:#ffdca3;font:bold 11px Georgia,serif;display:grid;place-items:center}
 #rpgHud .nm{font-size:15px;font-style:italic;color:#fff3dc;line-height:1;margin-bottom:4px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
@@ -9647,6 +9656,20 @@ function hudUpdate() {
   $r('rpgCamB').classList.toggle('tp', RPG.opt.tp);
   trackUpdate();
 }
+/* setinhas do quadro da personagem e do minimapa: deslizam para a esquerda e voltam */
+const HUD_TAB = (() => { const b = document.createElement('button'); b.className = 'tab'; b.title = 'Esconder/mostrar personagem';
+  b.addEventListener('click', e => { e.stopPropagation(); RPG.opt.hudTuck = !RPG.opt.hudTuck; tuckApply(); rpgSave(); sfx.whoosh(0.05, 0.2); }); $r('rpgHud').appendChild(b); return b; })();
+const MINI_TAB = (() => { const b = document.createElement('button'); b.id = 'miniTab'; b.title = 'Esconder/mostrar mapa'; b.className = 'hidden';
+  b.addEventListener('click', e => { e.stopPropagation(); RPG.opt.miniTuck = !RPG.opt.miniTuck; tuckApply(); rpgSave(); sfx.whoosh(0.05, 0.2); }); document.body.appendChild(b); return b; })();
+function miniTabPlace() { // o mapa é um desenho: a setinha é um botão à parte que acompanha ele (posição sem contar o deslize)
+  const t = !!RPG.opt.miniTuck, shown = !miniEl.classList.contains('hidden'); MINI_TAB.classList.toggle('hidden', !shown); if (!shown) return;
+  MINI_TAB.style.top = (miniEl.offsetTop + miniEl.offsetHeight / 2 - MINI_TAB.offsetHeight / 2) + 'px'; MINI_TAB.style.left = t ? '0px' : (miniEl.offsetLeft + miniEl.offsetWidth + 3) + 'px';
+}
+function tuckApply() {
+  const h = !!RPG.opt.hudTuck, m = !!RPG.opt.miniTuck; $r('rpgHud').classList.toggle('tuck', h); HUD_TAB.textContent = h ? '▶' : '◀'; HUD_TAB.setAttribute('aria-label', h ? 'mostrar personagem' : 'esconder personagem');
+  miniEl.classList.toggle('tuck', m); MINI_TAB.textContent = m ? '▶' : '◀'; MINI_TAB.setAttribute('aria-label', m ? 'mostrar mapa' : 'esconder mapa'); miniTabPlace();
+}
+new MutationObserver(miniTabPlace).observe(miniEl, { attributes: true, attributeFilter: ['class'] }); addEventListener('resize', () => setTimeout(miniTabPlace, 50));
 const TRACK_TAB = (() => { const b = document.createElement('button'); b.className = 'tab'; b.title = 'Esconder/mostrar missões';
   b.addEventListener('click', e => { e.stopPropagation(); RPG.opt.trackTuck = !RPG.opt.trackTuck; b.classList.remove('ping'); trackTuckApply(); rpgSave(); sfx.whoosh(0.05, 0.2); }); return b; })();
 function trackTuckApply() { const t = !!RPG.opt.trackTuck; $r('rpgTrack').classList.toggle('tuck', t); TRACK_TAB.textContent = t ? '◀' : '▶'; TRACK_TAB.setAttribute('aria-label', t ? 'mostrar missões' : 'esconder missões'); }
@@ -10210,6 +10233,7 @@ function updateHero(dt) {
 
 /* começar a jogar */
 function rpgStart(fresh) {
+  tuckApply();
   rpgApply(); if (fresh) { DGM.hp = DGM.max; RPG.mp = ST.maxMp; } else { DGM.hp = RPG.hp > 0 ? Math.min(RPG.hp, DGM.max) : DGM.max; }
   usedSet.clear(); for (const i of RPG.used) usedSet.add(i);
   for (const s of XW.shards) if (RPG.shards[s.i]) { s.got = true; s.g.visible = false; } else { s.got = false; }
