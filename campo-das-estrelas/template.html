@@ -3346,31 +3346,40 @@ const horseCollider = { x: horse.x, z: horse.z, r: 1.1 }; colliders.push(horseCo
 addInteract([horse.hit], () => rideHorse(), { at: () => ({ x: horse.x, z: horse.z }), near: 3, range: 40 });
 const ride = { pts: null, cum: null, s: 0, len: 0 };
 const saddleEye = () => { horse.root.updateMatrixWorld(); return horse.root.localToWorld(V3(0, 2.55, -0.05)); };
-function placeHorse(dt) {
-  const t = uTime.value, m = Math.min(1, horse.spd / 3);
-  horse.walkPh += horse.spd * dt * 2.2;
+function placeHorse(dt, turn = 0) { // passo, trote e galope com o ritmo de verdade das patas
+  const t = uTime.value, v = horse.spd, gait = v > 9 ? 2 : v > 4.5 ? 1 : 0, m = Math.min(1, v / 2.5), TAU = Math.PI * 2;
+  const P0 = horse.walkPh; horse.walkPh += v / [1.7, 2.7, 3.7][gait] * dt; const P = horse.walkPh % 1; // uma passada inteira = 1
+  horse.gk = (horse.gk || 0) + ((gait === 2 ? 1 : 0) - (horse.gk || 0)) * Math.min(1, dt * 3); const G = horse.gk;
+  const offs = gait === 2 ? [0.6, 0.5, 0.12, 0] : gait === 1 ? [0, 0.5, 0.5, 0] : [0.25, 0.75, 0, 0.5], A = [0.35, 0.55, 0.85][gait]; // frente esq., frente dir., trás esq., trás dir.
   horse.root.position.set(horse.x, terrainH(horse.x, horse.z), horse.z); horse.root.rotation.y = horse.hd;
-  horse.body.position.y = Math.abs(Math.sin(horse.walkPh)) * 0.05 * m;
-  horse.legs.forEach(L => { const s = Math.sin(horse.walkPh + L.ph); L.g.rotation.x = s * 0.5 * m; L.kn.rotation.x = Math.max(0, -s) * 0.7 * m; });
+  horse.root.rotation.z += (clamp(-turn * 0.1, -0.16, 0.16) * m - horse.root.rotation.z) * Math.min(1, dt * 4); // inclina nas curvas
+  const bounce = gait === 2 ? 0.14 * Math.max(0, Math.sin(TAU * (P - 0.1))) : gait === 1 ? 0.06 * Math.abs(Math.sin(TAU * P * 2)) : 0.02 * Math.abs(Math.sin(TAU * P * 2));
+  horse.body.position.y = bounce * m; horse.body.rotation.x = (gait === 2 ? 0.09 * Math.sin(TAU * P + 0.6) : 0.015 * Math.sin(TAU * P * 2)) * m; // no galope o corpo balança como um cavalinho de balanço
+  horse.legs.forEach((L, i) => { const ph = TAU * (P + offs[i]), sw = Math.sin(ph), fw = Math.cos(ph); L.g.rotation.x = sw * A * m; L.kn.rotation.x = Math.max(0, fw) * (i < 2 ? 1.25 : 0.9) * A * m; // dobra o joelho quando a pata vai para a frente
+    if (v > 0.5 && Math.floor(P0 + offs[i] + 0.25) !== Math.floor(horse.walkPh + offs[i] + 0.25)) { // a pata bateu no chão
+      if (t - (horse.clopT || 0) > 0.06) { horse.clopT = t; sfx.clop(); }
+      if (gait === 2 && i >= 2 && Math.random() < 0.7) { const q = horse.root.localToWorld(V3(L.g.position.x, 0.05, L.g.position.z - 0.3)); spawnFX(TEX.smoke, q, { vel: V3(rv(0.4), 0.35, rv(0.4)), life: 0.9, size: 0.18, grow: 2, color: 0xd8ccb0 }); } } });
   const graze = m < 0.1 ? Math.max(0, Math.sin(t * 0.15) - 0.5) * 2 : 0;
-  horse.neck.rotation.x = 0.6 + graze * 0.9 + Math.sin(t * 0.5) * 0.04;
-  horse.tail.rotation.z = Math.sin(t * 1.3) * 0.25;
+  horse.neck.rotation.x = 0.6 + graze * 0.9 + G * 0.28 + (v > 0.5 ? 0.1 * Math.sin(TAU * P * (gait === 2 ? 1 : 2) + 1.4) * m : Math.sin(t * 0.5) * 0.04); // estica o pescoço e balança a cabeça
+  horse.head.rotation.x = -0.25 - G * 0.12;
+  horse.tail.rotation.x = -2.6 + G * 0.75 * m; horse.tail.rotation.z = Math.sin(t * 1.3) * 0.25 * (1 - m) + Math.sin(TAU * P) * 0.18 * m; // o rabo levanta e esvoaça
 }
 function rideHorse() { // abre o menu de destinos
   if (mode !== 'walk' || picking) return;
   openTravel('horse');
 }
 function updateRide(dt) {
-  const sp = (keys['shift'] ? 13 : 8) * (ride.len > 160 ? 1.6 : 1); // nas viagens longas o cavalinho galopa
-  ride.s = Math.min(ride.len, ride.s + sp * dt);
+  const top = keys['shift'] ? 15 : ride.len > 160 ? 12.8 : 10.5, rem = ride.len - ride.s; // nas viagens longas o cavalinho galopa
+  const want = Math.min(top, 1.2 + rem * 0.8); // arranca devagar e desacelera chegando
+  const sp = horse.spd + (want - horse.spd) * Math.min(1, dt * (want > horse.spd ? 0.9 : 2.2));
+  ride.s = Math.min(ride.len, ride.s + Math.max(0.6, sp) * dt);
   let i = 1; while (i < ride.cum.length - 1 && ride.cum[i] < ride.s) i++;
   const a = ride.pts[i - 1], b = ride.pts[i], k = (ride.s - ride.cum[i - 1]) / ((ride.cum[i] - ride.cum[i - 1]) || 1);
   horse.x = lerp(a.x, b.x, k); horse.z = lerp(a.z, b.z, k);
-  horse.hd += clamp(wrapAngle(Math.atan2(b.x - a.x, b.z - a.z) - horse.hd), -dt * 2.5, dt * 2.5);
+  const dh = clamp(wrapAngle(Math.atan2(b.x - a.x, b.z - a.z) - horse.hd), -dt * 2.5, dt * 2.5); horse.hd += dh;
   horse.spd = sp; player.x = horse.x; player.z = horse.z;
-  placeHorse(dt);
-  const st = Math.floor(horse.walkPh / Math.PI); if (st !== horse.step) { horse.step = st; sfx.clop(); }
-  const e = saddleEye(); e.y += Math.abs(Math.sin(horse.walkPh)) * 0.06; camera.position.copy(e);
+  placeHorse(dt, dt > 0 ? dh / dt : 0);
+  const e = saddleEye(); e.y += horse.body.position.y * 0.9; camera.position.copy(e); // você sobe e desce junto com o corpo do cavalo
   if (lookId === null) player.yaw += wrapAngle(Math.atan2(-Math.sin(horse.hd), -Math.cos(horse.hd)) - player.yaw) * Math.min(1, dt * 1.2);
   if (ride.s >= ride.len) endRide();
 }
@@ -8085,14 +8094,43 @@ function roadPath(sx, sz, gx, gz) {
   for (const p of tail ? tail.slice(1) : [V3(gx, 0, gz)]) out.push(p);
   return out.filter((p, i) => i === 0 || p.distanceTo(out[i - 1]) > 0.3);
 }
+const HP = { cell: 8, map: null };
+function hpBuild() { // colisores parados num mapa de baldes de 8 m (para conferir rápido se um trecho está livre)
+  const dyn = new Set([horseCollider, dragonCollider, ...mk.walkers.map(w => w.col), ...mk.kids.map(k => k.col), ...court.runKids.map(k => k.col), ...court.carts.flatMap(c => [c.col, c.colH]), ...vill.walkers.map(w => w.col), ...XW.dyn]);
+  HP.map = new Map(); const put = (x0, z0, x1, z1, o) => { for (let i = Math.floor(x0 / HP.cell); i <= Math.floor(x1 / HP.cell); i++) for (let j = Math.floor(z0 / HP.cell); j <= Math.floor(z1 / HP.cell); j++) { const k = i * 4096 + j; if (!HP.map.has(k)) HP.map.set(k, []); HP.map.get(k).push(o); } };
+  for (const c of colliders) if (c.r >= 0.3 && !c.u && !dyn.has(c)) put(c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r, c);
+  for (const w of segColliders) if (w.r >= 0 && !w.u) put(Math.min(w.ax, w.bx) - w.r, Math.min(w.az, w.bz) - w.r, Math.max(w.ax, w.bx) + w.r, Math.max(w.az, w.bz) + w.r, w);
+}
+function hpHit(x, z, rad = 0.85) {
+  const l = HP.map.get(Math.floor(x / HP.cell) * 4096 + Math.floor(z / HP.cell)); if (!l) return false;
+  for (const o of l) { if (o.ax !== undefined) { if (segD(x, z, o.ax, o.az, o.bx, o.bz) < o.r + rad) return true; } else if (Math.hypot(x - o.x, z - o.z) < o.r + rad) return true; }
+  return false;
+}
+function hpFree(q) { // o ponto livre mais perto (para a chegada não ficar colada numa parede ou num poste)
+  if (!HP.map) hpBuild(); if (!hpHit(q.x, q.z, 1.2)) return q;
+  for (let r = 0.5; r <= 10; r += 0.5) for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, x = q.x + Math.sin(a) * r, z = q.z + Math.cos(a) * r; if (!hpHit(x, z, 1.2) && navCell(x, z) >= 0) return { x, z }; }
+  return q;
+}
+function hpClear(a, b) { const L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / 0.5)); for (let k = 0; k <= n; k++) if (hpHit(a.x + (b.x - a.x) * k / n, a.z + (b.z - a.z) * k / n)) return false; return true; }
+function hpClean(pts) { // tira os degraus e o zigue-zague (sem sair da estrada mais que uns metros) e arredonda as curvas onde a curva também é livre
+  if (!HP.map) hpBuild(); if (pts.length < 3) return pts;
+  const dev = (i, k) => { const a = pts[i], b = pts[k], L = Math.hypot(b.x - a.x, b.z - a.z) || 1; let m = 0; for (let j = i + 1; j < k; j++) m = Math.max(m, Math.abs((pts[j].x - a.x) * (b.z - a.z) - (pts[j].z - a.z) * (b.x - a.x)) / L); return m; };
+  let out = [pts[0]], i = 0;
+  while (i < pts.length - 1) { let j = i + 1, len = 0; for (let k = i + 1; k < pts.length && k <= i + 60; k++) { len += pts[k].distanceTo(pts[k - 1]); if (len > 80) break; if (k > i + 1 && dev(i, k) <= 4 && hpClear(pts[i], pts[k])) j = k; } out.push(pts[j]); i = j; }
+  for (let it = 0; it < 2; it++) { const sm = [out[0]]; for (let k = 1; k < out.length - 1; k++) { const p = out[k - 1], c = out[k], n = out[k + 1], q = c.clone().lerp(p, Math.min(0.3, 4 / (c.distanceTo(p) || 1))), r = c.clone().lerp(n, Math.min(0.3, 4 / (c.distanceTo(n) || 1))); if (hpClear(q, r)) sm.push(q, r); else sm.push(c); } sm.push(out[out.length - 1]); out = sm; }
+  out = out.filter((p, k) => k === 0 || p.distanceTo(out[k - 1]) > 0.2);
+  const touch = P => { let n = 0; for (let k = 1; k < P.length; k++) { const a = P[k - 1], b = P[k], L = a.distanceTo(b); for (let t = 0; t < L; t += 0.5) if (hpHit(a.x + (b.x - a.x) * t / L, a.z + (b.z - a.z) * t / L, 0.5)) n++; } return n; };
+  return touch(out) > touch(pts) ? pts : out; // garantia: se o acabamento encostar em mais coisas que a rota original, fica a original
+}
 async function startHorseRide(d) {
   if (mode !== 'walk') return;
-  const pts = [V3(horse.x, 0, horse.z)]; let sx = horse.x, sz = horse.z;
+  let pts = [V3(horse.x, 0, horse.z)], sx = horse.x, sz = horse.z;
   if (castleRectDist(horse.x, horse.z) < 0.01) { for (const [lx, lz] of [[0, 53], [0, 60], [0, 72]]) { const q = castleToWorld(lx, lz); pts.push(V3(q.x, 0, q.z)); } sx = pts[pts.length - 1].x; sz = pts[pts.length - 1].z; }
-  const goal = d.h(), path = roadPath(sx, sz, goal.x, goal.z);
+  const goal = hpFree(d.h()), path = roadPath(sx, sz, goal.x, goal.z);
   if (!path) { whisper(TRAVEL_NOPATH, 3.5); return; }
   path.slice(1).forEach(p => pts.push(p));
   for (const [lx, lz] of d.hEnd || []) { const q = castleToWorld(lx, lz); pts.push(V3(q.x, 0, q.z)); }
+  pts = hpClean(pts);
   const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
   if (player.seat) { player.seat.onStand?.(); player.seat = null; }
   player.pose = 'stand';
