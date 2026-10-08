@@ -562,6 +562,7 @@ const DUN = { x: 150, y: -60, z: 150, k: 0 }; // masmorra: bem longe, debaixo da
 const DGP = { x: -320, z0: -220, dz: 110, y: -60 }; // andares da Dungeon das Sombras
 const SHADOW_ACTORS = []; // { o: objeto, r: raio da sombra }
 const BE = { x: 300, z: 40, y: DUN.y, k: 0, inside: false, busy: false }; // interior do Bolsão (longe, debaixo da terra)
+const TWR = { x: 76, z: 8, cur: -1, fy: [], gy: 0, yaw: 0, busy: false }; // Torre de Pesquisas (cur: andar onde você está lá em cima, -1 = fora)
 const UNDER = { dw: false, dg: false }; // você está mesmo lá embaixo? (as áreas debaixo da terra ficam sob o campo, a floresta e a Vila Trigo Dourado)
 const inDun = (x, z) => (UNDER.dw && Math.abs(x - DUN.x) < 70 && Math.abs(z - DUN.z) < 70) || (BE.inside && Math.abs(x - BE.x) < 16 && z > BE.z - 4 && z < BE.z + 30) || (UNDER.dg && x > DGP.x - 6 && x < DGP.x + 81 && z > DGP.z0 - 6 && z < DGP.z0 + 3 * DGP.dz + 81);
 const DGE = { x: -95, z: 40 }; { const l = Math.hypot(DGE.x, DGE.z); DGE.fx = -DGE.x / l; DGE.fz = -DGE.z / l; } // entrada no campo
@@ -1739,6 +1740,7 @@ const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 /* colisões: círculos + paredes (segmentos) */
 const segColliders = [];
+const placeTag = () => DGM.inside ? 'dg' : DW.inside ? 'dw' : BE.inside ? 'be' : TWR.cur >= 0 ? 'tw' + TWR.cur : '';
 const NEARC = new WeakMap();
 function nearCols(o) {
   let n = NEARC.get(o);
@@ -1753,7 +1755,7 @@ function nearCols(o) {
 function collide(o, rad) {
   const near = nearCols(o);
   // os subterrâneos ficam bem embaixo do mapa: as paredes deles não valem na superfície e as coisas da superfície não valem lá embaixo (a dungeon das sombras tem colisão própria)
-  const und = DGM.inside ? 'dg' : DW.inside ? 'dw' : BE.inside ? 'be' : '';
+  const und = placeTag();
   for (const c of near.c) {
     if (!c.r || (c.u || '') !== und) continue;
     const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz), min = c.r + rad;
@@ -1917,7 +1919,7 @@ function padY(x, z) {
   }
   return y;
 }
-const floorY = (x, z) => inDun(x, z) ? DUN.y : Math.max(terrainH(x, z) + (inHall(x, z) ? 0.1 : 0), pierY(x, z), bridgeY(x, z), padY(x, z));
+const floorY = (x, z) => TWR.cur >= 0 && Math.hypot(x - TWR.x, z - TWR.z) < 11 ? TWR.fy[TWR.cur] : inDun(x, z) ? DUN.y : Math.max(terrainH(x, z) + (inHall(x, z) ? 0.1 : 0), pierY(x, z), bridgeY(x, z), padY(x, z));
 const wallC = (x0, z0, x1, z1, r) => { const a = castleToWorld(x0, z0), b = castleToWorld(x1, z1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r }); };
 const circC = (x, z, r) => { const q = castleToWorld(x, z); colliders.push({ x: q.x, z: q.z, r }); };
 
@@ -2229,7 +2231,7 @@ let throneSeat, bedSeat;
   const glass = new THREE.Mesh(new THREE.SphereGeometry(0.36, 32, 20), new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, uniforms: { uMagic: { value: 0 } },
     vertexShader: `varying vec3 vN, vW; void main(){ vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
-    fragmentShader: `varying vec3 vN, vW; void main(){ float f=pow(1.-max(dot(normalize(vN),normalize(cameraPosition-vW)),0.),2.2); gl_FragColor=vec4(mix(vec3(.35,.3,.9),vec3(.85,.9,1.),f),.07+f*.75); }`,
+    fragmentShader: `varying vec3 vN, vW; void main(){ float f=pow(clamp(1.-dot(normalize(vN),normalize(cameraPosition-vW)),0.,1.),2.2); gl_FragColor=vec4(mix(vec3(.35,.3,.9),vec3(.85,.9,1.),f),.07+f*.75); }`,
   }));
   glass.position.y = 1.48; glass.renderOrder = 6; crystal.g.add(glass);
   magicLight = new THREE.PointLight(0x9a6bff, 0, 18, 1.5); magicLight.position.set(5, 2.6, -12.5); hall.add(magicLight);
@@ -2799,17 +2801,18 @@ const uAurora = { value: 0.5 };
       void main(){ float x=vUv.x*30.;
         float bottom=.12+.08*sin(x*.7+uTime*.25)+.05*sin(x*1.9-uTime*.4);
         float rays=n(x*6.+uTime*.6)*.6+n(x*17.-uTime*.3)*.4;
-        float body=smoothstep(bottom,bottom+.05,vUv.y)*pow(1.-vUv.y,1.4)*(.4+rays);
+        float body=smoothstep(bottom,bottom+.05,vUv.y)*pow(max(1.-vUv.y,0.),1.4)*(.4+rays);
         float edge=smoothstep(0.,.15,vUv.x)*smoothstep(1.,.85,vUv.x);
         vec3 c=mix(vec3(.2,1.,.6),vec3(.85,.35,1.),smoothstep(.15,.7,vUv.y));
-        gl_FragColor=vec4(c,body*edge*.5*uAurora); }`,
+        gl_FragColor=vec4(c,clamp(body*edge*.5*uAurora,0.,1.)); }`,
   });
-  const aur = new THREE.Mesh(g, m); aur.position.y = 230; aur.renderOrder = -6; skyGroup.add(aur);
+  const aur = new THREE.Mesh(g, m); aur.position.y = 230; aur.renderOrder = -6; skyGroup.add(aur); uAurora.mesh = aur;
 }
 
 function updateWorld2(dt) {
   updateWorld3(dt); updateRideWorld(dt); updateCastle(dt); updateCats(dt); updateDragon(dt); updateLanterns(dt); updateMarket(dt); updateCourt(dt); updateDungeon(dt); updateDG(dt); updateDGE(dt); updateLakeExtras(dt); updateCity(dt); updateVillage(dt); updateFairies(dt); updateShire(dt); updateXWorld(dt); updateAutumn(dt); updateFX(dt);
   uAurora.value += ((mode === 'fly' ? 1 : 0.5) * (1 - uDay.value) * (1 - uCover.value) - uAurora.value) * Math.min(1, dt);
+  if (uAurora.mesh) uAurora.mesh.visible = uAurora.value > 0.004; // de dia a aurora nem é desenhada
 }
 
 /* ------------------------------------------------------------------ *
@@ -2869,7 +2872,7 @@ const DUSK_FOG = V3(0.86, 0.5, 0.42), DUSK_Z = V3(0.16, 0.14, 0.34), DUSK_ML = n
 function updateWeather(dt) {
   if ((WX.t -= dt) <= 0) { const prev = WX.want; WX.want = wxPick(); WX.t = 180 + Math.random() * 240; if (WX.want !== prev) WX.said = false; }
   const tg = WX_TYPES[WX.want]; for (const k in WX.k) WX.k[k] += clamp((tg[k] || 0) - WX.k[k], -dt / 25, dt / 25);
-  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || magic.indoor > 0.5 ? 1 : 0;
+  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || TWR.cur >= 0 || magic.indoor > 0.5 ? 1 : 0;
   WX.snow += clamp((inSnowLand(camera.position.x, camera.position.z) ? 1 : 0) - WX.snow, -dt / 3, dt / 3);
   if (!WX.said && RPG.made && mode === 'walk' && !WX.under) { WX.said = true; const sn = WX.snow > 0.5 && WX_SNOW_SAY[WX.want]; if (WX.want !== 'clear' || WX.k.cloud > 0.3) toast(sn || WX_SAY[WX.want], 3600); }
   // raios na tempestade: clarão agora, trovão um pouquinho depois
@@ -2975,7 +2978,7 @@ let waterMat;
         vec2 g=vec2(sin(q.x*1.3+uTime*1.2)*.05+sin(q.y*2.3-uTime*1.1)*.03, cos(q.x*1.7-uTime*.9)*.04+sin(q.y*1.1+uTime*.7)*.04);
         vec2 dq=q-uRip.xy; float rd=length(dq);
         g+=dq/(rd+1e-3)*sin(rd*7.-uRip.z*9.)*exp(-abs(rd-uRip.z*3.)*1.5)*exp(-uRip.z*.6)*uRip.w*.3;
-        vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(1.-max(V.y,0.),3.);
+        vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(clamp(1.-V.y,0.,1.),3.);
         vec3 night=vec3(.015,.03,.07)+vec3(.12,.16,.3)*fr+vec3(.95,.97,1.)*pow(m,220.)*2.2+vec3(.25,.3,.5)*pow(m,14.)*.6;
         vec2 sg=floor(R.xz/(R.y+.2)*40.);
         night+=step(.985,hh(sg))*(.5+.5*sin(uTime*3.+hh(sg+1.)*30.))*smoothstep(0.,.3,R.y)*.8;
@@ -5047,7 +5050,7 @@ function elfTree(sx, fz, s = 1) {
       uniform float uTime, uDay; uniform vec3 uMoonDir; varying vec3 vW; varying vec2 vUv;
       void main(){ vec3 V=normalize(cameraPosition-vW);
         vec2 g=vec2(sin(vUv.y*9.-uTime*3.)*.08+sin(vW.x*2.1+uTime)*.03, cos(vUv.y*6.-uTime*2.4)*.06);
-        vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(1.-max(V.y,0.),3.);
+        vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(clamp(1.-V.y,0.,1.),3.);
         float foam=smoothstep(.75,1.,sin(vUv.y*14.-uTime*5.+vUv.x*6.))*.25;
         vec3 night=vec3(.02,.05,.1)+vec3(.12,.18,.32)*fr+vec3(.9,.95,1.)*pow(m,120.)*1.6+foam*vec3(.5,.6,.8);
         vec3 day=vec3(.15,.38,.5)+vec3(.45,.62,.8)*fr+foam;
@@ -6132,7 +6135,7 @@ const shWaterM = new THREE.ShaderMaterial({
     uniform float uTime, uDay; uniform vec3 uMoonDir; varying vec3 vW; varying vec2 vUv;
     void main(){ vec3 V=normalize(cameraPosition-vW);
       vec2 g=vec2(sin(vUv.y*9.-uTime*3.)*.08+sin(vW.x*2.1+uTime)*.03, cos(vUv.y*6.-uTime*2.4)*.06);
-      vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(1.-max(V.y,0.),3.);
+      vec3 N=normalize(vec3(g.x,1.,g.y)), R=reflect(-V,N); float m=max(dot(R,uMoonDir),0.), fr=pow(clamp(1.-V.y,0.,1.),3.);
       float foam=smoothstep(.85,1.,sin(vUv.y*14.-uTime*5.+vUv.x*6.))*.1;
       vec3 night=vec3(.02,.06,.1)+vec3(.12,.2,.32)*fr+vec3(.9,.95,1.)*pow(m,120.)*1.6+foam*vec3(.5,.6,.8);
       vec3 day=vec3(.15,.4,.48)+vec3(.45,.65,.8)*fr+foam;
@@ -9069,14 +9072,15 @@ function updateCull() { // brilhos que de longe ficariam com menos de ~2 pixels 
     scene.children.forEach(walk);
   }
   const jump = camera.position.distanceToSquared(mcLast.p) > 400 || Math.abs(camera.fov - mcLast.fov) > mcLast.fov * 0.2; // teleporte ou zoom: confere tudo de uma vez para nada surgir atrasado
-  mcLast.p.copy(camera.position); mcLast.fov = camera.fov;
-  for (let k = 0, m = jump ? meshCull.length : Math.ceil(meshCull.length / 10); k < m; k++) {
+  mcLast.p.copy(camera.position); mcLast.fov = camera.fov; if (jump) mcLast.again = 2; // repete no quadro seguinte: o que acabou de aparecer ainda está com a posição velha
+  const full = jump || (mcLast.again > 0 && mcLast.again--);
+  for (let k = 0, m = full ? meshCull.length : Math.ceil(meshCull.length / 10); k < m; k++) {
     const o = meshCull[mcI = (mcI + 1) % meshCull.length]; mcS.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
     const px = mcS.radius / Math.max(mcS.center.distanceTo(camera.position), 0.01) * F;
     o.layers.set((o.layers.mask === 1 ? px < 0.8 : px < 1.6) ? 5 : 0);
   }
 }
-let meshCull = null, mcI = 0; const mcS = new THREE.Sphere(), mcLast = { p: new THREE.Vector3(), fov: 0 };
+let meshCull = null, mcI = 0; const mcS = new THREE.Sphere(), mcLast = { p: new THREE.Vector3(), fov: 0, again: 0 };
 
 
 /* sombras de contato: manchas suaves no chão debaixo das árvores, pessoas e bichos */
@@ -9139,7 +9143,7 @@ function renderFrame(dt) {
 }
 function renderFrameIn(dt) {
   if (FX.on) {
-    const inside = BE.inside || DW.inside || DGM.inside;
+    const inside = BE.inside || DW.inside || DGM.inside || TWR.cur >= 0;
     FX.bloom.threshold = inside ? 0.97 : lerp(0.85, 0.98, uDay.value);
     FX.bloom.strength = (inside ? 0.4 : lerp(0.5, 0.15, uDay.value)) * (mode === 'scope' ? 0.5 : 1);
     FX.composer.render(dt);
@@ -9473,7 +9477,7 @@ const rpgNew = () => ({ v: 1, name: 'Majestade', race: 'humana', cls: 'maga', lo
 let RPG = rpgNew();
 function rpgLoad() { try { const s = JSON.parse(localStorage.getItem(RPG_KEY) || 'null'); if (s && s.v === 1 && s.made) { RPG = Object.assign(rpgNew(), s); RPG.opt = Object.assign(rpgNew().opt, s.opt || {}); if (typeof RPG.clock === 'number' && RPG.clock >= 0 && RPG.clock < 24) TIME.h = RPG.clock; return true; } } catch (e) {} return false; }
 let saveT = 0;
-function rpgSave() { if (!RPG.made) return; try { if (mode === 'walk' && !BE.inside && !DW.inside && !DGM.inside && player.pose === 'stand') RPG.pos = { x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(3) }; RPG.hp = DGM.hp; RPG.clock = +TIME.h.toFixed(3); localStorage.setItem(RPG_KEY, JSON.stringify(RPG)); } catch (e) {} }
+function rpgSave() { if (!RPG.made) return; try { if (mode === 'walk' && !BE.inside && !DW.inside && !DGM.inside && TWR.cur < 0 && player.pose === 'stand') RPG.pos = { x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(3) }; RPG.hp = DGM.hp; RPG.clock = +TIME.h.toFixed(3); localStorage.setItem(RPG_KEY, JSON.stringify(RPG)); } catch (e) {} }
 const usedSet = new Set();
 
 /* atributos */
@@ -9743,15 +9747,15 @@ function trackUpdate() {
   if (!UI.title && !UI.panel && RPG.opt.tracker && !$r('rpgHud').classList.contains('hidden')) el.classList.remove('hidden');
 }
 function showDialog(who, title, text, btns) {
-  UI.dlg = true; joyReset();
+  UI.dlg = true; joyReset(); const t0 = performance.now(); // no celular o toque que abriu ainda gera um clique logo depois: ignora
   $r('rpgDlgW').replaceChildren(who); if (title) { const s = document.createElement('small'); s.textContent = title; $r('rpgDlgW').appendChild(s); }
   $r('rpgDlgT').textContent = text; const bb = $r('rpgDlgB'); bb.replaceChildren();
-  for (const [label, fn, gold] of btns) { const b = document.createElement('button'); b.className = 'rbtn' + (gold ? ' gold' : ''); b.textContent = label; b.addEventListener('click', e => { e.stopPropagation(); closeDialog(); fn && fn(); }); bb.appendChild(b); }
+  for (const [label, fn, gold] of btns) { const b = document.createElement('button'); b.className = 'rbtn' + (gold ? ' gold' : ''); b.textContent = label; b.addEventListener('click', e => { e.stopPropagation(); if (performance.now() - t0 < 400) return; closeDialog(); fn && fn(); }); bb.appendChild(b); }
   $r('rpgDlg').classList.remove('hidden');
 }
 function closeDialog() { UI.dlg = false; $r('rpgDlg').classList.add('hidden'); }
 function joyReset() { joyId = null; joy.x = joy.y = 0; joyEl.classList.remove('on'); for (const k in keys) keys[k] = false; }
-function openPanel(name, build) { UI.panel = name; joyReset(); const pn = $r('rpgPn'); pn.replaceChildren(); build(pn); $r('rpgPanel').classList.remove('hidden'); pn.scrollTop = 0; hudShow(false); }
+function openPanel(name, build) { UI.panel = name; joyReset(); const pn = $r('rpgPn'); pn.replaceChildren(); pn.className = 'pn'; build(pn); $r('rpgPanel').classList.remove('hidden'); pn.scrollTop = 0; hudShow(false); }
 function closePanel() { if (!UI.panel) return; const was = UI.panel; UI.panel = null; PV.on = false; $r('rpgPanel').classList.add('hidden'); if (!UI.title) hudShow(RPG.made && mode !== 'scope'); if (was === 'creator' && UI.fresh) { UI.fresh = false; rpgTitle(); } }
 $r('rpgPanel').addEventListener('click', e => { if (e.target.id === 'rpgPanel' && UI.panel !== 'creator') closePanel(); });
 const h$ = (tag, cls, txt, par) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; if (par) par.appendChild(e); return e; };
@@ -10237,9 +10241,9 @@ const TP = { k: 0, dist: 4.1, back: 0, d: 4.1, near: { c: [], s: [] }, t: 0 };
 const tpAllowed = () => RPG.made && RPG.opt.tp && mode === 'walk' && player.pose === 'stand' && !BE.inside && !DW.inside && !DGM.inside && !held.group && !picking && !FISH.on && !wand.held;
 const tpBack = () => TP.back;
 function tpGather() { // paredes e troncos por perto (a câmera encosta neles em vez de atravessar)
-  const px = player.x, pz = player.z, R = TP.dist + 2, N = TP.near; N.c.length = N.s.length = 0;
-  for (const c of colliders) if (c.r > 0.05 && Math.abs(c.x - px) < R + c.r && Math.abs(c.z - pz) < R + c.r && Math.hypot(c.x - px, c.z - pz) > c.r + 0.2) N.c.push(c);
-  for (const w of segColliders) if (w.r >= 0 && segD(px, pz, w.ax, w.az, w.bx, w.bz) < R) N.s.push(w);
+  const px = player.x, pz = player.z, R = TP.dist + 2, N = TP.near, und = placeTag(); N.c.length = N.s.length = 0; // só as paredes do lugar onde você está (nada de móveis de outro andar da torre)
+  for (const c of colliders) if (c.r > 0.05 && (c.u || '') === und && Math.abs(c.x - px) < R + c.r && Math.abs(c.z - pz) < R + c.r && Math.hypot(c.x - px, c.z - pz) > c.r + 0.2) N.c.push(c);
+  for (const w of segColliders) if (w.r >= 0 && (w.u || '') === und && segD(px, pz, w.ax, w.az, w.bx, w.bz) < R) N.s.push(w);
 }
 const tpHit = (x, z) => { for (const c of TP.near.c) if (Math.hypot(x - c.x, z - c.z) < c.r + 0.3) return true; for (const w of TP.near.s) if (segD(x, z, w.ax, w.az, w.bx, w.bz) < w.r + 0.3) return true; return false; };
 function tpOffset(pos) {
@@ -10248,7 +10252,9 @@ function tpOffset(pos) {
   let want = TP.dist; for (let s = 0.5; s <= TP.dist; s += 0.25) if (tpHit(player.x - hx * s * cp, player.z - hz * s * cp)) { want = Math.max(0.3, s - 0.45); break; }
   TP.d = want < TP.d ? want : TP.d + (want - TP.d) * 0.08; const d = TP.d * TP.k;
   pos.x -= fx * d; pos.y -= fy * d - 0.6 * TP.k * Math.min(1, TP.d / 2); pos.z -= fz * d;
-  const g = floorY(pos.x, pos.z) + 0.35; if (pos.y < g) pos.y = g; TP.back = d;
+  const g = floorY(pos.x, pos.z) + 0.35; if (pos.y < g) pos.y = g;
+  if (TWR.cur >= 0) { const top = TWR.fy[TWR.cur] + TW_FLOORS[TWR.cur].h - 0.5; if (pos.y > top) pos.y = top; } // na torre a câmera não atravessa o teto
+  TP.back = d;
 }
 function toggleCam() { RPG.opt.tp = !RPG.opt.tp; rpgSave(); hudUpdate(); toast(RPG.opt.tp ? '🎥 câmera atrás de você' : '👁 câmera nos seus olhos', 1600); }
 function rpgJump() { if (mode !== 'walk' || DGM.inside || player.pose !== 'stand' || (player.jy || 0) > 0.01 || rpgOpen() || overlayOpen()) return; player.jv = RPG_BUFF.t > 0 ? 7.2 : 5.4; markInteracted(); sfx.whoosh(0.06, 0.2); }
@@ -11045,6 +11051,1082 @@ function rpgFrame(dt) {
 }
 rpgLoad(); rpgApply(); if (isTouch) document.body.classList.add('touch');
 
+/* ------------------------------------------------------------------ *
+ * Torre de Pesquisas: química e alquimia no alto de uma torre enorme.
+ * Lá em cima, cinco andares de verdade (as janelas mostram o reino):
+ * estudos, experimentos, pesquisas e computadores, cálculos químicos e o escritório.
+ * Dá para pegar frascos na mão, misturar no béquer, aquecer, criar poções
+ * e dar vida a criaturas na Câmara de Criação (umas viram bichinhos de estimação,
+ * outras fogem pela janela e precisam ser derrotadas lá embaixo).
+ * ------------------------------------------------------------------ */
+const LABR = mulberry32(4242); // sorteio só da torre: não mexe no sorteio do resto do mundo
+const labRv = a => (LABR() - 0.5) * 2 * a;
+const TW_FLOORS = [
+  { id: 'estudos', n: '📚 Andar de Estudos', y: 30, h: 7, fl: 0x6a4a32 },
+  { id: 'experimentos', n: '⚗ Andar de Experimentos', y: 37, h: 7, fl: 0xd8d4cc },
+  { id: 'pesquisas', n: '💻 Andar de Pesquisas e Computadores', y: 44, h: 7, fl: 0x3a4250 },
+  { id: 'calculos', n: '🧮 Andar de Cálculos Químicos', y: 51, h: 7, fl: 0x5a4a3a },
+  { id: 'escritorio', n: '🖋 Escritório da Torre', y: 58, h: 9, fl: 0x7a3a2a },
+];
+const TWREG = xRegion('torre', 'Torre de Pesquisas', TWR, 12, 900, 90);
+const TWF = []; // andares: { g (tudo), s (parado), d (o que mexe) }
+const TW_FAR = { x: 1e9, z: 1e9 };
+let twW = null;
+{
+  TWR.gy = Math.max(...Array.from({ length: 24 }, (_, i) => terrainH(TWR.x + Math.sin(i / 24 * Math.PI * 2) * 8, TWR.z + Math.cos(i / 24 * Math.PI * 2) * 8)));
+  let ba = 0, bd = 1e9; for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2, d = roadD(TWR.x + Math.sin(a) * 12, TWR.z + Math.cos(a) * 12); if (d < bd) { bd = d; ba = a; } }
+  TWR.yaw = ba; TWR.fy = TW_FLOORS.map(f => TWR.gy + f.y);
+  const cs = Math.cos(ba), sn = Math.sin(ba);
+  twW = (lx, lz) => ({ x: TWR.x + lx * cs + lz * sn, z: TWR.z - lx * sn + lz * cs });
+}
+const twYawOut = () => TWR.yaw + Math.PI; // olhando para fora (para o lado da porta)
+{ // por fora: a torre de pedra, a porta, os andares de vidro lá em cima e a cúpula
+  const S = TWREG.s, ext = new THREE.Group(); ext.position.set(TWR.x, TWR.gy, TWR.z); ext.rotation.y = TWR.yaw; S.add(ext);
+  const stone = matC(0x9a96b0), stoneD = matC(0x6a6680), trim = matC(0x3a3456), rune = matC(0x7affe0, true);
+  const glass = new THREE.MeshBasicMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+  const y0 = TW_FLOORS[0].y;
+  cyl(ext, 7.2, 7.7, y0 + 1, 0, (y0 - 4) / 2 + 1, 0, stone, 28); // fuste (afunda 3 m no chão)
+  for (const y of [0.3, 8, 16, 24]) cyl(ext, 7.85, 7.85, 0.45, 0, y, 0, stoneD, 28);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8; const b = pb(ext, 1.1, y0 - 2, 1.3, Math.sin(a) * 7.6, (y0 - 2) / 2 - 1, Math.cos(a) * 7.6, stoneD); b.rotation.y = a; }
+  for (let k = 0; k < 36; k++) { const a = k * 0.62, y = 3 + k * 0.68; const r = pb(ext, 0.5, 0.18, 0.06, Math.sin(a) * 7.75, y, Math.cos(a) * 7.75, rune); r.rotation.y = a; } // runas brilhando em espiral
+  cyl(ext, 11.3, 7.5, 3.2, 0, y0 - 1.6, 0, stoneD, 28); // a "saia" que segura os andares
+  TW_FLOORS.forEach((f, i) => {
+    cyl(ext, 11.3, 11.3, 0.5, 0, f.y - 0.25, 0, trim, 32); // laje (é o teto do andar de baixo)
+    const N = 28, R = 10.95, pw = 2 * Math.PI * R / N + 0.08;
+    for (let k = 0; k < N; k++) {
+      const a = k / N * Math.PI * 2, win = k % 2 === 1, put = (h, y, m) => { const p = pb(ext, pw, h, 0.5, Math.sin(a) * R, f.y + y, Math.cos(a) * R, m); p.rotation.y = a; };
+      if (!win) put(f.h, f.h / 2, stone);
+      else { const wb = 1.0, wt = f.h - 1.6; put(wb, wb / 2, stone); put(f.h - wt, (f.h + wt) / 2, stone); const g = pb(ext, pw - 0.3, wt - wb, 0.05, Math.sin(a) * (R - 0.05), f.y + (wb + wt) / 2, Math.cos(a) * (R - 0.05), glass); g.rotation.y = a; }
+    }
+    if (i < 4) cyl(ext, 11.4, 11.4, 0.3, 0, f.y + f.h - 0.1, 0, trim, 32); // teto (no escritório não: lá em cima é a cúpula de vidro)
+  });
+  const top = TW_FLOORS[4].y + TW_FLOORS[4].h;
+  { const rim = new THREE.Mesh(new THREE.TorusGeometry(11.1, 0.4, 6, 40), trim); rim.position.set(0, top + 0.2, 0); rim.rotation.x = Math.PI / 2; ext.add(rim); } // aro (não um disco: o disco tampava a cúpula e o teto ficava preto)
+  const dome = mmesh(ext, gHemi, glass, 0, top + 0.5, 0, 10.8, 7.5, 10.8); dome.renderOrder = 2; // cúpula de vidro sobre o escritório
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, rib = new THREE.Mesh(new THREE.TorusGeometry(10.8, 0.08, 4, 24, Math.PI / 2), trim); rib.position.set(0, top + 0.5, 0); rib.rotation.set(0, a, Math.PI / 2); rib.scale.set(0.7, 1, 1); ext.add(rib); }
+  cyl(ext, 0.12, 0.2, 5, 0, top + 9.5, 0, M.gold, 8); ps(ext, 0.55, 0, top + 12.3, 0, matC(0x9affe0, true)); // agulha com o orbe
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.06, 6, 28), M.gold); ring.position.set(0, top + 12.3, 0); ring.rotation.x = Math.PI / 2; ext.add(ring);
+  // porta, placa e lampiões
+  pb(ext, 3.6, 4.6, 1.2, 0, 2.3, 7.35, stoneD); pb(ext, 2.4, 3.5, 0.2, 0, 1.75, 7.9, M.woodDark);
+  for (const sx of [-1, 1]) { pb(ext, 1.1, 3.3, 0.08, sx * 0.58, 1.7, 8.02, M.wood); ps(ext, 0.07, sx * 0.25, 1.7, 8.1, M.gold); }
+  signBox(ext, boardTex('🧪 Torre de Pesquisas', '#2a2450', 640, 110, 50), 3.4, 0.6, 0, 5.05, 8.0);
+  for (const sx of [-1, 1]) { pb(ext, 0.1, 0.6, 0.1, sx * 2.1, 3.4, 8.05, M.iron); addFlame(ext, sx * 2.1, 3.85, 8.1, 0.35); }
+  const hit = invis(ext, gBox(3, 4, 2), 0, 2, 8.2); hit.userData.keep = true;
+  addInteract([hit], () => twDoor(), { at: twW(0, 9), near: 3.5, range: 18 });
+  colliders.push({ x: TWR.x, z: TWR.z, r: 7.7 }); OCC.fill.push({ x: TWR.x, z: TWR.z, r: 8.6 });
+  bakeStatic(S); xLights(TWREG);
+}
+// árvores, pedras e flores que já estavam onde a torre nasceu somem (sem mexer no sorteio do mundo)
+scene.traverse(o => { if (!o.isInstancedMesh || o.count > 200000) return; const m = new THREE.Matrix4(), p = new THREE.Vector3(), z0 = new THREE.Matrix4().makeScale(0, 0, 0); let ch = false;
+  for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m); p.setFromMatrixPosition(m).applyMatrix4(o.matrixWorld); if (Math.hypot(p.x - TWR.x, p.z - TWR.z) < 9.5 && Math.abs(p.y - TWR.gy) < 12) { o.setMatrixAt(i, z0); ch = true; } }
+  if (ch) o.instanceMatrix.needsUpdate = true; });
+for (const c of colliders) if (!c.u && c.r > 0 && c.r < 3 && Math.hypot(c.x - TWR.x, c.z - TWR.z) < 9.5) c.r = 0;
+
+/* os andares lá de cima */
+function twFloor(i) {
+  const f = TW_FLOORS[i], g = new THREE.Group(), s = new THREE.Group(), d = new THREE.Group();
+  g.position.set(TWR.x, TWR.fy[i], TWR.z); g.rotation.y = TWR.yaw; g.add(s, d); g.visible = false; scene.add(g);
+  const u = 'tw' + i, F = { g, s, d, i };
+  F.col = (lx, lz, r) => { const q = twW(lx, lz); colliders.push({ x: q.x, z: q.z, r, u }); };
+  F.seg = (x0, z0, x1, z1, r = 0.3) => { const a = twW(x0, z0), b = twW(x1, z1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r, u }); };
+  F.act = (obj, lx, lz, fn, near = 2.4) => { const q = twW(lx, lz); obj.userData.keep = true; return addInteract([obj], h => { if (mode !== 'walk' || TWR.cur !== i) return; markInteracted(); fn(h); }, { at: () => TWR.cur === i ? q : TW_FAR, near, range: 9 }); };
+  F.hit = (w, h, dd, x, y, z) => { const o = invis(d, gBox(w, h, dd), x, y, z); o.userData.keep = true; return o; };
+  // chão, parede (colisão) e o elevador mágico no meio
+  cyl(s, 10.6, 10.6, 0.06, 0, 0.03, 0, matC(f.fl), 32);
+  for (let k = 0; k < 28; k++) { const a0 = k / 28 * Math.PI * 2, a1 = (k + 1) / 28 * Math.PI * 2; F.seg(Math.sin(a0) * 10.45, Math.cos(a0) * 10.45, Math.sin(a1) * 10.45, Math.cos(a1) * 10.45, 0.35); }
+  cyl(s, 1.25, 1.35, 0.14, 0, 0.07, 0, matC(0x2a2440), 24); cyl(s, 1.05, 1.05, 0.02, 0, 0.15, 0, matC(0x7affe0, true), 24);
+  const beam = cyl(d, 0.32, 0.32, f.h - 0.4, 0, f.h / 2, 0, new THREE.MeshBasicMaterial({ color: 0x9affe8, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }), 16); beam.userData.keep = true; F.beam = beam;
+  F.col(0, 0, 0.9);
+  F.act(F.hit(2.4, 3, 2.4, 0, 1.5, 0), 0, 0, () => twLift(), 2.6);
+  { // cantinho do café e do chá (grátis!)
+    const [ca, cr] = [[0, 7.6], [0.3, 8.0], [0.65, 8.0], [0.2, 8.0], [0.35, 7.4]][i], a = ca * Math.PI, [x, z] = twP2(a, cr), t = twTable(s, x, z, 1.5, 0.7, 0.92, a + Math.PI, matC(0x5a3a2a));
+    pb(t, 0.42, 0.55, 0.36, -0.4, 1.24, -0.1, matC(0x2a2a30)); pb(t, 0.34, 0.12, 0.3, -0.4, 1.55, -0.1, matC(0xc0c4cc)); cyl(t, 0.03, 0.03, 0.12, -0.4, 1.08, 0.05, matC(0xc0c4cc), 6); ps(t, 0.03, -0.3, 1.38, 0.09, matC(0x3aff7a, true)); ps(t, 0.03, -0.5, 1.38, 0.09, matC(0xff4a4a, true));
+    ps(t, 0.14, 0.15, 1.12, -0.05, matC(0xf4f0e8), 1, 0.85, 1); cone(t, 0.035, 0.16, 0.31, 1.13, -0.05, matC(0xf4f0e8), 6).rotation.z = -1.0; ps(t, 0.05, 0.15, 1.24, -0.05, matC(0xd86a5a));
+    for (let k = 0; k < 3; k++) { cyl(t, 0.05, 0.04, 0.09, 0.45, 1.02 + k * 0.09, 0.15, matC(0xffffff), 10); }
+    cyl(t, 0.06, 0.06, 0.12, 0.5, 1.03, -0.15, matC(0xd8b890), 10);
+    signBox(s, boardTex('☕ Café e Chá grátis', '#3a2418', 512, 90, 42), 1.3, 0.25, ...(() => { const q = twLocalRel(t, 0, 1.95, -0.25); return q; })()).rotation.y = a + Math.PI;
+    F.col(x, z, 0.7); F.act(F.hit(1.6, 1.4, 1.0, x, 1.1, z), x * 0.85, z * 0.85, () => twCoffee(), 2.4);
+  }
+  // lampiões de parede
+  for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + Math.PI / 4; pb(s, 0.1, 0.5, 0.1, Math.sin(a) * 10.1, 3.3, Math.cos(a) * 10.1, M.iron); addFlame(d, Math.sin(a) * 9.95, 3.75, Math.cos(a) * 9.95, 0.32); }
+  TWF[i] = F; return F;
+}
+const twWood = matC(0x6a4428), twWoodD = matC(0x3a2618), twPaper = matC(0xf4ecd8), twBrass = matC(0xc8a050);
+const twGlass = new THREE.MeshLambertMaterial({ color: 0xdaf0ff, transparent: true, opacity: 0.32, depthWrite: false });
+const twP2 = (a, r) => [Math.sin(a) * r, Math.cos(a) * r]; // ângulo (0 = lado da porta) e raio → x, z locais
+function twShelf(g, w, h, dd, m) { pb(g, w, h, 0.07, 0, h / 2, -dd / 2 + 0.035, m); for (const sx of [-1, 1]) pb(g, 0.08, h, dd, sx * (w / 2 - 0.04), h / 2, 0, m); pb(g, w, 0.08, dd, 0, h - 0.04, 0, m); pb(g, w, 0.1, dd, 0, 0.05, 0, m); } // estante aberta (fundo, laterais, tampo e base)
+function twTable(par, x, z, w, dd, h = 0.85, rot = 0, m = twWood) { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; par.add(g); pb(g, w, 0.08, dd, 0, h, 0, m); for (const sx of [-1, 1]) for (const sz of [-1, 1]) pb(g, 0.08, h, 0.08, sx * (w / 2 - 0.1), h / 2, sz * (dd / 2 - 0.1), twWoodD); return g; }
+function twChair(par, x, z, rot, c = 0x7a1f2a) { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; par.add(g); pb(g, 0.55, 0.08, 0.55, 0, 0.48, 0, matC(c)); pb(g, 0.55, 0.6, 0.08, 0, 0.8, -0.24, matC(c)); for (const sx of [-1, 1]) for (const sz of [-1, 1]) pb(g, 0.06, 0.46, 0.06, sx * 0.22, 0.23, sz * 0.22, twWoodD); return g; }
+function twFlask(par, x, y, z, col, s = 1) { // frasco de vidro com líquido colorido e rolha
+  const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s); par.add(g);
+  const liq = new THREE.MeshLambertMaterial({ color: col, emissive: new THREE.Color(col).multiplyScalar(0.35) });
+  cyl(g, 0.11, 0.13, 0.2, 0, 0.1, 0, liq, 10); cyl(g, 0.13, 0.14, 0.3, 0, 0.15, 0, twGlass, 10); cyl(g, 0.045, 0.06, 0.14, 0, 0.36, 0, twGlass, 8); cyl(g, 0.05, 0.045, 0.06, 0, 0.45, 0, matC(0x8a6a4a), 8);
+  return g;
+}
+
+/* ---- assentos da torre (sentar e deitar), quadros, cortinas e vasos ---- */
+function twSeat(i, lx, lz, fy, h = 1.05, extra = {}) { // fy = para onde o móvel olha (no andar); você senta olhando para lá
+  const fx = Math.sin(fy), fz = Math.cos(fy), ex = twW(lx + fx * 1.0, lz + fz * 1.0), ep = twW(lx + fx * 0.1, lz + fz * 0.1);
+  return { yaw: TWR.yaw + fy + Math.PI, pitch: -0.08, exit: ex, eye: () => V3(ep.x, TWR.fy[i] + h, ep.z), ...extra };
+}
+function twSit(F, lx, lz, fy, msg, o = {}) { // cria o lugar de sentar (ou deitar) e o toque nele
+  const seat = twSeat(F.i, lx, lz, fy, o.h ?? 1.05, o.lie ? { lie: true, pitch: o.pitch ?? 1.25 } : {});
+  if (o.back) seat.exit = twW(lx - Math.sin(fy) * 0.95, lz - Math.cos(fy) * 0.95); // cadeira de mesa: levanta para trás (na frente fica a mesa)
+  F.act(F.hit(o.w ?? 0.9, 1.1, o.d ?? 0.9, lx, 0.55, lz), lx, lz, () => { sitOn(seat, msg); rpgEvent('tw_sentar'); }, o.near ?? 2.0);
+  return seat;
+}
+const TW_ART = {
+  noite: g => { g.fillStyle = '#1a2a5a'; g.fillRect(0, 0, 256, 192); g.lineWidth = 6; for (let k = 0; k < 6; k++) { g.strokeStyle = ['#3a5aa8', '#6a8ad8', '#c8d8ff'][k % 3]; g.beginPath(); g.arc(60 + k * 30, 60 + (k % 2) * 20, 22 + k * 3, 0.3, 4.2); g.stroke(); }
+    g.fillStyle = '#ffe680'; g.beginPath(); g.arc(210, 40, 18, 0, 7); g.fill(); for (let k = 0; k < 9; k++) { g.beginPath(); g.arc(20 + k * 27, 20 + (k * 37) % 70, 5, 0, 7); g.fill(); }
+    g.fillStyle = '#10180e'; g.beginPath(); g.moveTo(40, 192); g.quadraticCurveTo(30, 90, 55, 40); g.quadraticCurveTo(75, 100, 70, 192); g.fill(); g.fillStyle = '#2a3a2a'; g.fillRect(0, 160, 256, 32); },
+  rainha: g => { g.fillStyle = '#7a1f2a'; g.fillRect(0, 0, 192, 256); g.fillStyle = '#e8c8a0'; g.beginPath(); g.ellipse(96, 130, 38, 46, 0, 0, 7); g.fill();
+    g.fillStyle = '#3a2214'; for (let k = 0; k < 22; k++) { const an = -0.2 - k / 21 * 2.8, r = 50 + (k % 3) * 6; g.beginPath(); g.arc(96 + Math.cos(an) * r, 120 + Math.sin(an) * r * 0.9, 13, 0, 7); g.fill(); } for (let k = 0; k < 8; k++) { g.beginPath(); g.arc(52 + (k % 2) * 88, 150 + k * 9, 12, 0, 7); g.fill(); }
+    g.fillStyle = '#d8a840'; g.beginPath(); g.moveTo(64, 70); g.lineTo(72, 40); g.lineTo(84, 60); g.lineTo(96, 32); g.lineTo(108, 60); g.lineTo(120, 40); g.lineTo(128, 70); g.fill();
+    g.fillStyle = '#2a1408'; g.beginPath(); g.arc(82, 128, 4, 0, 7); g.arc(110, 128, 4, 0, 7); g.fill(); g.strokeStyle = '#a83a4a'; g.lineWidth = 3; g.beginPath(); g.arc(96, 146, 10, 0.3, 2.8); g.stroke();
+    g.fillStyle = '#2a3a6a'; g.fillRect(40, 200, 112, 56); g.fillStyle = '#ffe6a8'; g.font = 'italic 18px Georgia'; g.textAlign = 'center'; g.fillText('Majestade', 96, 244); },
+  margaridas: g => { const gr = g.createLinearGradient(0, 0, 0, 192); gr.addColorStop(0, '#6aa8e8'); gr.addColorStop(0.55, '#c8e0f8'); gr.addColorStop(0.56, '#5a9a4a'); gr.addColorStop(1, '#3a7a2a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 192);
+    for (let k = 0; k < 60; k++) { const x = (k * 53) % 256, y = 110 + (k * 29) % 80; g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x, y, 4 + (y - 110) / 20, 0, 7); g.fill(); g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); } },
+  castelo: g => { g.fillStyle = '#2a2450'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#ffffff'; for (let k = 0; k < 30; k++) g.fillRect((k * 71) % 256, (k * 37) % 110, 2, 2);
+    g.fillStyle = '#5c6274'; g.fillRect(60, 100, 140, 70); for (const x of [50, 120, 190]) { g.fillRect(x, 70, 28, 100); g.fillStyle = '#2c3350'; g.beginPath(); g.moveTo(x - 4, 72); g.lineTo(x + 14, 40); g.lineTo(x + 32, 72); g.fill(); g.fillStyle = '#5c6274'; } g.fillStyle = '#ffb45a'; for (const x of [70, 100, 150, 175]) g.fillRect(x, 120, 8, 12); g.fillStyle = '#2a4a2a'; g.fillRect(0, 170, 256, 22); },
+  lua: g => { g.fillStyle = '#0e1430'; g.fillRect(0, 0, 192, 192); const gr = g.createRadialGradient(96, 96, 10, 96, 96, 70); gr.addColorStop(0, '#fffbe8'); gr.addColorStop(1, '#d8d0b0'); g.fillStyle = gr; g.beginPath(); g.arc(96, 96, 60, 0, 7); g.fill(); g.fillStyle = 'rgba(150,140,110,.4)'; for (const [x, y, r] of [[80, 80, 10], [110, 110, 14], [100, 70, 6]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } },
+};
+function twPainting(F, k, y, w, h, art) { // quadro numa parede de pedra (os painéis pares da torre são pedra; os ímpares, janelas)
+  const a = k / 28 * Math.PI * 2, [x, z] = twP2(a, 10.6), cw = art === 'rainha' || art === 'lua' ? 192 : 256, ch = art === 'rainha' ? 256 : art === 'lua' ? 192 : 192;
+  const fr = pb(F.s, w + 0.16, h + 0.16, 0.06, x * 1.003, y, z * 1.003, matC(0xb8903a)); fr.rotation.y = a + Math.PI;
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: canvasTex(cw, ch, TW_ART[art]), color: 0xd8d8d8 })); pic.position.set(x * 0.994, y, z * 0.994); pic.rotation.y = a + Math.PI; pic.userData.keep = true; F.d.add(pic);
+}
+function twCurtain(F, k, h, c = 0x7a1f2a) { // cortinas de veludo dos dois lados de uma janela (painel ímpar)
+  for (const sd of [-1, 1]) { const a = (k + sd * 0.42) / 28 * Math.PI * 2, [x, z] = twP2(a, 10.5); const cu = pb(F.s, 0.42, h - 0.6, 0.1, x, (h - 0.6) / 2 + 0.3, z, matC(c)); cu.rotation.y = a; }
+  const a = k / 28 * Math.PI * 2, [x, z] = twP2(a, 10.45); const rod = cyl(F.s, 0.03, 0.03, 3.0, x, h - 0.25, z, matC(0xc8a050), 6); rod.rotation.set(0, a, Math.PI / 2);
+}
+function twVase(par, x, y, z, c = 0xff7aa8) { cyl(par, 0.1, 0.07, 0.26, x, y + 0.13, z, matC(0x2a6a8a), 10); for (let k = 0; k < 5; k++) { const an = k / 5 * Math.PI * 2; cyl(par, 0.008, 0.008, 0.3, x + Math.cos(an) * 0.03, y + 0.38, z + Math.sin(an) * 0.03, matC(0x3a8a3a), 4); ps(par, 0.05, x + Math.cos(an) * 0.07, y + 0.53, z + Math.sin(an) * 0.07, matC(k % 2 ? c : 0xffffff)); } }
+/* ---- reagentes, reações e criaturas ---- */
+const LAB_R = { // ordem = ordem nas prateleiras (7 em cada)
+  H: { n: 'Hidrogênio', s: 'H', c: 0x9fd8ff }, O: { n: 'Oxigênio', s: 'O', c: 0xff6a5a }, C: { n: 'Carbono', s: 'C', c: 0x40404a }, N: { n: 'Nitrogênio', s: 'N', c: 0x7a8aff },
+  Na: { n: 'Sódio', s: 'Na', c: 0xffe08a }, Cl: { n: 'Cloro', s: 'Cl', c: 0x9aff6a }, Fe: { n: 'Ferro', s: 'Fe', c: 0x9a8a80 },
+  S: { n: 'Enxofre', s: 'S', c: 0xffd23a }, Cu: { n: 'Cobre', s: 'Cu', c: 0xff9a4a }, Mg: { n: 'Magnésio', s: 'Mg', c: 0xeeeeee }, K: { n: 'Potássio', s: 'K', c: 0xc89aff },
+  Ca: { n: 'Cálcio', s: 'Ca', c: 0xf4f0e0 }, Ag: { n: 'Prata', s: 'Ag', c: 0xd8dce4 }, Zn: { n: 'Zinco', s: 'Zn', c: 0xa8b4c0 },
+  P: { n: 'Fósforo', s: 'P', c: 0xff7a4a }, I: { n: 'Iodo', s: 'I', c: 0x7a3a9a },
+  estrela: { n: 'Pó de Estrela', s: '✦', c: 0xfff2a8, magic: true }, fada: { n: 'Lágrima de Fada', s: '💧', c: 0xff9ae8, magic: true },
+  escama: { n: 'Escama de Dragão', s: '🐉', c: 0x3aa86a, magic: true }, musgo: { n: 'Musgo Lunar', s: '🌙', c: 0x8affd8, magic: true }, margarida: { n: 'Pétala de Margarida', s: '🌼', c: 0xfff4c0, magic: true },
+};
+const LAB_RX = [
+  { k: ['H', 'H', 'O'], id: 'agua', n: 'Água (H₂O)', i: '💧', fx: 'splash', t: 'Dois hidrogênios e um oxigênio: água pura! A molécula mais importante da vida.' },
+  { k: ['Cl', 'Na'], id: 'sal', n: 'Sal de cozinha (NaCl)', i: '🧂', fx: 'crystal', t: 'Um metal que explode na água + um gás venenoso = o sal da sua comida. A química é mágica!' },
+  { k: ['C', 'O', 'O'], id: 'co2', n: 'Gás carbônico (CO₂)', i: '🫧', fx: 'bubbles', t: 'O mesmo gás que a gente solta ao respirar, e que as plantas adoram.' },
+  { k: ['Fe', 'O'], id: 'ferrugem', n: 'Ferrugem (óxido de ferro)', i: '🟤', fx: 'smoke', t: 'O ferro encontrou o oxigênio e enferrujou. É assim que o tempo envelhece as espadas.' },
+  { k: ['Mg', 'O'], id: 'magnesio', n: 'Combustão do magnésio', i: '💡', fx: 'flash', t: 'Uma luz branca ofuscante! Os fotógrafos antigos usavam isso como flash.' },
+  { k: ['Cl', 'Cu'], id: 'chama', n: 'Chama verde-azulada', i: '🟢', fx: 'greenfire', t: 'O cobre pinta o fogo de verde e azul: é assim que se fazem os fogos de artifício coloridos!' },
+  { k: ['O', 'O', 'S'], id: 'so2', n: 'Dióxido de enxofre (SO₂)', i: '🤢', fx: 'yellow', t: 'Cheiro de fósforo queimado… eca! Mas é um ótimo conservante de frutas.' },
+  { k: ['H', 'H', 'H', 'N'], id: 'amonia', n: 'Amônia (NH₃)', i: '😵', fx: 'smoke', t: 'Cheiro fortíssimo! A amônia vira adubo e ajuda a alimentar o mundo.' },
+  { k: ['H', 'H', 'Na', 'O'], id: 'boom', n: 'Sódio na água: EXPLOSÃO!', i: '💥', fx: 'boom', t: 'O sódio reage violentamente com a água! Por isso ele fica guardado no óleo.' },
+  { k: ['H', 'Na', 'O'], id: 'soda', n: 'Soda cáustica (NaOH)', i: '⚗', fx: 'bubbles', t: 'Hidróxido de sódio: forte o bastante para virar sabão. Cuidado com as mãos!' },
+  { k: ['C', 'H', 'H', 'H'], id: 'metano', n: 'Gás metano (quase CH₄)', i: '🔥', fx: 'fire', t: 'O gás do fogão! Faltou um hidrogênio para ser perfeito, mas pegou fogo do mesmo jeito.' },
+  { k: ['H', 'O', 'estrela'], id: 'p_vida', n: 'Poção de Vida', i: '🧪', fx: 'potion', item: 'pocao_vida', t: 'Água com pó de estrela… ciência e magia juntas curam qualquer ferida.' },
+  { k: ['O', 'fada'], id: 'p_mana', n: 'Poção de Mana', i: '🔮', fx: 'potion', item: 'pocao_mana', t: 'O ar com uma lágrima de fada vira pura energia mágica.' },
+  { k: ['estrela', 'fada'], id: 'p_fada', n: 'Pó de Fada', i: '✨', fx: 'sparkle', item: 'po_fada', t: 'Brilha, brilha… e deixa os pés levinhos.' },
+  { k: ['O', 'escama', 'estrela'], id: 'p_elixir', n: 'Elixir do Dragão', i: '🐲', fx: 'fire', item: 'elixir', t: 'Fogo de dragão engarrafado. Enche a vida de uma vez só!' },
+  { k: ['H', 'H', 'K', 'O'], id: 'boom_k', n: 'Potássio na água: fogo lilás!', i: '🟣', fx: 'boomk', t: 'O potássio é ainda mais nervoso que o sódio: pega fogo na água com uma chama lilás!' },
+  { k: ['Cl', 'K'], id: 'kcl', n: 'Cloreto de potássio (KCl)', i: '🧂', fx: 'crystal', t: 'O "sal light": tem gosto de sal, mas com potássio no lugar do sódio.' },
+  { k: ['Ca', 'O'], id: 'cal', n: 'Cal virgem (CaO)', i: '⚪', fx: 'smoke', t: 'A cal que os pedreiros usam para pintar muros de branco.' },
+  { k: ['C', 'Ca', 'O', 'O'], id: 'calcario', n: 'Calcário (quase CaCO₃)', i: '🪨', fx: 'crystal', t: 'Giz, mármore, conchas e cascas de ovo são feitos disso! (faltou um oxigênio)' },
+  { k: ['Ag', 'Cl'], id: 'agcl', n: 'Cloreto de prata (AgCl)', i: '📷', fx: 'smoke', t: 'Escurece com a luz: foi assim que nasceram as primeiras fotografias.' },
+  { k: ['Cu', 'Zn'], id: 'latao', n: 'Latão (cobre + zinco)', i: '🎺', fx: 'gold', t: 'Uma liga dourada: trompetes, maçanetas e sininhos são de latão.' },
+  { k: ['Cl', 'H', 'Zn'], id: 'zn_acido', n: 'Zinco no ácido', i: '🫧', fx: 'bubbles', t: 'O ácido devora o zinco e solta bolhas de hidrogênio.' },
+  { k: ['O', 'P'], id: 'fosforo', n: 'Fósforo em chamas', i: '🔥', fx: 'fire', t: 'É ele que acende na cabeça do palito de fósforo!' },
+  { k: ['I', 'I'], id: 'iodo', n: 'Vapor de iodo (I₂)', i: '🟪', fx: 'purple', t: 'O iodo pula direto de sólido para gás, numa fumaça violeta linda (sublimação).' },
+  { k: ['Cu', 'O'], id: 'patina', n: 'Pátina verde do cobre', i: '🗽', fx: 'greensmoke', t: 'O cobre envelhece verde: é por isso que a Estátua da Liberdade é verde!' },
+  { k: ['Fe', 'S'], id: 'pirita', n: 'Pirita (FeS₂): o ouro de tolo', i: '✨', fx: 'gold', t: 'Brilha como ouro e já enganou muito garimpeiro… mas é ferro com enxofre.' },
+  { k: ['H', 'H'], id: 'h2', n: 'Gás hidrogênio (H₂)', i: '🎈', fx: 'bubbles', t: 'O gás mais leve de todos: as bolhas sobem rapidinho!' },
+  { k: ['Cl', 'H'], id: 'hcl', n: 'Ácido clorídrico (HCl)', i: '⚗', fx: 'bubbles', t: 'O mesmo ácido que existe no estômago e ajuda a digerir a comida.' },
+  { k: ['I', 'K'], id: 'ki', n: 'Iodeto de potássio (KI)', i: '🧂', fx: 'crystal', t: 'É ele que vai no sal de cozinha para a tireoide ficar saudável.' },
+  { k: ['Ag', 'S'], id: 'ags', n: 'Prata escurecida (Ag₂S)', i: '🍴', fx: 'smoke', t: 'Por isso os talheres de prata ficam pretinhos com o tempo.' },
+  { k: ['Mg', 'O', 'O'], id: 'fogos', n: 'Faísca de fogos de artifício', i: '🎆', fx: 'flash', t: 'Magnésio com bastante oxigênio: as faíscas brancas dos fogos de artifício!' },
+  { k: ['O', 'estrela', 'margarida'], id: 'p_amor', n: 'Poção do Amor', i: '💗', fx: 'hearts', item: 'pocao_amor', t: 'Uma pétala do seu campo, pó de estrela e o ar que a gente respira juntos… a poção mais forte da torre.' },
+  { k: ['H', 'O', 'margarida'], id: 'cha_marg', n: 'Chá de Margarida', i: '🍵', fx: 'potion', item: 'cha', t: 'Água quentinha com pétalas: calmante como um fim de tarde no campo.' },
+  { k: ['fada', 'margarida'], id: 'perfume', n: 'Perfume de Margarida', i: '🌼', fx: 'sparkle', item: 'perfume', t: 'Cheirinho de campo engarrafado. As fadas vão querer um também!' },
+  { k: ['Ag', 'estrela'], id: 'prata_lunar', n: 'Prata Lunar', i: '🌕', fx: 'flash', t: 'Prata banhada em pó de estrela: brilha no escuro como a lua cheia.' },
+];
+const LAB_CR = [
+  { k: ['S', 'escama', 'musgo'], id: 'dragao', n: 'Dragãozinho', i: '🐉', pet: true, t: 'Escama, enxofre e a vida do Musgo Lunar: nasceu um dragãozinho que solta fumacinha!' },
+  { k: ['C', 'H', 'musgo'], id: 'slime', n: 'Slime de Laboratório', i: '🟢', pet: true, t: 'Carbono, água e vida… uma gosminha fofa que pula atrás de você!' },
+  { k: ['estrela', 'fada', 'musgo'], id: 'fadinha', n: 'Fadinha de Luz', i: '🧚', pet: true, t: 'Uma fadinha feita de luz de estrela! Ela vai iluminar o seu caminho.' },
+  { k: ['Fe', 'Fe', 'musgo'], id: 'golem', n: 'Golenzinho de Ferro', i: '🗿', pet: true, t: 'Dois ferros e uma faísca de vida: um golenzinho fiel e meio desajeitado.' },
+  { k: ['Cu', 'N', 'musgo'], id: 'robo', n: 'Robozinho de Cobre', i: '🤖', pet: true, t: 'Fios de cobre, nitrogênio e vida lunar… bip bop! Um robozinho!' },
+  { k: ['S', 'escama', 'escama'], id: 'quimera', n: 'Lobos-Quimera', i: '🐺', foe: 'lobo', count: 3, t: 'Escama demais! As criaturas nasceram ferozes, quebraram o vidro e fugiram pela janela!' },
+  { k: ['C', 'S', 'musgo'], id: 'toxico', n: 'Slimes Tóxicos', i: '☣', foe: 'slime', count: 4, t: 'Carbono e enxofre deixaram a gosma venenosa… os slimes escaparam pela janela!' },
+  { k: ['fada', 'margarida', 'musgo'], id: 'florzinha', n: 'Florzinha Viva', i: '🌼', pet: true, t: 'Uma margarida do seu campo ganhou perninhas e quer passear com a senhora!' },
+  { k: ['K', 'estrela', 'musgo'], id: 'fogofatuo', n: 'Fogo-fátuo Lilás', i: '🟣', pet: true, t: 'Uma chaminha lilás que flutua e ilumina o caminho, sem queimar ninguém.' },
+  { k: ['Ag', 'escama', 'musgo'], id: 'coruja', n: 'Corujinha de Prata', i: '🦉', pet: true, t: 'Penas de prata e olhos de lua: a criatura mais sábia da torre.' },
+  { k: ['P', 'S', 'escama'], id: 'morcegos', n: 'Morcegos de Fogo', i: '🦇', foe: 'morcego', count: 5, t: 'Fósforo, enxofre e escama… os morcegos saíram em chamas pela janela!' },
+];
+const labKey = l => l.slice().sort().join('+');
+const LAB_TOTAL = LAB_RX.length + LAB_CR.length;
+ITEMS.pocao_amor = { n: 'Poção do Amor', i: '💗', p: 60, use: { hp: 99, mp: 99 }, d: 'Enche a vida e a mana… e o coração.' };
+ITEMS.perfume = { n: 'Perfume de Margarida', i: '🌼', p: 20, use: { buff: 60 }, d: 'Cheirinho de campo: por 60 segundos você anda mais leve.' };
+const LAB = () => RPG.lab || (RPG.lab = { rec: {}, pets: [], pet: null, books: {}, quiz: 0 });
+const labFound = () => Object.keys(LAB().rec).length;
+const labMix = l => { const c = new THREE.Color(0, 0, 0); if (!l.length) return c.set(0xcfe6ff); for (const id of l) c.add(new THREE.Color(LAB_R[id].c)); return c.multiplyScalar(1 / l.length); };
+const LABH = { item: null, mix: null, g: new THREE.Group() }; // o que está na sua mão
+const LABB = { list: [], heat: 0 }; // o béquer
+const LABC = { list: [], k: 0 }; // a câmara de criação
+
+/* ---- ⚛ dados da tabela periódica (usados para desenhar a tabela gigante) ---- */
+const PT_S = 'H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og'.split(' ');
+const PT_N = 'Hidrogênio,Hélio,Lítio,Berílio,Boro,Carbono,Nitrogênio,Oxigênio,Flúor,Neônio,Sódio,Magnésio,Alumínio,Silício,Fósforo,Enxofre,Cloro,Argônio,Potássio,Cálcio,Escândio,Titânio,Vanádio,Cromo,Manganês,Ferro,Cobalto,Níquel,Cobre,Zinco,Gálio,Germânio,Arsênio,Selênio,Bromo,Criptônio,Rubídio,Estrôncio,Ítrio,Zircônio,Nióbio,Molibdênio,Tecnécio,Rutênio,Ródio,Paládio,Prata,Cádmio,Índio,Estanho,Antimônio,Telúrio,Iodo,Xenônio,Césio,Bário,Lantânio,Cério,Praseodímio,Neodímio,Promécio,Samário,Európio,Gadolínio,Térbio,Disprósio,Hólmio,Érbio,Túlio,Itérbio,Lutécio,Háfnio,Tântalo,Tungstênio,Rênio,Ósmio,Irídio,Platina,Ouro,Mercúrio,Tálio,Chumbo,Bismuto,Polônio,Astato,Radônio,Frâncio,Rádio,Actínio,Tório,Protactínio,Urânio,Netúnio,Plutônio,Amerício,Cúrio,Berquélio,Califórnio,Einstênio,Férmio,Mendelévio,Nobélio,Laurêncio,Rutherfórdio,Dúbnio,Seabórgio,Bóhrio,Hássio,Meitnério,Darmstádtio,Roentgênio,Copernício,Nihônio,Fleróvio,Moscóvio,Livermório,Tenessino,Oganessônio'.split(',');
+const PT_M = [1.008, 4.003, 6.94, 9.012, 10.81, 12.011, 14.007, 15.999, 18.998, 20.18, 22.99, 24.305, 26.982, 28.085, 30.974, 32.06, 35.45, 39.948, 39.098, 40.078, 44.956, 47.867, 50.942, 51.996, 54.938, 55.845, 58.933, 58.693, 63.546, 65.38, 69.723, 72.63, 74.922, 78.971, 79.904, 83.798, 85.468, 87.62, 88.906, 91.224, 92.906, 95.95, 98, 101.07, 102.91, 106.42, 107.87, 112.41, 114.82, 118.71, 121.76, 127.6, 126.9, 131.29, 132.91, 137.33, 138.91, 140.12, 140.91, 144.24, 145, 150.36, 151.96, 157.25, 158.93, 162.5, 164.93, 167.26, 168.93, 173.05, 174.97, 178.49, 180.95, 183.84, 186.21, 190.23, 192.22, 195.08, 196.97, 200.59, 204.38, 207.2, 208.98, 209, 210, 222, 223, 226, 227, 232.04, 231.04, 238.03, 237, 244, 243, 247, 247, 251, 252, 257, 258, 259, 266, 267, 268, 269, 270, 269, 278, 281, 282, 285, 286, 289, 290, 293, 294, 294];
+const PT_CAT = ['metal alcalino', 'metal alcalinoterroso', 'metal de transição', 'outro metal', 'semimetal', 'não metal', 'halogênio', 'gás nobre', 'lantanídeo', 'actinídeo'];
+const PT_COL = ['#e8746a', '#f0a35a', '#d8c25a', '#8fc2a0', '#6ac2b8', '#7aa8ff', '#a58aff', '#d88aff', '#ff9ac8', '#ff7aa0'];
+const ptCat = Z => [3, 11, 19, 37, 55, 87].includes(Z) ? 0 : [4, 12, 20, 38, 56, 88].includes(Z) ? 1 : Z >= 57 && Z <= 71 ? 8 : Z >= 89 && Z <= 103 ? 9 : [2, 10, 18, 36, 54, 86, 118].includes(Z) ? 7 : [9, 17, 35, 53, 85, 117].includes(Z) ? 6 : [1, 6, 7, 8, 15, 16, 34].includes(Z) ? 5 : [5, 14, 32, 33, 51, 52].includes(Z) ? 4 : (Z >= 21 && Z <= 30) || (Z >= 39 && Z <= 48) || (Z >= 72 && Z <= 80) || (Z >= 104 && Z <= 112) ? 2 : 3;
+const ptPos = Z => Z === 1 ? [1, 1] : Z === 2 ? [1, 18] : Z <= 4 ? [2, Z - 2] : Z <= 10 ? [2, Z + 8] : Z <= 12 ? [3, Z - 10] : Z <= 18 ? [3, Z] : Z <= 36 ? [4, Z - 18] : Z <= 54 ? [5, Z - 36] : Z <= 56 ? [6, Z - 54] : Z <= 71 ? [9, Z - 54] : Z <= 86 ? [6, Z - 68] : Z <= 88 ? [7, Z - 86] : Z <= 103 ? [10, Z - 86] : [7, Z - 100];
+const PT_FACT = { 1: 'O elemento mais leve e mais abundante do universo: as estrelas são feitas dele.', 2: 'Mais leve que o ar: é o gás que faz os balões subirem (e a voz ficar fininha).', 6: 'A base de toda a vida. Diamante e grafite são carbono puro!', 7: 'Quase 80% do ar que a senhora respira é nitrogênio.', 8: 'Sem ele não há fogo nem respiração. Ele forma 21% do ar.', 10: 'Brilha em vermelho-alaranjado nos letreiros luminosos.', 11: 'Um metal tão mole que se corta com faca, e que explode na água.', 13: 'O metal das latinhas: leve e reciclável.', 14: 'A areia é feita dele, e os computadores também.', 17: 'Um gás verde e venenoso que, junto com o sódio, vira sal.', 20: 'O que deixa os ossos e os dentes fortes.', 26: 'O núcleo da Terra é quase todo de ferro. E o sangue é vermelho por causa dele!', 29: 'Ótimo condutor de eletricidade. Deixa a chama verde.', 47: 'O metal que melhor conduz eletricidade de todos.', 50: 'Misturado ao cobre vira bronze, o metal de uma era inteira.', 78: 'Mais raro que o ouro, e quase não enferruja.', 79: 'Nunca enferruja, por isso as coroas das rainhas duram para sempre 👑', 80: 'O único metal líquido na temperatura ambiente.', 82: 'Pesado e macio. Os romanos faziam canos com ele.', 92: 'Radioativo: um pedacinho guarda energia para iluminar uma cidade.', 118: 'O elemento mais pesado já criado: existiu só por milissegundos.' };
+/* ---- 📚 andar de estudos ---- */
+{
+  const F = twFloor(0), s = F.s;
+  cyl(s, 4.2, 4.2, 0.04, 0, 0.07, 0, matC(0x7a1f2a), 28); cyl(s, 3.6, 3.6, 0.045, 0, 0.075, 0, matC(0xc8a050), 28); cyl(s, 3.4, 3.4, 0.05, 0, 0.08, 0, matC(0x7a1f2a), 28);
+  const bookC = [0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0x6a3a8a, 0xc8a050, 0x8a5a2a, 0x3a6a7a, 0xd86a5a];
+  for (let k = 0; k < 9; k++) { // estantes pela parede
+    const a = Math.PI / 9 + k * Math.PI * 2 / 9 + 0.17, [x, z] = twP2(a, 9.7), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
+    twShelf(g, 2.4, 3.4, 0.55, twWoodD); for (let r = 0; r < 4; r++) { pb(g, 2.3, 0.06, 0.5, 0, 0.35 + r * 0.8, 0.02, twWood); let bx = -1.05; while (bx < 1.0) { const w = 0.07 + LABR() * 0.08, h = 0.42 + LABR() * 0.28; pb(g, w, h, 0.36, bx + w / 2, 0.38 + r * 0.8 + h / 2, 0.06, matC(bookC[Math.floor(LABR() * bookC.length)])); bx += w + 0.01; } }
+    F.col(...twLocal(x * 0.97, z * 0.97), 1.0);
+    F.act(F.hit(2.4, 3.4, 1, x * 0.95, 1.7, z * 0.95), x * 0.85, z * 0.85, () => labLibrary(), 2.8);
+  }
+  for (let k = 0; k < 3; k++) { // mesas de leitura com lampião e livro aberto
+    const a = k / 3 * Math.PI * 2 + Math.PI / 3, [x, z] = twP2(a, 5.6), t = twTable(s, x, z, 1.8, 0.95, 0.8, a);
+    pb(t, 0.5, 0.03, 0.36, -0.15, 0.86, 0, twPaper).rotation.y = 0.1; pb(t, 0.5, 0.03, 0.36, 0.36, 0.86, 0, twPaper).rotation.y = -0.1;
+    cyl(t, 0.08, 0.12, 0.05, -0.65, 0.87, -0.2, twBrass, 8); cyl(t, 0.02, 0.02, 0.35, -0.65, 1.05, -0.2, twBrass, 6); ps(F.d, 0.1, ...twLocalRel(t, -0.65, 1.25, -0.2), matC(0xffe2a0, true));
+    twChair(s, x + Math.sin(a) * -0.95, z + Math.cos(a) * -0.95, a);
+    F.col(x, z, 1.0);
+    F.act(F.hit(1.9, 1.2, 1.2, x, 0.9, z), x, z, () => labStudy(), 2.4);
+  }
+  const gl = new THREE.Group(); gl.position.set(-2.4, 0, -2.6); s.add(gl); cyl(gl, 0.35, 0.5, 0.1, 0, 0.05, 0, twWoodD, 10); cyl(gl, 0.05, 0.05, 0.9, 0, 0.5, 0, twBrass, 6);
+  F.globe = ps(F.d, 0.45, ...twLocalRel(gl, 0, 1.35, 0), matC(0x3a6aa8)); const gr = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.025, 6, 24), twBrass); gr.position.set(-2.4, 1.35, -2.6); gr.rotation.x = 0.4; F.d.add(gr); F.col(-2.4, -2.6, 0.5);
+  for (const [x, z, r] of [[2.5, -2.2, -2.4], [-1.6, 2.6, 2.6]]) { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = r; s.add(g); pb(g, 1.1, 0.45, 0.9, 0, 0.3, 0, matC(0x2a3a6a)); pb(g, 1.1, 0.7, 0.2, 0, 0.75, -0.38, matC(0x2a3a6a)); for (const sx of [-1, 1]) pb(g, 0.18, 0.55, 0.9, sx * 0.55, 0.45, 0, matC(0x1f2a52)); F.col(x, z, 0.6); }
+  const lu = new THREE.Group(); lu.position.set(0, 5.9, 0); F.d.add(lu); const lr = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.05, 6, 32), twBrass); lr.rotation.x = Math.PI / 2; lu.add(lr); cyl(lu, 0.02, 0.02, 1.1, 0, 0.55, 0, twBrass, 4);
+  for (let k = 0; k < 8; k++) { const an = k / 8 * Math.PI * 2; cyl(lu, 0.04, 0.04, 0.16, Math.cos(an) * 1.6, 0.1, Math.sin(an) * 1.6, matC(0xf4ecd8), 6); addFlame(lu, Math.cos(an) * 1.6, 0.26, Math.sin(an) * 1.6, 0.18); } // lustre de velas
+  for (const [x, z] of [[3.6, -1.0], [-3.4, 0.4], [1.0, -4.4]]) { cyl(s, 0.18, 0.22, 0.05, x, 0.03, z, twBrass, 8); cyl(s, 0.025, 0.025, 1.5, x, 0.78, z, twBrass, 6); cone(s, 0.3, 0.3, x, 1.6, z, matC(0xf4dca0), 10); ps(F.d, 0.12, x, 1.45, z, matC(0xffe2a0, true)); F.col(x, z, 0.3); }
+  for (const [x, z, n] of [[3.1, 0.8, 5], [-2.0, 4.4, 4], [-4.6, -1.8, 6]]) for (let k = 0; k < n; k++) pb(s, 0.34 + LABR() * 0.1, 0.07, 0.26, x + labRv(0.03), 0.04 + k * 0.075, z, matC([0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0xc8a050, 0x6a3a8a][k % 5])).rotation.y = labRv(0.4);
+  { const a = Math.PI / 9 + 0.17, [x, z] = twP2(a + 0.12, 9.15), lad = new THREE.Group(); lad.position.set(x, 0, z); lad.rotation.set(-0.18, a + Math.PI, 0); s.add(lad); for (const sx of [-0.25, 0.25]) pb(lad, 0.06, 3.3, 0.06, sx, 1.65, 0, twWood); for (let r = 0; r < 8; r++) pb(lad, 0.5, 0.05, 0.05, 0, 0.3 + r * 0.4, 0, twWood); } // escada na estante
+  for (const [x, z, c] of [[-0.6, -1.8, 0x7a1f2a], [0.4, -2.2, 0x2a3a6a], [-0.1, -2.9, 0xc8a050]]) ps(s, 0.38, x, 0.2, z, matC(c), 1, 0.45, 1); // almofadões no tapete
+  for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + Math.PI / 3, [x, z] = twP2(a, 5.6); twSit(F, x + Math.sin(a) * -0.95, z + Math.cos(a) * -0.95, a, '📖 a senhora se ajeita na cadeira, abre o livro e o mundo lá fora fica quietinho', { near: 1.6, back: true }); }
+  twSit(F, 2.5, -2.2, -2.4, '🛋 que poltrona macia… dá até sono de tanto conforto', { h: 1.0 }); twSit(F, -1.6, 2.6, 2.6, '🛋 que poltrona macia… dá até sono de tanto conforto', { h: 1.0 });
+  twSit(F, -0.1, -2.3, 0, '✨ deitada nos almofadões, a senhora olha o lustre de velas balançando devagarinho', { lie: true, h: 0.45, pitch: 1.3, w: 1.6, d: 1.6 });
+  for (const [x, z] of [[4.2, 4.2], [-4.4, -4.0]]) twVase(s, x, 0.86, z, 0xd86a90);
+  bakeStatic(s);
+}
+/* ---- ⚗ andar de experimentos ---- */
+const LAB_FLASKS = [];
+{
+  const F = twFloor(1), s = F.s, d = F.d;
+  // prateleiras de reagentes na parede do fundo
+  const ids = Object.keys(LAB_R);
+  for (let u = 0; u < 3; u++) {
+    const a = Math.PI + (u - 1) * 0.42, [x, z] = twP2(a, 9.75), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
+    const gd = new THREE.Group(); gd.position.copy(g.position); gd.rotation.copy(g.rotation); d.add(gd);
+    twShelf(g, 3.6, 2.6, 0.5, twWoodD); for (let r = 0; r < 3; r++) pb(g, 3.5, 0.06, 0.45, 0, 0.5 + r * 0.75, 0.04, twWood);
+    signBox(g, boardTex(['⚛ Elementos Químicos I', '⚛ Elementos Químicos II', '✦ Fósforo, Iodo e Essências'][u], '#2a2450', 640, 90, 40), 2.6, 0.45, 0, 2.85, 0.1);
+    const mine = ids.slice(u * 7, u * 7 + 7);
+    mine.forEach((id, j) => {
+      const r = Math.floor(j / 4), cx = -1.3 + (j % 4) * 0.87 + (r ? 0.43 : 0), cy = r ? 0.53 : 1.28, R = LAB_R[id]; // em pé em cima das tábuas
+      const fl = twFlask(gd, cx, cy, 0.04, R.c, 1.3);
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.16), new THREE.MeshBasicMaterial({ map: boardTex(R.s, '#2a2450', 128, 64, R.magic ? 36 : 44), transparent: true })); tag.position.set(cx, cy - 0.05, 0.27); tag.userData.keep = true; gd.add(tag);
+      const hit = invis(gd, gBox(0.6, 0.7, 0.5), cx, cy + 0.32, 0.15); hit.userData.keep = true; const lq = twLocalRel(gd, cx, 0, 0.15);
+      F.act(hit, lq[0], lq[2], () => labPick(id), 2.6); LAB_FLASKS.push({ id, g: fl });
+    });
+    F.col(...twLocal(x * 0.96, z * 0.96), 1.1); F.col(...twLocal(x * 0.96 + Math.cos(a) * 1.2, z * 0.96 - Math.sin(a) * 1.2), 1.1); F.col(...twLocal(x * 0.96 - Math.cos(a) * 1.2, z * 0.96 + Math.sin(a) * 1.2), 1.1);
+  }
+  // bancada com o béquer no bico de Bunsen e a estante de tubos de ensaio
+  const bt = twTable(s, 0, 4.6, 4.2, 1.4, 0.9, 0, matC(0x2a2a34)); pb(bt, 4.25, 0.06, 1.45, 0, 0.95, 0, matC(0xe8e8ec));
+  F.col(-1.4, 4.6, 0.8); F.col(0, 4.6, 0.8); F.col(1.4, 4.6, 0.8);
+  const bk = new THREE.Group(); bk.position.set(0.9, 0.98, 4.5); d.add(bk);
+  cyl(bk, 0.1, 0.14, 0.2, 0, 0.1, 0, M.iron, 10); cyl(bk, 0.03, 0.03, 0.22, 0, 0.3, 0, twBrass, 6); pb(bk, 0.5, 0.03, 0.5, 0, 0.42, 0, M.iron);
+  LABB.flame = new THREE.Group(); LABB.flame.position.set(0, 0.37, 0); bk.add(LABB.flame); addFlame(LABB.flame, 0, 0, 0, 0.22); LABB.flame.visible = false;
+  LABB.liqM = new THREE.MeshLambertMaterial({ color: 0xcfe6ff, emissive: 0x222222, transparent: true, opacity: 0.85 });
+  LABB.liq = cyl(bk, 0.25, 0.23, 0.5, 0, 0.7, 0, LABB.liqM, 16); LABB.liq.visible = false;
+  cyl(bk, 0.28, 0.26, 0.62, 0, 0.75, 0, twGlass, 16);
+  const bh = invis(d, gBox(0.9, 1.2, 0.9), 0.9, 1.5, 4.5); bh.userData.keep = true; F.act(bh, 0.9, 4.5, () => labBeaker(), 2.6);
+  const rack = new THREE.Group(); rack.position.set(-1.0, 0.98, 4.5); d.add(rack); pb(rack, 1.2, 0.05, 0.3, 0, 0.12, 0, twWood); pb(rack, 1.2, 0.05, 0.3, 0, 0.32, 0, twWood);
+  ['H', 'O', 'Na', 'Cl', 'Cu', 'Mg'].forEach((id, j) => { const x = -0.5 + j * 0.2, c = LAB_R[id].c; cyl(rack, 0.045, 0.045, 0.22, x, 0.27, 0, new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.3) }), 8); cyl(rack, 0.05, 0.05, 0.42, x, 0.33, 0, twGlass, 8);
+    const th = invis(rack, gBox(0.18, 0.5, 0.3), x, 0.33, 0); th.userData.keep = true; const lq = twLocalRel(rack, x, 0, 0); F.act(th, lq[0], lq[2], () => labPick(id), 2.4); });
+  // pia de descarte
+  const sk = new THREE.Group(); sk.position.set(3.4, 0, 3.0); sk.rotation.y = -0.6; s.add(sk); pb(sk, 1.2, 0.9, 0.8, 0, 0.45, 0, matC(0xd8d8de)); pb(sk, 0.9, 0.05, 0.55, 0, 0.91, 0, matC(0x4a5a6a)); cyl(sk, 0.03, 0.03, 0.5, 0, 1.15, -0.3, twBrass, 6);
+  F.col(3.4, 3.0, 0.7); F.act(F.hit(1.2, 1.2, 0.9, 3.4, 0.9, 3.0), 3.4, 3.0, () => labSink(), 2.4);
+  // câmara de criação: tubo de vidro gigante com líquido borbulhando
+  const ch = new THREE.Group(); ch.position.set(-5.2, 0, 0.6); d.add(ch); LABC.g = ch;
+  cyl(ch, 1.45, 1.55, 0.6, 0, 0.3, 0, matC(0x2a2440), 24); cyl(ch, 1.45, 1.45, 0.5, 0, 4.05, 0, matC(0x2a2440), 24); ps(ch, 0.25, 0, 4.45, 0, matC(0x7affe0, true));
+  LABC.liqM = new THREE.MeshLambertMaterial({ color: 0x8affd8, emissive: 0x1a4a3a, transparent: true, opacity: 0.55, depthWrite: false });
+  LABC.liq = cyl(ch, 1.12, 1.12, 3.0, 0, 2.1, 0, LABC.liqM, 24); LABC.liq.scale.y = 0.15; LABC.liq.position.y = 0.6 + 0.15 * 1.5;
+  cyl(ch, 1.2, 1.2, 3.2, 0, 2.2, 0, twGlass, 24);
+  for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2, c = cyl(ch, 0.06, 0.06, 3.4, Math.sin(a) * 1.3, 2.2, Math.cos(a) * 1.3, twBrass, 6); }
+  LABC.baby = new THREE.Group(); LABC.baby.position.set(0, 1.6, 0); ch.add(LABC.baby);
+  const con = twTable(s, -3.5, 2.6, 1.2, 0.7, 0.95, 0.9, matC(0x2a2a34)); ps(con, 0.12, 0, 1.05, 0, matC(0xff4a4a, true)); pb(con, 0.5, 0.25, 0.04, 0.2, 1.15, -0.3, matC(0x7affe0, true));
+  F.col(-5.2, 0.6, 1.6); F.col(-3.5, 2.6, 0.6);
+  const chh = invis(d, gBox(3.2, 4.4, 3.2), -5.2, 2.2, 0.6); chh.userData.keep = true; F.act(chh, -4.2, 1.6, () => labChamber(), 3.2);
+  // capela de exaustão, caldeirão e placa de segurança
+  const hood = new THREE.Group(); const [hx, hz] = twP2(Math.PI * 0.5, 9.3); hood.position.set(hx, 0, hz); hood.rotation.y = Math.PI * 0.5 + Math.PI; s.add(hood);
+  pb(hood, 2.4, 0.95, 0.9, 0, 0.47, 0, matC(0xd8d8de)); pb(hood, 2.4, 1.6, 0.06, 0, 1.75, 0.42, twGlass); pb(hood, 2.4, 0.4, 0.9, 0, 2.75, 0, matC(0xd8d8de)); for (const sx of [-1, 1]) pb(hood, 0.06, 1.8, 0.9, sx * 1.2, 1.85, 0, matC(0xd8d8de));
+  twFlask(hood, -0.5, 0.95, 0, 0x9aff6a, 1.2); twFlask(hood, 0.4, 0.95, 0.1, 0xff6a5a, 0.9); F.col(hx * 0.98, hz * 0.98, 1.2);
+  const cau = new THREE.Group(); cau.position.set(4.6, 0, -2.6); s.add(cau); cyl(cau, 0.75, 0.55, 0.85, 0, 0.55, 0, M.iron, 16); cyl(cau, 0.68, 0.68, 0.05, 0, 0.95, 0, matC(0x9a6aff, true), 16); for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2; pb(cau, 0.1, 0.3, 0.1, Math.sin(a) * 0.5, 0.15, Math.cos(a) * 0.5, M.iron); } F.col(4.6, -2.6, 0.85); LABC.cau = twW(4.6, -2.6);
+  const [wx, wz] = twP2(Math.PI * 1.5, 10.0); signBox(s, boardTex('⚠ Sódio + Água = 💥', '#5a1a1a', 512, 100, 42), 2.2, 0.45, wx, 3.0, wz).rotation.y = Math.PI * 0.5;
+  for (let k = 0; k < 3; k++) { const [x, z] = twP2(Math.PI * 1.5 + (k - 1) * 0.16, 10.0); pb(s, 0.5, 1.1, 0.1, x, 1.75, z, matC(0xf4f4f4)).rotation.y = Math.PI * 0.5; } // jalecos pendurados
+  { // vidrarias coloridas na bancada (erlenmeyer, balão e serpentina)
+    const v = new THREE.Group(); v.position.set(0, 0.98, 4.6); s.add(v);
+    for (const [x, c] of [[-1.85, 0xff6a5a], [-1.6, 0x6ab8ff], [1.6, 0x9aff6a]]) { cone(v, 0.13, 0.26, x, 0.13, -0.3, twGlass, 12); cone(v, 0.1, 0.16, x, 0.08, -0.3, new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.3) }), 12); cyl(v, 0.035, 0.035, 0.14, x, 0.3, -0.3, twGlass, 8); }
+    ps(v, 0.13, 1.85, 0.2, 0.3, twGlass); ps(v, 0.11, 1.85, 0.18, 0.3, new THREE.MeshLambertMaterial({ color: 0xffd23a, emissive: 0x4a3a08 })); cyl(v, 0.02, 0.02, 0.5, 1.85, 0.5, 0.3, twGlass, 6);
+    for (let k = 0; k < 5; k++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 5, 14), twGlass); r.position.set(-0.2, 0.15 + k * 0.06, -0.35); r.rotation.x = Math.PI / 2; v.add(r); } cyl(v, 0.04, 0.04, 0.12, -0.2, 0.06, -0.35, twBrass, 8);
+  }
+  { // alambique de cobre num balcão na parede
+    const a = Math.PI * 1.3, [x, z] = twP2(a, 9.2), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
+    pb(g, 2.2, 0.9, 0.8, 0, 0.45, 0, matC(0x4a4a56)); pb(g, 2.25, 0.06, 0.85, 0, 0.92, 0, matC(0xe8e8ec));
+    ps(g, 0.32, -0.5, 1.25, 0, matC(0xc87a3a), 1, 0.95, 1); cone(g, 0.18, 0.4, -0.5, 1.72, 0, matC(0xc87a3a), 12); const pp = cyl(g, 0.03, 0.03, 1.1, -0.05, 1.8, 0, matC(0xc87a3a), 6); pp.rotation.z = -1.15;
+    cyl(g, 0.16, 0.16, 0.5, 0.55, 1.2, 0, matC(0xb8bcc4), 12); ps(g, 0.12, 0.85, 1.05, 0, twGlass); F.col(x, z, 1.1);
+  }
+  for (const [x, z] of [[-1.2, 3.5], [0.1, 3.5], [1.4, 3.5]]) { cyl(s, 0.2, 0.2, 0.05, x, 0.68, z, matC(0x2a2a34), 10); cyl(s, 0.03, 0.03, 0.65, x, 0.33, z, M.iron, 6); } // banquinhos
+  { const [x, z] = twP2(Math.PI * 0.36, 9.9); cyl(s, 0.13, 0.13, 0.55, x, 0.62, z, matC(0xd82a2a), 10); cyl(s, 0.04, 0.04, 0.12, x, 0.95, z, M.iron, 6); pb(s, 0.5, 0.3, 0.04, x * 0.995, 1.35, z * 0.995, matC(0xd82a2a)).rotation.y = Math.PI * 0.36 + Math.PI; } // extintor
+  { const [x, z] = twP2(Math.PI * 0.64, 9.85); pb(s, 0.5, 0.06, 0.4, x, 1.3, z, matC(0x3aaa5a)).rotation.y = Math.PI * 0.64; signBox(s, boardTex('👁 lava-olhos', '#1a5a2a', 256, 80, 34), 0.7, 0.22, x * 0.99, 1.7, z * 0.99).rotation.y = Math.PI * 0.64 + Math.PI; }
+  for (const x of [-1.2, 0.1, 1.4]) twSit(F, x, 3.5, 0, '⚗ sentadinha no banquinho, de frente para a bancada… pronta para misturar', { h: 1.3, near: 1.4, w: 0.6, d: 0.6, back: true });
+  twPainting(F, 4, 3.6, 1.4, 1.05, 'castelo');
+  bakeStatic(s);
+}
+/* ---- 💻 andar de pesquisas e computadores ---- */
+const LAB_SCR = [];
+{
+  const F = twFloor(2), s = F.s, d = F.d;
+  for (let k = 0; k < 4; k++) {
+    const a = k / 4 * Math.PI * 2 + Math.PI / 4, [x, z] = twP2(a, 6.3), t = twTable(s, x, z, 2.0, 1.0, 0.8, a + Math.PI, matC(0x4a4a56));
+    pb(t, 0.75, 0.6, 0.6, 0, 1.15, -0.1, matC(0xd8d0b8)); pb(t, 0.62, 0.48, 0.05, 0, 1.17, 0.21, matC(0x1a1a1a)); pb(t, 0.8, 0.04, 0.3, 0, 0.86, 0.45, matC(0xd8d0b8)); pb(t, 0.3, 0.3, 0.25, 0.75, 0.97, -0.2, matC(0xd8d0b8));
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 192; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.42), new THREE.MeshBasicMaterial({ map: tex }));
+    scr.position.set(...twLocalRel(t, 0, 1.17, 0.24)); scr.rotation.y = a + Math.PI; scr.userData.keep = true; d.add(scr);
+    LAB_SCR.push({ cv, g: cv.getContext('2d'), tex, lines: [], t: LABR() });
+    twChair(s, x * 0.78, z * 0.78, a, 0x2a3a6a); F.col(x, z, 1.0);
+    F.act(F.hit(2, 1.6, 1.4, x, 1, z), x * 0.85, z * 0.85, () => labTerminal(), 2.6);
+  }
+  F.leds = [new THREE.MeshBasicMaterial({ color: 0x3aff7a }), new THREE.MeshBasicMaterial({ color: 0xff4a4a }), new THREE.MeshBasicMaterial({ color: 0x4aa8ff })];
+  for (let k = 0; k < 3; k++) { // armários de servidores piscando
+    const a = Math.PI + (k - 1) * 0.36, [x, z] = twP2(a, 9.6), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g); pb(g, 1.1, 2.6, 0.8, 0, 1.3, 0, matC(0x22242c));
+    const gd = new THREE.Group(); gd.position.copy(g.position); gd.rotation.copy(g.rotation); d.add(gd);
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) pb(gd, 0.06, 0.06, 0.02, -0.3 + c * 0.2, 0.5 + r * 0.4, 0.41, F.leds[(r * 3 + c + k) % 3]);
+    F.col(x * 0.97, z * 0.97, 0.75);
+  }
+  // telão da pesquisa
+  const [bx, bz] = twP2(Math.PI * 0.5, 9.95); const bcv = document.createElement('canvas'); bcv.width = 1024; bcv.height = 512; F.board = { cv: bcv, g: bcv.getContext('2d'), tex: new THREE.CanvasTexture(bcv) }; F.board.tex.colorSpace = THREE.SRGBColorSpace;
+  const big = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: F.board.tex })); big.position.set(bx, 3.2, bz); big.rotation.y = Math.PI * 1.5; big.userData.keep = true; d.add(big); pb(s, 5.5, 2.9, 0.1, bx * 1.013, 3.2, bz * 1.013, matC(0x1a1a22)).rotation.y = Math.PI * 1.5;
+  F.act(F.hit(5, 3, 1, bx * 0.95, 3, bz * 0.95), bx * 0.8, bz * 0.8, () => labTerminal('prog'), 3.5);
+  // microscópio
+  const mt = twTable(s, -3.0, 3.4, 1.4, 0.8, 0.85, 0.5); const mc = new THREE.Group(); mc.position.set(0, 0.9, 0); mt.add(mc);
+  pb(mc, 0.3, 0.05, 0.36, 0, 0.03, 0, M.iron); cyl(mc, 0.05, 0.05, 0.5, 0, 0.3, -0.1, M.iron, 8); const tube = cyl(mc, 0.06, 0.07, 0.38, 0, 0.5, 0.02, matC(0xe8e8ec), 10); tube.rotation.x = -0.4; pb(mc, 0.22, 0.03, 0.18, 0, 0.2, 0.05, M.iron);
+  F.col(-3.0, 3.4, 0.8); F.act(F.hit(1.4, 1.4, 1, -3.0, 1, 3.4), -3.0, 3.4, () => labMicroscope(), 2.4);
+  // piso de placas e luminárias no teto
+  cyl(s, 10.55, 10.55, 0.012, 0, 0.068, 0, new THREE.MeshLambertMaterial({ map: canvasTex(512, 512, g => { g.fillStyle = '#3e4654'; g.fillRect(0, 0, 512, 512); g.strokeStyle = '#2a303a'; g.lineWidth = 6; for (let k = 0; k <= 512; k += 64) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 512); g.moveTo(0, k); g.lineTo(512, k); g.stroke(); } }, [6, 6]) }), 32);
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, [x, z] = twP2(a, 5.2); pb(s, 1.6, 0.08, 0.4, x, 6.85, z, matC(0xf4fbff, true)).rotation.y = a; pb(s, 1.7, 0.06, 0.5, x, 6.9, z, matC(0x8a8a94)).rotation.y = a; }
+  // supercomputador ÁGATA na parede da frente: gabinetes com fitas girando e luzes
+  F.reels = []; F.mlight = [new THREE.MeshBasicMaterial({ color: 0xffb040 }), new THREE.MeshBasicMaterial({ color: 0x3aff7a })];
+  for (let k = 0; k < 3; k++) {
+    const a = (k - 1) * 0.3, [x, z] = twP2(a, 9.55), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
+    const gd = new THREE.Group(); gd.position.copy(g.position); gd.rotation.copy(g.rotation); d.add(gd);
+    pb(g, 1.5, 3.0, 0.9, 0, 1.5, 0, matC(0xc8ccd4)); pb(g, 1.3, 1.0, 0.04, 0, 2.15, 0.46, matC(0x22242c)); pb(g, 1.3, 0.9, 0.04, 0, 0.75, 0.46, matC(0x9aa0aa));
+    for (const sx of [-1, 1]) { const r = new THREE.Group(); r.position.set(sx * 0.32, 2.15, 0.5); gd.add(r); cyl(r, 0.26, 0.26, 0.04, 0, 0, 0, matC(0x3a3a44), 16).rotation.x = Math.PI / 2; cyl(r, 0.08, 0.08, 0.05, 0, 0, 0.01, matC(0xd8d8de), 8).rotation.x = Math.PI / 2; pb(r, 0.42, 0.04, 0.02, 0, 0, 0.03, matC(0xd8d8de)); F.reels.push({ r, sp: sx * (1.5 + LABR()) }); }
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) pb(gd, 0.07, 0.07, 0.02, -0.5 + c * 0.2, 0.55 + r * 0.22, 0.48, F.mlight[(r + c + k) % 2]);
+    F.col(x, z, 0.85);
+  }
+  signBox(s, boardTex('🖥 Supercomputador ÁGATA', '#1a2a3a', 640, 100, 46), 3.4, 0.5, 0, 3.45, 9.0);
+  const cons = twTable(s, 0, 7.6, 2.6, 0.9, 0.85, Math.PI, matC(0x4a4a56)); pb(cons, 2.4, 0.12, 0.6, 0, 0.95, -0.1, matC(0x2a2a34)); for (let c = 0; c < 10; c++) ps(cons, 0.04, -1.0 + c * 0.22, 1.02, -0.1, matC([0xff4a4a, 0x3aff7a, 0xffd23a][c % 3], true));
+  for (const sx of [-0.7, 0.7]) { pb(cons, 0.6, 0.45, 0.06, sx, 1.3, 0.25, matC(0x1a1a1a)); pb(cons, 0.52, 0.37, 0.01, sx, 1.3, 0.21, matC(0x3aff9a, true)); }
+  F.col(-0.8, 7.6, 0.6); F.col(0.8, 7.6, 0.6);
+  F.act(F.hit(4.4, 3.2, 3, 0, 1.6, 8.3), 0, 7.0, () => labAgata(), 3.2);
+  // átomo holográfico (modelo de Bohr) atrás do elevador
+  cyl(s, 0.7, 0.85, 0.5, 0, 0.25, -3.8, matC(0x2a2440), 20); cyl(s, 0.6, 0.6, 0.02, 0, 0.51, -3.8, matC(0x7affe0, true), 20);
+  F.atom = new THREE.Group(); F.atom.position.set(0, 2.0, -3.8); d.add(F.atom); F.atomZ = 0;
+  ps(F.atom, 0.16, 0, 0, 0, matC(0xff8a5a, true)); const ag = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffb08a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ag.scale.setScalar(0.9); F.atom.add(ag);
+  F.orbits = []; for (let k = 0; k < 3; k++) { const o = new THREE.Group(); o.rotation.set(k * 1.0 + 0.3, k * 0.9, 0); F.atom.add(o); const ring = new THREE.Mesh(new THREE.TorusGeometry(0.45 + k * 0.32, 0.008, 4, 48), new THREE.MeshBasicMaterial({ color: 0x7affe0, transparent: true, opacity: 0.5 })); ring.rotation.x = Math.PI / 2; o.add(ring); const es = []; for (let e = 0; e < 8; e++) es.push(ps(o, 0.045, 0, 0, 0, matC(0x9ad8ff, true))); F.orbits.push({ o, es, r: 0.45 + k * 0.32, sp: 1.6 - k * 0.4 }); }
+  F.col(0, -3.8, 0.9); F.act(F.hit(1.8, 2.6, 1.8, 0, 1.4, -3.8), 0, -3.8, () => labAtom(), 2.4);
+  // quadro branco com gráficos entre pôsteres (parede da esquerda)
+  { const [x, z] = twP2(Math.PI * 1.5, 9.9); const wb = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.0), new THREE.MeshBasicMaterial({ color: 0xc0c0c0, map: canvasTex(720, 400, g => { g.fillStyle = '#f4f6f8'; g.fillRect(0, 0, 720, 400); g.strokeStyle = '#2a3a6a'; g.lineWidth = 3; g.beginPath(); g.moveTo(40, 30); g.lineTo(40, 360); g.lineTo(690, 360); g.stroke();
+      g.strokeStyle = '#d83a3a'; g.lineWidth = 5; g.beginPath(); for (let i = 0; i <= 20; i++) { const X = 40 + i * 32, Y = 340 - 260 * (1 - Math.exp(-i / 6)); i ? g.lineTo(X, Y) : g.moveTo(X, Y); } g.stroke();
+      g.strokeStyle = '#3a9a5a'; g.beginPath(); for (let i = 0; i <= 20; i++) { const X = 40 + i * 32, Y = 220 + Math.sin(i * 0.7) * 70; i ? g.lineTo(X, Y) : g.moveTo(X, Y); } g.stroke();
+      g.fillStyle = '#2a3a6a'; g.font = 'italic 30px Georgia, serif'; g.fillText('velocidade da reação × temperatura', 70, 40); }) }));
+    wb.position.set(x, 2.5, z); wb.rotation.y = Math.PI / 2; wb.userData.keep = true; d.add(wb); pb(s, 3.8, 2.2, 0.08, x * 1.012, 2.5, z * 1.012, matC(0xb8bcc4)).rotation.y = Math.PI / 2;
+    for (const [dz, kind] of [[-2.9, 'dna'], [2.9, 'tab']]) { const pz = z + dz, ps2 = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.7), new THREE.MeshBasicMaterial({ map: canvasTex(240, 340, g => { g.fillStyle = '#1a2440'; g.fillRect(0, 0, 240, 340); g.fillStyle = '#fff3d6'; g.font = 'bold 26px Georgia, serif'; g.textAlign = 'center';
+        if (kind === 'dna') { g.fillText('DNA', 120, 36); for (let i = 0; i < 26; i++) { const y = 60 + i * 10, a = i * 0.5, x1 = 120 + Math.sin(a) * 60, x2 = 120 - Math.sin(a) * 60; g.strokeStyle = '#7affe0'; g.beginPath(); g.moveTo(x1, y); g.lineTo(x2, y); g.stroke(); g.fillStyle = '#ff8ac8'; g.beginPath(); g.arc(x1, y, 4, 0, 7); g.fill(); g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(x2, y, 4, 0, 7); g.fill(); } }
+        else { g.fillText('ÁTOMO', 120, 36); g.strokeStyle = '#7affe0'; g.lineWidth = 2; for (let k = 0; k < 3; k++) { g.save(); g.translate(120, 190); g.rotate(k * 1.05); g.beginPath(); g.ellipse(0, 0, 95, 34, 0, 0, 7); g.stroke(); g.restore(); } g.fillStyle = '#ff8a5a'; g.beginPath(); g.arc(120, 190, 14, 0, 7); g.fill(); } }) }));
+      ps2.position.set(x + 0.01, 2.5, pz); ps2.rotation.y = Math.PI / 2; ps2.userData.keep = true; d.add(ps2); }
+  }
+  // arquivos de aço, impressora, plantas e cabos pelo chão
+  for (let k = 0; k < 3; k++) { const a = Math.PI * 1.22 + k * 0.13, [x, z] = twP2(a, 9.7), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g); pb(g, 0.6, 1.4, 0.7, 0, 0.7, 0, matC(0x8a9098)); for (let r = 0; r < 3; r++) { pb(g, 0.5, 0.36, 0.02, 0, 0.3 + r * 0.44, 0.36, matC(0x9aa0aa)); pb(g, 0.16, 0.04, 0.03, 0, 0.42 + r * 0.44, 0.38, matC(0x3a3a44)); } F.col(x, z, 0.5); }
+  const pt2 = twTable(s, 3.6, -1.6, 1.0, 0.7, 0.75, -0.5, matC(0x4a4a56)); pb(pt2, 0.6, 0.25, 0.45, 0, 0.92, 0, matC(0xe8e8ec)); pb(pt2, 0.4, 0.01, 0.3, 0, 1.06, 0.12, twPaper); F.col(3.6, -1.6, 0.6);
+  F.act(F.hit(1.1, 1.3, 0.9, 3.6, 0.8, -1.6), 3.6, -1.6, () => { sfx.clop(); whisper(`🖨 a impressora soltou um relatório: "descobertas da torre: ${labFound()} de ${LAB_TOTAL}"`, 4); }, 2.2);
+  for (const a of [Math.PI * 0.12, Math.PI * 1.88]) { const [x, z] = twP2(a, 9.0); cyl(s, 0.3, 0.24, 0.55, x, 0.28, z, matC(0xd8d8de), 10); ps(s, 0.5, x, 0.95, z, matC(0x3a7a3a), 1, 1.4, 1); F.col(x, z, 0.4); }
+  for (let k = 0; k < 4; k++) { const a0 = Math.PI + (k - 1.5) * 0.25, [x0, z0] = twP2(a0, 9.0), [x1, z1] = twP2(k / 4 * Math.PI * 2 + Math.PI / 4, 6.9), L = Math.hypot(x1 - x0, z1 - z0), c = cyl(s, 0.04, 0.04, L, (x0 + x1) / 2, 0.1, (z0 + z1) / 2, matC(0x1a1a22), 6); c.rotation.set(Math.PI / 2, 0, 0); c.rotation.y = Math.atan2(x1 - x0, z1 - z0); c.rotation.order = 'YXZ'; }
+  // mais um posto de trabalho com dois monitores, perto do quadro
+  { const t = twTable(s, -6.2, -2.6, 2.4, 1.0, 0.8, Math.PI / 2 + 0.35, matC(0x4a4a56)); for (const sx of [-0.55, 0.55]) { pb(t, 0.7, 0.5, 0.05, sx, 1.15, -0.2, matC(0x1a1a1a)); pb(t, 0.06, 0.3, 0.06, sx, 0.98, -0.25, M.iron); }
+    for (const sx of [-0.55, 0.55]) { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 192; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.42), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(...twLocalRel(t, sx, 1.15, -0.17)); scr.rotation.y = t.rotation.y; scr.userData.keep = true; d.add(scr); LAB_SCR.push({ cv, g: cv.getContext('2d'), tex, lines: [], t: LABR() }); }
+    pb(t, 0.8, 0.04, 0.3, 0, 0.86, 0.2, matC(0xd8d0b8)); twChair(s, ...(() => { const q = twLocalRel(t, 0, 0, 0.9); return [q[0], q[2]]; })(), t.rotation.y + Math.PI, 0x2a3a6a); F.col(-6.2, -2.6, 1.1);
+    F.act(F.hit(2.4, 1.6, 1.4, -6.2, 1, -2.6), -5.4, -2.2, () => labTerminal(), 2.6); }
+  for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + Math.PI / 4, [x, z] = twP2(a, 6.3); twSit(F, x * 0.78, z * 0.78, a, '💻 a senhora senta na frente do computador: as letrinhas verdes não param de correr', { near: 1.5, back: true }); }
+  bakeStatic(s);
+}
+/* ---- 🧮 andar de cálculos químicos ---- */
+const LAB_MOL = [];
+{
+  const F = twFloor(3), s = F.s, d = F.d;
+  // tabela periódica gigante na parede
+  const [tx, tz] = twP2(Math.PI, 9.2); // na frente da curva da parede (as pontas não entram nela)
+  F.ptc = document.createElement('canvas'); F.ptc.width = 2048; F.ptc.height = 1170; F.ptt = new THREE.CanvasTexture(F.ptc); F.ptt.colorSpace = THREE.SRGBColorSpace; ptDraw(F.ptc.getContext('2d'), 2048, 1170);
+  const pt = new THREE.Mesh(new THREE.PlaneGeometry(10, 5.7), new THREE.MeshBasicMaterial({ map: F.ptt, color: 0xc4c4c4 })); /* um pouco mais escura: branca demais brilhava */ pt.position.set(tx, 3.45, tz + 0.07); pt.userData.keep = true; d.add(pt); // na frente da moldura (colada nela, piscava)
+  pb(s, 10.3, 6.0, 0.1, tx, 3.45, tz - 0.06, twWoodD);
+  F.act(F.hit(10, 5.7, 1, tx, 3.45, tz + 0.5), tx, tz + 2, () => labPeriodic(), 4);
+  // dois quadros-negros com fórmulas
+  for (const a of [Math.PI * 0.42, Math.PI * 1.58]) {
+    const [x, z] = twP2(a, 9.9), q = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.4), new THREE.MeshBasicMaterial({ map: canvasTex(1024, 584, g => chalkDraw(g, a < Math.PI)) }));
+    q.position.set(x, 2.6, z); q.rotation.y = a + Math.PI; q.userData.keep = true; d.add(q); pb(s, 4.5, 2.7, 0.1, x * 1.012, 2.6, z * 1.012, twWoodD).rotation.y = a + Math.PI; // moldura atrás, sem encostar
+    F.act(F.hit(4.2, 2.6, 1, x * 0.95, 2.4, z * 0.95), x * 0.8, z * 0.8, () => labQuiz(), 3.2);
+  }
+  // mesa dos cálculos: balança, ábaco e máquina de calcular
+  const t = twTable(s, 0, -4.2, 2.6, 1.2, 0.85, 0); F.col(0, -4.2, 1.2);
+  cyl(t, 0.18, 0.22, 0.06, -0.8, 0.92, 0, twBrass, 10); cyl(t, 0.025, 0.025, 0.5, -0.8, 1.2, 0, twBrass, 6); pb(t, 0.7, 0.03, 0.03, -0.8, 1.45, 0, twBrass); for (const sx of [-1, 1]) cyl(t, 0.12, 0.08, 0.04, -0.8 + sx * 0.33, 1.3, 0, twBrass, 10);
+  pb(t, 0.7, 0.45, 0.06, 0.2, 1.13, -0.3, twWood); for (let r = 0; r < 5; r++) { pb(t, 0.66, 0.012, 0.012, 0.2, 0.96 + r * 0.08, -0.27, twBrass); for (let b = 0; b < 6; b++) ps(t, 0.025, -0.05 + b * 0.05 + (r % 2) * 0.12, 0.96 + r * 0.08, -0.26, matC([0xd86a5a, 0xf4ecd8][b % 2])); }
+  pb(t, 0.45, 0.28, 0.35, 0.85, 1.03, 0.05, twBrass); for (let k = 0; k < 3; k++) cyl(t, 0.07, 0.07, 0.04, 0.72 + k * 0.13, 1.2, 0.05, M.iron, 10).rotation.x = Math.PI / 2;
+  F.act(F.hit(2.6, 1.4, 1.4, 0, 1, -4.2), 0, -3.2, () => labScale(), 2.6); // a balança (as perguntas ficam só nos quadros)
+  // projetor de hologramas: mostra o átomo do elemento escolhido na tabela
+  cyl(s, 0.75, 0.9, 0.6, 5.4, 0.3, -4.6, matC(0x2a2440), 20); cyl(s, 0.62, 0.62, 0.02, 5.4, 0.61, -4.6, matC(0x7affe0, true), 20);
+  F.holo = new THREE.Group(); F.holo.position.set(5.4, 2.1, -4.6); d.add(F.holo); F.holoZ = 0;
+  F.nuc = ps(F.holo, 0.16, 0, 0, 0, new THREE.MeshBasicMaterial({ color: 0xff8a5a })); const hg = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0x9affe8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.6 })); hg.scale.setScalar(1.2); F.holo.add(hg);
+  F.shells = []; for (let k = 0; k < 7; k++) { const o = new THREE.Group(); o.rotation.set(0.5 + k * 0.45, k * 0.8, 0); F.holo.add(o); const r = 0.32 + k * 0.17, ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 4, 48), new THREE.MeshBasicMaterial({ color: 0x7affe0, transparent: true, opacity: 0.45 })); ring.rotation.x = Math.PI / 2; o.add(ring);
+    const es = []; for (let e = 0; e < 12; e++) es.push(ps(o, 0.035, 0, 0, 0, matC(0x9ad8ff, true))); F.shells.push({ o, es, r, n: 0, sp: 1.8 - k * 0.2 }); }
+  F.symc = document.createElement('canvas'); F.symc.width = F.symc.height = 256; F.symt = new THREE.CanvasTexture(F.symc); F.symt.colorSpace = THREE.SRGBColorSpace;
+  const sym = new THREE.Sprite(new THREE.SpriteMaterial({ map: F.symt, transparent: true, depthWrite: false })); sym.position.set(0, 1.55, 0); sym.scale.setScalar(1.1); F.holo.add(sym);
+  F.col(5.4, -4.6, 0.95); F.act(F.hit(1.8, 3, 1.8, 5.4, 1.5, -4.6), 5.4, -4.6, () => labPeriodic(F.holoZ || 1), 2.6);
+  // sistema solar mecânico (planetário) numa mesa redonda
+  cyl(s, 0.8, 0.8, 0.06, -5.4, 0.85, -2.6, matC(0x5a2a1a), 20); cyl(s, 0.08, 0.12, 0.85, -5.4, 0.42, -2.6, twWoodD, 8);
+  F.orr = new THREE.Group(); F.orr.position.set(-5.4, 0.9, -2.6); d.add(F.orr); cyl(F.orr, 0.02, 0.02, 0.5, 0, 0.25, 0, twBrass, 6); ps(F.orr, 0.12, 0, 0.55, 0, matC(0xffc040, true));
+  F.planets = [[0.22, 0.03, 0xb8a890, 2.4], [0.34, 0.045, 0xe8c070, 1.6], [0.48, 0.05, 0x4a8ad8, 1.1], [0.62, 0.04, 0xd8603a, 0.8]].map(([r, sz, c, sp]) => { const a = new THREE.Group(); a.position.y = 0.55; F.orr.add(a); pb(a, r, 0.008, 0.008, r / 2, 0, 0, twBrass); ps(a, sz, r, 0, 0, matC(c)); a.rotation.y = Math.random() * 6; return { a, sp }; });
+  F.col(-5.4, -2.6, 0.85); F.act(F.hit(1.6, 1.4, 1.6, -5.4, 1, -2.6), -5.4, -2.6, () => { sfx.chime([523, 659, 784], 0.08); whisper('🪐 o planetário gira: Mercúrio, Vênus, a Terra (azulzinha) e Marte. A Terra leva 1 ano para dar a volta… e o rei conta cada um deles desde que conheceu a senhora', 6); }, 2.2);
+  // estante de livros de matemática e uma lousa de giz pequena com contas
+  { const a = Math.PI * 1.25, [x, z] = twP2(a, 9.7), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g); twShelf(g, 2.4, 3.0, 0.55, twWoodD);
+    for (let r = 0; r < 3; r++) { pb(g, 2.3, 0.06, 0.5, 0, 0.4 + r * 0.9, 0.02, twWood); let bx = -1.05; while (bx < 1.0) { const w = 0.07 + LABR() * 0.08, h = 0.42 + LABR() * 0.3; pb(g, w, h, 0.36, bx + w / 2, 0.43 + r * 0.9 + h / 2, 0.06, matC([0x2a3a6a, 0x5a1a2a, 0x2a5a3a, 0xc8a050][Math.floor(LABR() * 4)])); bx += w + 0.01; } }
+    F.col(x * 0.97, z * 0.97, 1.0); }
+  // moléculas de bolinhas em pedestais, girando
+  const mols = [['H₂O', 'Água: um oxigênio no meio e dois hidrogênios abertos num ângulo de 104,5°', [['O', 0, 0, 0], ['H', 0.32, 0.24, 0], ['H', -0.32, 0.24, 0]]],
+    ['CO₂', 'Gás carbônico: certinho em linha reta, um carbono entre dois oxigênios', [['C', 0, 0, 0], ['O', 0.42, 0, 0], ['O', -0.42, 0, 0]]],
+    ['CH₄', 'Metano: um carbono no centro de um tetraedro de hidrogênios', [['C', 0, 0, 0], ['H', 0.3, 0.3, 0.3], ['H', -0.3, -0.3, 0.3], ['H', -0.3, 0.3, -0.3], ['H', 0.3, -0.3, -0.3]]]];
+  const atomC = { O: 0xff4a4a, H: 0xf4f4f4, C: 0x2a2a2a };
+  mols.forEach(([n, info, at], k) => {
+    const a = (k - 1) * 0.6, [x, z] = twP2(a, 6.0); cyl(s, 0.35, 0.45, 1.0, x, 0.5, z, matC(0xe8e0d0), 12);
+    const g = new THREE.Group(); g.position.set(x, 1.6, z); d.add(g); LAB_MOL.push(g);
+    for (const [e, ax, ay, az] of at) { ps(g, e === 'H' ? 0.1 : 0.16, ax, ay, az, matC(atomC[e])); if (ax || ay || az) { const L = Math.hypot(ax, ay, az), st = cyl(g, 0.025, 0.025, L, ax / 2, ay / 2, az / 2, matC(0xb8b8b8), 6); st.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(ax, ay, az).normalize()); } }
+    signBox(s, boardTex(n, '#2a2450', 200, 90, 50), 0.6, 0.27, x, 1.08, z + 0.37);
+    F.col(x, z, 0.5); F.act(F.hit(0.9, 1.9, 0.9, x, 1.1, z), x, z, () => { whisper(`⚛ ${n} · ${info}`, 6); sfx.chime([659, 880], 0.05); }, 2.2);
+  });
+  for (const x of [-0.7, 0.7]) { twChair(s, x, -3.2, Math.PI, 0x2a3a6a); twSit(F, x, -3.2, Math.PI, '🧮 sentada na mesa dos cálculos, com a tabela periódica inteira na sua frente', { near: 1.5, back: true }); }
+  { const g = new THREE.Group(); g.position.set(-4.4, 0, -6.6); g.rotation.y = 0.6; s.add(g); pb(g, 1.1, 0.45, 0.9, 0, 0.3, 0, matC(0x5a1a2a)); pb(g, 1.1, 0.7, 0.2, 0, 0.75, -0.38, matC(0x5a1a2a)); for (const sx of [-1, 1]) pb(g, 0.18, 0.55, 0.9, sx * 0.55, 0.45, 0, matC(0x3a1018)); F.col(-4.4, -6.6, 0.6);
+    twSit(F, -4.4, -6.6, 0.6, '📚 a poltrona dos matemáticos: dizem que aqui sentaram os maiores sábios do reino', { h: 1.0 }); }
+  twPainting(F, 8, 3.8, 1.0, 1.0, 'lua');
+  bakeStatic(s);
+}
+/* ---- 🖋 escritório (o último andar, debaixo da cúpula) ---- */
+const LUMI = { id: 'lumi', name: 'Professora Lumi', title: 'alquimista-chefe da torre', li: 0, lines: [
+  '— Bem-vinda à torre, Majestade! Aqui a ciência e a magia trabalham juntas ⚗', '— Lá embaixo fica o laboratório: pegue os frascos, misture no béquer e aqueça… mas longe do sódio com água, viu? 💥',
+  '— A Câmara de Criação dá vida a quase tudo… o segredo está no Musgo Lunar 🌙', '— Os livros do andar de estudos guardam as receitas que eu nunca contei a ninguém 📚',
+  '— O rei me pediu uma fórmula de amor eterno. Eu disse que ele já tinha: chama-se {nome} ♥'], quest: 'lab_ciencia' };
+{
+  const F = twFloor(4), s = F.s, d = F.d;
+  cyl(s, 5.2, 5.2, 0.04, 0, 0.07, 0, matC(0x2a3a6a), 32); cyl(s, 4.6, 4.6, 0.045, 0, 0.075, 0, matC(0xc8a050), 32); cyl(s, 4.4, 4.4, 0.05, 0, 0.08, 0, matC(0x2a3a6a), 32);
+  // escrivaninha grande, cadeira, papéis, tinteiro e bola de cristal
+  const t = twTable(s, 0, -5.0, 3.6, 1.6, 0.9, 0, matC(0x5a2a1a)); pb(t, 3.4, 0.7, 0.08, 0, 0.5, 0.7, matC(0x4a2214));
+  for (let k = 0; k < 6; k++) pb(t, 0.32, 0.01, 0.42, -1.2 + LABR() * 1.2, 0.96 + k * 0.004, labRv(0.4), twPaper).rotation.y = labRv(0.5);
+  cyl(t, 0.07, 0.09, 0.1, 1.1, 0.99, 0.3, matC(0x1a1a2a), 10); const quill = pb(t, 0.02, 0.4, 0.06, 1.1, 1.2, 0.3, matC(0xf4f4f4)); quill.rotation.z = 0.35;
+  cyl(t, 0.12, 0.16, 0.08, -1.3, 0.98, -0.3, twBrass, 10); ps(F.d, 0.2, ...twLocalRel(t, -1.3, 1.22, -0.3), matC(0xc8a8ff, true));
+  for (let k = 0; k < 4; k++) pb(t, 0.28, 0.07, 0.38, 0.4 + k * 0.02, 0.98 + k * 0.07, -0.4, matC([0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0xc8a050][k]));
+  const ch = twChair(s, 0, -6.3, 0, 0x5a1a2a); ch.scale.setScalar(1.35); F.col(0, -5.0, 1.6); F.col(-1.3, -5.0, 0.9); F.col(1.3, -5.0, 0.9); F.col(0, -6.3, 0.6);
+  // lareira
+  const [fx, fz] = twP2(Math.PI * 0.5, 9.7), fp = new THREE.Group(); fp.position.set(fx, 0, fz); fp.rotation.y = Math.PI * 1.5; s.add(fp);
+  pb(fp, 3.0, 2.6, 0.9, 0, 1.3, 0, matC(0x6a6680)); pb(fp, 1.8, 1.3, 0.3, 0, 0.75, 0.32, M.dark); pb(fp, 3.4, 0.2, 1.1, 0, 2.7, 0.05, matC(0x4a4660)); F.col(fx * 0.96, fz * 0.96, 1.4);
+  const fg = new THREE.Group(); fg.position.set(fx * 0.955, 0.45, fz * 0.955); d.add(fg); addFlame(fg, 0, 0, 0, 0.9); addFlame(fg, 0.35, -0.05, 0, 0.6); F.fire = twW(fx * 0.9, fz * 0.9);
+  // sofá, mesinha e tapete perto da lareira
+  const sf = new THREE.Group(); sf.position.set(4.6, 0, 0); sf.rotation.y = Math.PI / 2; s.add(sf); /* virado para a lareira */ pb(sf, 2.6, 0.5, 0.95, 0, 0.32, 0, matC(0x7a1f2a)); pb(sf, 2.6, 0.75, 0.25, 0, 0.75, -0.38, matC(0x7a1f2a)); for (const sx of [-1, 1]) pb(sf, 0.25, 0.6, 0.95, sx * 1.3, 0.48, 0, matC(0x5a1520));
+  F.col(4.6, 0.9, 0.7); F.col(4.6, -0.9, 0.7); const ct = twTable(s, 6.5, 0, 1.2, 0.7, 0.45); F.col(6.5, 0, 0.6); ps(ct, 0.12, 0, 0.6, 0, matC(0xd86a5a));
+  // galeria de criaturas: potes que se enchem quando você cria cada uma
+  const [gx, gz] = twP2(Math.PI * 1.5, 9.6), gal = new THREE.Group(); gal.position.set(gx, 0, gz); gal.rotation.y = Math.PI * 0.5; s.add(gal);
+  twShelf(gal, 4.2, 2.4, 0.5, twWoodD); for (let r = 0; r < 2; r++) pb(gal, 4.1, 0.06, 0.45, 0, 0.6 + r * 1.0, 0.04, twWood);
+  signBox(gal, boardTex('🧬 Galeria de Criaturas', '#2a2450', 512, 90, 40), 2.6, 0.45, 0, 2.65, 0.1);
+  F.jars = []; const gd = new THREE.Group(); gd.position.copy(gal.position); gd.rotation.copy(gal.rotation); d.add(gd);
+  LAB_CR.filter(c => c.pet).forEach((c, k) => { const x = -1.6 + (k % 5) * 0.8, j = new THREE.Group(); j.position.set(x, k < 5 ? 0.63 : 1.63, 0.05); gd.add(j); cyl(j, 0.3, 0.3, 0.6, 0, 0.3, 0, twGlass, 14); cyl(j, 0.32, 0.32, 0.06, 0, 0.62, 0, twBrass, 14); const inner = new THREE.Group(); inner.position.y = 0.18; inner.scale.setScalar(0.42); j.add(inner); F.jars.push({ id: c.id, inner }); });
+  F.col(gx * 0.97, gz * 0.97, 1.4); F.act(F.hit(4.2, 2.4, 1, gx * 0.95, 1.2, gz * 0.95), gx * 0.8, gz * 0.8, () => labTerminal('pets'), 2.8);
+  // globo, plantas e luneta perto da janela
+  const gl = new THREE.Group(); gl.position.set(-4.2, 0, -3.4); s.add(gl); cyl(gl, 0.4, 0.55, 0.1, 0, 0.05, 0, twWoodD, 10); cyl(gl, 0.05, 0.05, 1.0, 0, 0.55, 0, twBrass, 6); F.col(-4.2, -3.4, 0.6); ps(F.d, 0.55, ...twLocalRel(gl, 0, 1.55, 0), matC(0x3a6aa8));
+  for (const a of [Math.PI * 0.2, Math.PI * 0.8, Math.PI * 1.2, Math.PI * 1.85]) { const [x, z] = twP2(a, 9.2); cyl(s, 0.35, 0.28, 0.6, x, 0.3, z, matC(0xa8583a), 10); ps(s, 0.55, x, 1.05, z, matC(0x3a7a3a), 1, 1.3, 1); F.col(x, z, 0.45); }
+  const lt = new THREE.Group(); const [lx, lz] = twP2(Math.PI * 1.15, 8.6); lt.position.set(lx, 0, lz); lt.rotation.y = Math.PI * 1.15; s.add(lt);
+  for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2, l = pb(lt, 0.05, 1.3, 0.05, Math.sin(a) * 0.3, 0.62, Math.cos(a) * 0.3, twWoodD); l.rotation.set(Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25); }
+  const tb = cyl(lt, 0.09, 0.12, 1.3, 0, 1.4, 0.2, twBrass, 10); tb.rotation.x = -1.0; F.col(lx, lz, 0.5);
+  // a professora
+  const p = makePerson({ skin: 0xf0c8a8, body: 0xf4f4f4, sleeve: 0xf4f4f4, skirt: 0x3a2a6a, legs: 0x3a2a6a, hair: 0x6a3a8a, long: true, belt: 0xc8a050 });
+  p.g.position.set(1.8, 0, -3.2); p.g.rotation.y = 0.4; d.add(p.g); LUMI.p = p; const lq = twW(1.8, -3.2); LUMI.x = lq.x; LUMI.z = lq.z; F.col(1.8, -3.2, 0.4);
+  F.act(p.hit, 1.8, -3.2, () => { sfx.chime([784, 988], 0.05); rpgTalk(LUMI); }, 2.8);
+  { // piano de cauda perto da janela
+    const pg = new THREE.Group(); pg.position.set(-5.6, 0, 2.4); pg.rotation.y = 0.9; s.add(pg);
+    pb(pg, 1.5, 0.35, 1.8, 0, 1.0, 0, matC(0x111114)); pb(pg, 1.5, 0.05, 0.25, 0, 1.0, 1.0, matC(0xf4f4f0)); for (let k = 0; k < 12; k++) pb(pg, 0.04, 0.06, 0.15, -0.66 + k * 0.12, 1.04, 0.95, matC(0x111114));
+    const lid = pb(pg, 1.5, 0.04, 1.7, 0, 1.45, -0.25, matC(0x111114)); lid.rotation.x = -0.5; for (const [x, z] of [[-0.6, 0.6], [0.6, 0.6], [0, -0.7]]) pb(pg, 0.1, 0.85, 0.1, x, 0.42, z, matC(0x111114));
+    pb(pg, 0.9, 0.45, 0.35, 0, 0.23, 1.45, matC(0x111114)); F.col(-5.6, 2.4, 1.2);
+    F.act(F.hit(1.8, 1.6, 2.4, -5.6, 1, 2.4), -4.8, 3.2, () => twPiano(), 2.6);
+  }
+  { // estante alta de livros e diplomas na parede
+    const a = Math.PI * 1.75, [x, z] = twP2(a, 9.7), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g); twShelf(g, 2.6, 4.2, 0.55, matC(0x4a2214));
+    for (let r = 0; r < 4; r++) { pb(g, 2.5, 0.06, 0.5, 0, 0.45 + r * 0.95, 0.02, twWood); let bx = -1.15; while (bx < 1.1) { const w = 0.07 + LABR() * 0.08, h = 0.45 + LABR() * 0.3; pb(g, w, h, 0.36, bx + w / 2, 0.48 + r * 0.95 + h / 2, 0.06, matC([0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0xc8a050, 0x3a2a5a][Math.floor(LABR() * 5)])); bx += w + 0.01; } }
+    F.col(x * 0.97, z * 0.97, 1.1);
+    for (const dz of [-1.0, 1.0]) { const [qx, qz] = twP2(a + dz * 0.2, 10.0); const dp = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.5), new THREE.MeshBasicMaterial({ color: 0xc8c8c8, map: canvasTex(140, 100, g2 => { g2.fillStyle = '#f4ecd8'; g2.fillRect(0, 0, 140, 100); g2.strokeStyle = '#c8a050'; g2.lineWidth = 6; g2.strokeRect(3, 3, 134, 94); g2.fillStyle = '#3a2418'; g2.font = 'italic 15px Georgia'; g2.textAlign = 'center'; g2.fillText(dz < 0 ? 'Doutora em' : 'Mestra em', 70, 40); g2.fillText(dz < 0 ? 'Alquimia' : 'Química', 70, 62); }) }));
+      dp.position.set(qx, 4.9, qz); dp.rotation.y = a + dz * 0.2 + Math.PI; dp.userData.keep = true; F.d.add(dp); }
+  }
+  { const [x, z] = twP2(Math.PI * 0.05, 8.8); cyl(s, 0.2, 0.25, 0.05, x, 0.03, z, twWoodD, 8); cyl(s, 0.03, 0.03, 1.8, x, 0.92, z, twWoodD, 6); pb(s, 0.5, 1.1, 0.15, x, 1.2, z + 0.12, matC(0xf4f4f4)); ps(s, 0.18, x, 1.86, z, matC(0x2a2440), 1.4, 0.4, 1.4); F.col(x, z, 0.35); } // cabideiro com jaleco e chapéu
+  { const lu = new THREE.Group(); lu.position.set(0, 7.6, 0); F.d.add(lu); ps(lu, 0.35, 0, 0, 0, twGlass); for (let k = 0; k < 6; k++) { const an = k / 6 * Math.PI * 2; pb(lu, 0.04, 0.04, 0.9, Math.cos(an) * 0.45, -0.1, Math.sin(an) * 0.45, twBrass).rotation.y = -an; addFlame(lu, Math.cos(an) * 0.9, 0.05, Math.sin(an) * 0.9, 0.2); } cyl(lu, 0.02, 0.02, 1.4, 0, 0.7, 0, twBrass, 4); } // lustre
+  { // sala de estar: tapete grande, sofá virado para a lareira, duas poltronas e um sofá-cama perto da janela
+    cyl(s, 3.0, 3.0, 0.03, 6.2, 0.09, 0, matC(0x7a5a3a), 24); cyl(s, 2.6, 2.6, 0.035, 6.2, 0.095, 0, matC(0xc8a050), 24); cyl(s, 2.45, 2.45, 0.04, 6.2, 0.1, 0, matC(0x7a5a3a), 24);
+    twSit(F, 4.6, 0.6, Math.PI / 2, '🛋 o sofá é fofinho e a lareira estala baixinho… dá vontade de ficar aqui para sempre', { h: 1.0, w: 1.2, d: 1.2 });
+    twSit(F, 4.6, -0.6, Math.PI / 2, '🛋 o sofá é fofinho e a lareira estala baixinho… dá vontade de ficar aqui para sempre', { h: 1.0, w: 1.2, d: 1.2 });
+    for (const sd of [-1, 1]) { const x = 6.4, z = sd * 2.3, fy = Math.atan2(6.5 - x, 0 - z); const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = fy; s.add(g);
+      pb(g, 1.0, 0.45, 0.9, 0, 0.3, 0, matC(0x2a3a6a)); pb(g, 1.0, 0.75, 0.2, 0, 0.78, -0.38, matC(0x2a3a6a)); for (const sx of [-1, 1]) pb(g, 0.18, 0.55, 0.9, sx * 0.5, 0.45, 0, matC(0x1f2a52)); ps(g, 0.16, 0, 0.62, -0.2, matC(0xc8a050), 1, 0.7, 0.4); F.col(x, z, 0.6);
+      twSit(F, x, z, fy, '🔥 da poltrona dá para sentir o calorzinho da lareira no rosto', { h: 1.0 }); }
+    ps(s, 0.1, 6.5, 0.62, 0.15, matC(0xffffff)); cyl(s, 0.07, 0.06, 0.08, 6.35, 0.53, -0.15, matC(0xffffff), 10); // xícara e bolinho na mesinha
+  }
+  { // sofá grande perto do piano
+    const x = -2.6, z = 6.0, fy = Math.atan2(-x, -z), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = fy; s.add(g);
+    pb(g, 3.0, 0.5, 1.0, 0, 0.32, 0, matC(0x5a2a6a)); pb(g, 3.0, 0.8, 0.25, 0, 0.78, -0.4, matC(0x5a2a6a)); for (const sx of [-1, 1]) pb(g, 0.25, 0.62, 1.0, sx * 1.5, 0.5, 0, matC(0x3a1a4a)); for (const sx of [-0.8, 0, 0.8]) ps(g, 0.2, sx, 0.72, -0.18, matC([0xc8a050, 0xff9ac8, 0x7affe0][(sx + 0.8) / 0.8 | 0]), 1, 0.8, 0.45);
+    for (const sx of [-1, 0, 1]) { const q = twLocalRel(g, sx * 1.1, 0, 0); F.col(q[0], q[2], 0.6); }
+    for (const sx of [-0.8, 0.8]) { const q = twLocalRel(g, sx, 0, 0); twSit(F, q[0], q[2], fy, '🛋 o sofá roxo da professora: dizem que ela cochila aqui depois do almoço', { h: 1.05 }); }
+  }
+  { // divã das estrelas: deitar e olhar o céu pela cúpula de vidro
+    const x = 2.4, z = 5.4, g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -0.5; s.add(g);
+    pb(g, 0.9, 0.4, 2.2, 0, 0.32, 0, matC(0x2a6a6a)); pb(g, 0.9, 0.5, 0.25, 0, 0.62, -1.0, matC(0x2a6a6a)).rotation.x = -0.4; ps(g, 0.22, 0, 0.62, -0.75, matC(0xf4ecd8), 1.6, 0.6, 0.8); for (const sz of [-0.9, 0.9]) for (const sx of [-0.35, 0.35]) cyl(g, 0.04, 0.03, 0.15, sx, 0.07, sz, matC(0xc8a050), 6);
+    F.col(x, z, 0.9); const q = twLocalRel(g, 0, 0, -0.75);
+    twSit(F, q[0], q[2], -0.5, '🌌 deitada no divã, a senhora vê as estrelas pela cúpula de vidro… o rei mandou fazer este teto só para isso', { lie: true, h: 0.85, pitch: 1.35, w: 1.2, d: 2.2, near: 2.2 });
+  }
+  // quadros, cortinas e vasos
+  twPainting(F, 14, 4.2, 1.5, 2.0, 'rainha'); twPainting(F, 10, 3.9, 1.6, 1.2, 'noite'); twPainting(F, 18, 3.9, 1.6, 1.2, 'margaridas'); twPainting(F, 4, 3.9, 1.4, 1.05, 'castelo');
+  for (const k of [9, 11, 19, 23, 27]) twCurtain(F, k, 9.0);
+  twVase(s, -1.0, 0.95, -5.2); twVase(t, 0.9, 0.95, -0.4, 0xffd23a); twVase(s, 6.5, 0.5, -0.2, 0xff4a6a);
+  { const [x, z] = twP2(Math.PI * 1.28, 10.55); const ck = new THREE.Group(); ck.position.set(x, 6.6, z); ck.rotation.y = Math.PI * 1.28 + Math.PI; s.add(ck); cyl(ck, 0.45, 0.45, 0.08, 0, 0, 0, matC(0xc8a050), 24).rotation.x = Math.PI / 2; cyl(ck, 0.4, 0.4, 0.09, 0, 0, 0.01, matC(0xf4ecd8), 24).rotation.x = Math.PI / 2; pb(ck, 0.03, 0.3, 0.02, 0, 0.12, 0.06, matC(0x1a1a1a)); pb(ck, 0.03, 0.22, 0.02, 0.08, -0.04, 0.06, matC(0x1a1a1a)).rotation.z = 1.2; } // relógio de parede
+  twSit(F, 0, -6.3, 0, '👑 na cadeira da professora: daqui a senhora comanda a torre inteira', { h: 1.2, back: true });
+  bakeStatic(s);
+}
+// coordenadas: do mundo para o andar (e vice-versa), usadas na montagem
+function twLocalOf(x, z) { const dx = x - TWR.x, dz = z - TWR.z, cs = Math.cos(TWR.yaw), sn = Math.sin(TWR.yaw); return [dx * cs - dz * sn, dx * sn + dz * cs]; }
+function twLocal(x, z) { return [x, z]; }
+function twLocalRel(par, x, y, z) { const v = new THREE.Vector3(x * par.scale.x, y * par.scale.y, z * par.scale.z).applyEuler(par.rotation).add(par.position); return [v.x, v.y, v.z]; } // ponto de um móvel (filho direto do andar) em coordenadas do andar
+
+/* ---- a mão: frasco que você está segurando ---- */
+{
+  const g = LABH.g; g.visible = false; camera.add(g);
+  LABH.liqM = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x333333 });
+  cyl(g, 0.026, 0.03, 0.05, 0, 0.025, 0, LABH.liqM, 10); cyl(g, 0.031, 0.032, 0.075, 0, 0.037, 0, twGlass, 10); cyl(g, 0.011, 0.014, 0.035, 0, 0.09, 0, twGlass, 8); cyl(g, 0.012, 0.011, 0.015, 0, 0.113, 0, matC(0x8a6a4a), 8);
+  const el = document.createElement('div'); el.id = 'labHand'; el.className = 'pill hidden'; document.body.appendChild(el); LABH.el = el;
+  el.addEventListener('click', e => { e.stopPropagation(); labDrop(true); });
+  const css = document.createElement('style');
+  css.textContent = `#labHand{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translateX(-50%);z-index:21;cursor:pointer;white-space:nowrap}
+.labl{display:grid;gap:6px;margin-top:10px} .labl .rbtn{height:auto;min-height:40px;padding:6px 14px;text-align:left;line-height:1.3}
+.labbook{white-space:pre-wrap;font-size:19px;line-height:1.55;font-style:italic;color:#f4efff;margin:12px 0;min-height:180px}
+.labtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0} .labrow{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,220,163,.12);font-size:17px}
+.labrow .q{color:var(--dim)} .labbar{height:14px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0} .labbar i{display:block;height:100%;background:linear-gradient(90deg,#7affe0,#d8a84a)}
+#rpgPanel .pn.ptwide{width:min(1180px,100%);max-height:calc(100dvh - 10px);padding:10px 12px} #rpgPanel .pn.ptwide h2{font-size:22px;margin:0}
+.ptwrap{margin-top:6px} .ptab{display:grid;grid-template-columns:repeat(18,1fr);grid-auto-rows:clamp(18px,calc((100dvh - 200px) / 9.4),56px);gap:2px}
+.ptab button{border:0;border-radius:3px;padding:0;font:600 clamp(8px,1.5vw,16px) Georgia,serif;color:#1a1424;cursor:pointer;display:grid;place-items:center;line-height:1;overflow:hidden}
+.ptab button small{font-size:clamp(6px,0.9vw,10px);font-weight:400} .ptfam{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;font-size:clamp(10px,1.3vw,13px)} .ptfam span{border:1px solid;border-radius:9px;padding:1px 7px;color:var(--dim)} .ptab .gap{grid-column:1/-1;height:4px} .ptinfo{min-height:46px;margin-top:4px;font-size:clamp(13px,1.8vw,17px);line-height:1.35}
+@media (max-height:480px){ .ptfam{display:none} #rpgPanel .pn.ptwide{padding:6px 10px} #rpgPanel .pn.ptwide h2{font-size:17px} .ptwide .sub{display:none} .ptinfo{min-height:32px;font-size:13px;line-height:1.25} .ptab{grid-auto-rows:clamp(12px,calc((100dvh - 130px) / 10),40px)} } /* celular deitado: a tabela inteira cabe sem rolar */
+.labscope{display:block;margin:10px auto;width:min(360px,80vw);height:auto;border-radius:50%;border:6px solid #2a2440;box-shadow:0 0 30px rgba(122,255,224,.25)}`;
+  document.head.appendChild(css);
+}
+/* ---- a xícara na mão (café ou chá, três goles) ---- */
+const CUP = { kind: null, sips: 0, g: new THREE.Group(), tilt: 0, steamT: 0 };
+{
+  const g = CUP.g; g.visible = false; camera.add(g);
+  cyl(g, 0.032, 0.026, 0.055, 0, 0.027, 0, matC(0xffffff), 14); CUP.liqM = new THREE.MeshLambertMaterial({ color: 0x4a2a14 }); CUP.liq = cyl(g, 0.029, 0.029, 0.004, 0, 0.05, 0, CUP.liqM, 14);
+  const h = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.005, 6, 12), matC(0xffffff)); h.position.set(0.034, 0.028, 0); g.add(h); cyl(g, 0.045, 0.045, 0.004, 0, 0.001, 0, matC(0xffffff), 16);
+  const el = document.createElement('div'); el.id = 'labCup'; el.className = 'pill hidden'; document.body.appendChild(el); CUP.el = el;
+  el.innerHTML = '<span class="t"></span> <b class="go">beber</b> <b class="x">✕</b>';
+  el.querySelector('.go').addEventListener('click', e => { e.stopPropagation(); cupSip(); });
+  el.querySelector('.x').addEventListener('click', e => { e.stopPropagation(); cupDrop(true); });
+  const css = document.createElement('style');
+  css.textContent = `#labCup{position:fixed;left:50%;top:calc(116px + env(safe-area-inset-top));transform:translateX(-50%);z-index:21;white-space:nowrap} #labCup b{cursor:pointer;padding:2px 8px;margin-left:4px;border-radius:10px;background:rgba(255,220,163,.18)}`;
+  document.head.appendChild(css);
+}
+function twCoffee() {
+  showDialog('☕ Cantinho do Café', 'grátis em todos os andares', 'A máquina chia e o bule ainda está quentinho. O que a senhora vai querer?', [
+    ['☕ Um café bem quentinho', () => cupTake('cafe'), true], ['🍵 Um chá de camomila', () => cupTake('cha')], ['agora não', null]]);
+}
+function cupTake(kind) {
+  CUP.kind = kind; CUP.sips = 3; CUP.liqM.color.setHex(kind === 'cafe' ? 0x4a2a14 : 0xd8a040); CUP.liq.position.y = 0.05; sfx.hiss?.(); sfx.chime([659, 784], 0.05);
+  whisper(kind === 'cafe' ? '☕ café na mão, quentinho. Toque em "beber" lá em cima para dar um gole' : '🍵 chá de camomila na mão. Toque em "beber" para dar um gole', 3.5, true);
+}
+function cupDrop(say) { if (!CUP.kind) return; CUP.kind = null; if (say) whisper('a xícara voltou para o cantinho do café ✦', 2, true); }
+function cupSip() {
+  if (!CUP.kind || mode !== 'walk') return; markInteracted(); CUP.tilt = 0.8; CUP.sips--; rpgEvent('tw_gole');
+  const cafe = CUP.kind === 'cafe';
+  if (cafe) { RPG.mp = Math.min(ST.maxMp, RPG.mp + 1); RPG_BUFF.t = Math.max(RPG_BUFF.t, 8); }
+  else { RPG.mp = Math.min(ST.maxMp, RPG.mp + 1); DGM.hp = Math.min(DGM.max, DGM.hp + 1); }
+  hudUpdate(); sfx.chime(cafe ? [523, 659] : [440, 554], 0.06);
+  const L = cafe ? ['☕ hmm… café forte! A senhora ficou mais animada (e mais rápida por uns segundos)', '☕ o cheirinho de café espalhou pela torre inteira', '☕ a Professora Lumi jura que esse café é a fórmula secreta da torre'] : ['🍵 camomila… tudo ficou mais calmo (+1 vida, +1 mana)', '🍵 quentinho por dentro, como um abraço', '🍵 a senhora olha pela janela e sorri'];
+  whisper(L[2 - CUP.sips] || L[0], 3.2, true);
+  if (CUP.sips <= 0) setTimeout(() => { CUP.kind = null; whisper(cafe ? '☕ acabou o café… sempre tem mais no cantinho' : '🍵 acabou o chá… sempre tem mais no cantinho', 2.6, true); }, 900);
+  else CUP.liq.position.y = 0.012 + CUP.sips * 0.013;
+}
+function cupUpdate(dt) {
+  const on = !!CUP.kind && mode === 'walk' && !overlayOpen(); CUP.g.visible = on; CUP.el.classList.toggle('hidden', !on); if (!on) return;
+  CUP.el.querySelector('.t').textContent = `${CUP.kind === 'cafe' ? '☕ café' : '🍵 chá'} na mão (${CUP.sips})`;
+  const halfH = 0.42 * Math.tan(BASE_FOV / 2 * deg), halfW = halfH * camera.aspect, t = uTime.value; CUP.tilt = Math.max(0, CUP.tilt - dt * 1.4);
+  CUP.g.position.set(Math.min(halfW * 0.42, 0.17), -halfH * 0.5 + Math.sin(t * 1.2) * 0.003 + CUP.tilt * 0.06, -0.4 + CUP.tilt * 0.05); CUP.g.rotation.set(CUP.tilt * 0.9, -0.3, 0.05);
+  if ((CUP.steamT -= dt) < 0) { CUP.steamT = 0.35; const w = CUP.g.localToWorld(V3(0, 0.07, 0)); spawnFX(TEX.smoke, w, { vel: V3(rv(0.02), 0.12, rv(0.02)), life: 1.4, size: 0.02, grow: 2.2, color: 0xffffff }); }
+}
+function labHandUpdate() {
+  const it = LABH.item, on = !!it && mode === 'walk' && !overlayOpen() && TWR.cur === 1;
+  LABH.g.visible = on; LABH.el.classList.toggle('hidden', !on);
+  if (!on) return;
+  const halfH = 0.42 * Math.tan(BASE_FOV / 2 * deg), halfW = halfH * camera.aspect, t = uTime.value;
+  LABH.g.position.set(-Math.min(halfW * 0.5, 0.2), -halfH * 0.42 + Math.sin(t * 1.4) * 0.004, -0.42); LABH.g.rotation.set(0.1, 0.2, 0.1 + Math.sin(t * 1.1) * 0.03);
+}
+function labSetHand(id, mix) {
+  LABH.item = id; LABH.mix = mix || null;
+  const c = id === 'mix' ? labMix(mix) : new THREE.Color(LAB_R[id].c); LABH.liqM.color.copy(c); LABH.liqM.emissive.copy(c).multiplyScalar(0.35);
+  LABH.el.textContent = id === 'mix' ? `🧪 mistura do béquer (${mix.map(x => LAB_R[x].s).join(' ')}) na mão · ✕` : `🧪 ${LAB_R[id].n} (${LAB_R[id].s}) na mão · ✕`;
+}
+function labPick(id) {
+  if (LABH.item === id) { labDrop(true); return; }
+  labSetHand(id); sfx.chime([988, 1319], 0.03);
+  whisper(`🧪 ${LAB_R[id].n} na mão · toque no béquer (ou na Câmara de Criação) para despejar`, 3.2, true);
+}
+function labDrop(say) { if (!LABH.item) return; LABH.item = null; LABH.mix = null; if (say) whisper('frasco de volta na prateleira ✦', 1.8, true); }
+function labBeakerShow() {
+  const n = LABB.list.length; LABB.liq.visible = n > 0;
+  if (n) { const c = labMix(LABB.list); LABB.liqM.color.copy(c); LABB.liqM.emissive.copy(c).multiplyScalar(0.3); LABB.liq.scale.y = n / 4; LABB.liq.position.y = 0.46 + 0.25 * n / 4; }
+}
+function labBeaker() {
+  if (LABH.item && LABH.item !== 'mix') {
+    if (LABB.list.length >= 4) { toast('🧪 o béquer está cheio: aqueça ou esvazie na pia'); return; }
+    LABB.list.push(LABH.item); labDrop(false); labBeakerShow(); sfx.hiss?.(); sfx.chime([523 + LABB.list.length * 90], 0.03);
+    whisper(`no béquer: ${LABB.list.map(x => LAB_R[x].s).join(' + ')} (${LABB.list.length}/4) · toque no béquer de mãos vazias para aquecer`, 3.5, true); return;
+  }
+  if (LABH.item === 'mix') { toast('🧪 a mistura já veio do béquer: despeje na Câmara de Criação'); return; }
+  if (!LABB.list.length) { whisper('⚗ pegue um frasco na prateleira ou um tubo de ensaio e toque aqui para despejar', 4); return; }
+  showDialog('🧪 Béquer', LABB.list.map(x => LAB_R[x].n).join(' + '), 'O que a senhora quer fazer com a mistura?', [
+    ['🔥 Aquecer e reagir', () => labReact(), true], ['🧴 Encher um frasco com a mistura', () => { labSetHand('mix', LABB.list.slice()); LABB.list = []; labBeakerShow(); whisper('🧪 mistura na mão · leve até a Câmara de Criação', 3, true); }], ['🫗 Jogar fora', () => labSink()], ['deixar', null]]);
+}
+function labSink() {
+  if (LABH.item) { labDrop(false); whisper('🫗 o frasco foi lavado e voltou para a prateleira', 2.4, true); return; }
+  if (!LABB.list.length) { whisper('🚰 a pia está limpinha', 2, true); return; }
+  LABB.list = []; labBeakerShow(); sfx.hiss?.(); whisper('🫗 béquer lavado e vazio', 2.2, true);
+}
+function labDiscover(rec, kind) {
+  const L = LAB(), first = !L.rec[rec.id]; L.rec[rec.id] = 1;
+  if (first) { rpgEvent('lab_desc'); gainXP(kind === 'cr' ? 60 : 25, 'nova descoberta'); banner(rec.n, 'nova descoberta ✦', 3); labBoardDraw(); }
+  rpgSave(); return first;
+}
+function labFx(kind, at) {
+  const p = V3(at.x, at.y, at.z);
+  if (kind === 'boom') { sfx.thunder?.(0.5); for (let i = 0; i < 40; i++) spawnFX(TEX.spark, p.clone(), { vel: V3(rv(3), 1 + Math.random() * 3, rv(3)), life: 0.9, size: 0.25, grow: -0.5, add: true, color: 0xffb040 }); for (let i = 0; i < 10; i++) spawnFX(TEX.smoke, p.clone(), { vel: V3(rv(0.6), 0.6 + Math.random(), rv(0.6)), life: 2.4, size: 0.5, grow: 3, color: 0x3a3a3a }); player.dip = 0.25; return; }
+  if (kind === 'flash') { for (let i = 0; i < 26; i++) spawnFX(TEX.glow, p.clone(), { vel: V3(rv(1.4), Math.random() * 1.4, rv(1.4)), life: 0.7, size: 0.5, grow: 1.5, add: true, color: 0xffffff }); sfx.chime([1568, 2093], 0.03); return; }
+  if (kind === 'greenfire' || kind === 'fire') { const c = kind === 'fire' ? 0xffa040 : 0x40ffb0; for (let i = 0; i < 22; i++) spawnFX(TEX.glow, p.clone().add(V3(rv(0.15), 0, rv(0.15))), { vel: V3(rv(0.3), 1 + Math.random(), rv(0.3)), life: 1.2, size: 0.18, grow: -0.4, add: true, color: c }); sfx.crackle?.(); return; }
+  if (kind === 'smoke' || kind === 'yellow') { for (let i = 0; i < 10; i++) spawnFX(TEX.smoke, p.clone(), { vel: V3(rv(0.3), 0.5 + Math.random() * 0.5, rv(0.3)), life: 2.6, size: 0.3, grow: 2.4, color: kind === 'yellow' ? 0xe8d860 : 0xb8b8b8 }); return; }
+  if (kind === 'bubbles' || kind === 'splash') { for (let i = 0; i < 18; i++) spawnFX(TEX.glow, p.clone().add(V3(rv(0.15), 0, rv(0.15))), { vel: V3(rv(0.2), 0.5 + Math.random() * 0.6, rv(0.2)), life: 1.4, size: 0.08, grow: 0.3, add: true, color: kind === 'splash' ? 0x8ad8ff : 0xe8f4ff }); return; }
+  if (kind === 'boomk') { labFx('boom', at); for (let i = 0; i < 26; i++) spawnFX(TEX.glow, p.clone(), { vel: V3(rv(1.2), 1 + Math.random() * 2, rv(1.2)), life: 1.1, size: 0.3, grow: -0.3, add: true, color: 0xc070ff }); return; }
+  if (kind === 'purple' || kind === 'greensmoke') { for (let i = 0; i < 14; i++) spawnFX(TEX.smoke, p.clone(), { vel: V3(rv(0.35), 0.4 + Math.random() * 0.5, rv(0.35)), life: 2.8, size: 0.3, grow: 2.6, color: kind === 'purple' ? 0x9a4ad8 : 0x5ac89a }); return; }
+  if (kind === 'gold') { spawnSparkles(p, 30, 0.4, 0xffd23a); sfx.chime([1047, 1319, 1568], 0.04); return; }
+  if (kind === 'hearts') { spawnHearts(p, 10); spawnSparkles(p, 20, 0.5, 0xff8ac8); sfx.chime([523, 659, 784, 1047], 0.09); return; }
+  if (kind === 'crystal') { spawnSparkles(p, 18, 0.3, 0xffffff); return; }
+  spawnSparkles(p, 24, 0.4, kind === 'potion' ? 0xff8ac8 : 0xffe08a);
+}
+function labReact() {
+  if (!LABB.list.length) return;
+  const key = labKey(LABB.list), rec = LAB_RX.find(r => labKey(r.k) === key), at = twW(0.9, 4.5), p = { x: at.x, y: TWR.fy[1] + 1.7, z: at.z };
+  LABB.heat = 1.6; LABB.flame.visible = true; rpgEvent('lab_reacao');
+  setTimeout(() => {
+    LABB.flame.visible = false; LABB.list = []; labBeakerShow();
+    if (!rec) { labFx('smoke', p); whisper('🫧 virou uma gosma sem graça… nenhuma reação conhecida. Dica: os livros do andar de estudos ensinam receitas', 5); return; }
+    labFx(rec.fx, p); labDiscover(rec, 'rx');
+    if (rec.item) addItem(rec.item);
+    whisper(`${rec.i} ${rec.n} · ${rec.t}`, 6.5);
+    if (rec.id === 'boom') { const dx = player.x - at.x, dz = player.z - at.z, dd = Math.hypot(dx, dz) || 1; if (dd < 3) { player.vx += dx / dd * 6; player.vz += dz / dd * 6; } toast('💥 a senhora ficou com o rosto cheio de fuligem… mas está bem!'); }
+  }, 1500);
+}
+function labChamberShow() {
+  const n = LABC.list.length, c = n ? labMix(LABC.list) : new THREE.Color(0x8affd8);
+  LABC.liqM.color.copy(c); LABC.liqM.emissive.copy(c).multiplyScalar(0.3); LABC.k = 0.15 + n / 3 * 0.85;
+}
+function labChamber() {
+  if (LABH.item) {
+    const add = LABH.item === 'mix' ? LABH.mix : [LABH.item], room = 3 - LABC.list.length;
+    if (room <= 0) { toast('🧬 a câmara está cheia: dê vida à criatura ou esvazie'); return; }
+    LABC.list.push(...add.slice(0, room)); labDrop(false); labChamberShow(); sfx.chime([392, 523, 659], 0.05);
+    whisper(`🧬 na câmara: ${LABC.list.map(x => LAB_R[x].n).join(' + ')} (${LABC.list.length}/3) · toque de mãos vazias para dar vida`, 4.5, true); return;
+  }
+  if (!LABC.list.length) { whisper('🧬 Câmara de Criação: despeje até 3 ingredientes e dê vida a uma criatura… dizem que tudo começa com o Musgo Lunar 🌙', 5.5); return; }
+  showDialog('🧬 Câmara de Criação', LABC.list.map(x => LAB_R[x].n).join(' + '), 'O líquido borbulha esperando uma faísca…', [['⚡ Dar vida', () => labCreate(), true], ['🫗 Esvaziar a câmara', () => { LABC.list = []; labChamberShow(); whisper('🫗 câmara esvaziada', 2, true); }], ['esperar', null]]);
+}
+function labCreate() {
+  const key = labKey(LABC.list), rec = LAB_CR.find(r => labKey(r.k) === key), c = twW(-5.2, 0.6), p = { x: c.x, y: TWR.fy[1] + 2.2, z: c.z };
+  LABC.list = []; LABC.zap = 1.6; sfx.thunder?.(0.35); for (let i = 0; i < 30; i++) spawnFX(TEX.glow, V3(p.x + rv(1), p.y + rv(1.5), p.z + rv(1)), { vel: V3(rv(1), rv(1), rv(1)), life: 0.5, size: 0.2, grow: -0.5, add: true, color: 0xb8f8ff });
+  setTimeout(() => {
+    labChamberShow();
+    if (!rec) { labFx('smoke', p); whisper('…a faísca apagou. Nada nasceu desta vez. Talvez falte vida (🌙) ou sobre alguma coisa', 5); return; }
+    labDiscover(rec, 'cr'); rpgEvent('lab_criatura');
+    if (rec.pet) {
+      const L = LAB(); if (!L.pets.includes(rec.id)) L.pets.push(rec.id); L.pet = rec.id; petSet(rec.id, true); twJarsUpdate();
+      spawnSparkles(V3(p.x, p.y, p.z), 40, 1, 0xb8f8ff); sfx.chime([523, 659, 784, 1047, 1319], 0.1); banner(`${rec.i} ${rec.n}`, 'nasceu uma criatura!', 3.4); whisper(rec.t + ' Ela agora segue a senhora (troque no computador ou na Galeria).', 7); rpgSave();
+    } else {
+      labFx('boom', p); sfx.roar?.(); banner(`${rec.i} ${rec.n}`, 'fugiram pela janela!', 3.4); whisper(rec.t + ' Elas estão lá embaixo, no pé da torre ⚔', 7);
+      for (let k = 0; k < rec.count; k++) { const a = TWR.yaw + Math.PI * 0.6 + k * 0.5, q = { x: TWR.x + Math.sin(a) * 15, z: TWR.z + Math.cos(a) * 15 }; const e = fwSpawn(TWZ, rec.foe, q.x, q.z, true); if (e) { e.aggro = true; } }
+      rpgEvent('lab_fuga');
+    }
+  }, 1300);
+}
+
+/* ---- 📚 biblioteca e estudos ---- */
+const LAB_BOOKS = [
+  { id: 'atomo', t: '⚛ O Átomo e Seus Segredos', p: ['Tudo o que existe, das estrelas aos seus cachos, é feito de átomos: bolinhas minúsculas, tão pequenas que cem milhões delas, uma do lado da outra, mal formariam um centímetro.', 'No centro de cada átomo fica o núcleo, com prótons (carga positiva) e nêutrons (sem carga). Em volta, numa nuvem, dançam os elétrons (carga negativa).', 'O número de prótons é o "nome" do átomo: 1 próton é Hidrogênio, 6 é Carbono, 8 é Oxigênio, 79 é Ouro. Esse é o número atômico, o número pequenininho da tabela periódica.'] },
+  { id: 'tabela', t: '📊 A Tabela Periódica para Rainhas', p: ['Em 1869, o químico Dmitri Mendeleev organizou os elementos numa tabela e deixou espaços vazios: ele previu elementos que ninguém conhecia ainda. E eles foram descobertos depois!', 'As colunas são famílias: elementos da mesma coluna se comportam parecido. Na primeira coluna ficam os metais alcalinos (como o Sódio), que reagem com tudo. Na última, os gases nobres, que não se misturam com ninguém.', 'Hoje são 118 elementos. Lá no andar de cálculos tem uma tabela enorme: toque nela para conhecer cada um.'] },
+  { id: 'reacoes', t: '💥 Reações que Fazem Barulho', p: ['Uma reação química acontece quando os átomos trocam de par e formam substâncias novas. Nada se perde: tudo se transforma (Lavoisier disse isso há uns 250 anos).', 'Receitas para testar no béquer:\n• Hidrogênio + Hidrogênio + Oxigênio → Água\n• Sódio + Cloro → Sal\n• Carbono + Oxigênio + Oxigênio → Gás carbônico\n• Magnésio + Oxigênio → uma luz ofuscante\n• Cobre + Cloro → fogo verde', '⚠ NUNCA coloque Sódio com Água (H + H + O): ele explode! (…mas se a senhora quiser ver, a Professora Lumi deixa uma vez só 💥)'] },
+  { id: 'pocoes', t: '🧪 Poções: Onde a Ciência Encontra a Magia', p: ['As essências mágicas da prateleira de cima não estão em nenhuma tabela: Pó de Estrela, Lágrima de Fada, Escama de Dragão e Musgo Lunar.', 'Misturadas com elementos comuns, viram poções de verdade:\n• Hidrogênio + Oxigênio + Pó de Estrela → Poção de Vida\n• Oxigênio + Lágrima de Fada → Poção de Mana\n• Pó de Estrela + Lágrima de Fada → Pó de Fada\n• Oxigênio + Escama + Pó de Estrela → Elixir', 'Toda poção criada vai direto para a sua mochila 🎒'] },
+  { id: 'vida', t: '🧬 O Livro Proibido da Vida', p: ['Este livro não devia estar aqui. Ele fala da Câmara de Criação, no andar de experimentos.', 'Toda criatura nasce do Musgo Lunar 🌙, a essência da vida. Some a ele dois ingredientes:\n• Escama + Enxofre → um dragãozinho\n• Carbono + Hidrogênio → uma gosminha fofa\n• Pó de Estrela + Lágrima de Fada → uma fadinha de luz\n• Ferro + Ferro → um golenzinho\n• Cobre + Nitrogênio → um robozinho', '⚠ Cuidado: escama demais, ou carbono com enxofre, criam monstros ferozes que fogem pela janela. Esteja com a sua arma pronta.'] },
+  { id: 'chamas', t: '🔥 As Cores das Chamas', p: ['Cada elemento pinta o fogo de uma cor diferente. É assim que os químicos descobrem do que uma coisa é feita, só olhando a chama!', '• Sódio: amarelo, como a luz dos postes antigos\n• Potássio: lilás\n• Cobre: verde e azul\n• Cálcio: laranja\n• Estrôncio: vermelho', 'Experimente no béquer:\n• Cobre + Cloro → fogo verde\n• Potássio + Hidrogênio + Hidrogênio + Oxigênio → fogo lilás (cuidado: ele explode na água como o sódio!)'] },
+  { id: 'metais', t: '⚙ Ligas, Metais e Ferrugem', p: ['Misturar metais derretidos cria ligas: mais fortes, mais bonitas ou mais baratas que os metais sozinhos.', '• Cobre + Zinco → Latão, dourado como um trompete\n• Ferro + Enxofre → Pirita, o "ouro de tolo"\n• Ferro + Oxigênio → Ferrugem\n• Cobre + Oxigênio → a pátina verde das estátuas antigas', '• Prata + Enxofre → prata escurecida (seus talheres sabem bem disso)\n• Prata + Cloro → o cloreto de prata das primeiras fotografias'] },
+  { id: 'acidos', t: '🧪 Ácidos, Bases e o pH', p: ['Ácidos são azedinhos (limão, vinagre) e bases são escorregadias (sabão). A escala de pH vai de 0 a 14: abaixo de 7 é ácido, 7 é neutro, acima é básico.', '• Hidrogênio + Cloro → Ácido clorídrico (o do estômago)\n• Sódio + Hidrogênio + Oxigênio → Soda cáustica (uma base forte)\n• Zinco + Hidrogênio + Cloro → o ácido come o zinco e solta bolhas', 'Ácido com base vira sal e água: é a neutralização. Por isso o leite de magnésia alivia a azia!'] },
+  { id: 'herbario', t: '🌼 O Herbário da Rainha', p: ['As pétalas de margarida do campo onde tudo começou têm um poder que nenhum outro ingrediente tem: o carinho.', '• Oxigênio + Pó de Estrela + Pétala → Poção do Amor 💗\n• Hidrogênio + Oxigênio + Pétala → Chá de Margarida\n• Lágrima de Fada + Pétala → Perfume de Margarida', 'E na Câmara de Criação: Lágrima de Fada + Pétala + Musgo Lunar → uma Florzinha Viva que caminha ao seu lado 🌼'] },
+  { id: 'raras', t: '🦉 Criaturas Raras', p: ['Nem toda criatura da câmara é um bichinho comum. Algumas são raríssimas:', '• Prata + Escama + Musgo Lunar → Corujinha de Prata\n• Potássio + Pó de Estrela + Musgo Lunar → Fogo-fátuo Lilás', '⚠ E uma que ninguém deve criar: Fósforo + Enxofre + Escama solta Morcegos de Fogo pela janela!'] },
+  { id: 'diario', t: '📔 Diário da Professora Lumi', p: ['Dia 1: o rei mandou construir esta torre "para a rainha descobrir que o mundo é ainda mais bonito por dentro". Ele é bem romântico.', 'Dia 40: perguntei ao rei qual era a reação química mais forte que existe. Ele respondeu sem pensar: "quando ela sorri pra mim". Não tem fórmula para isso.', 'Dia 99: terminei o escritório lá em cima, debaixo da cúpula de vidro. Daqui dá para ver o reino inteiro… e ela, colhendo margaridas lá no campo.'] },
+];
+function labLibrary() {
+  openPanel('lab_lib', pn => {
+    closeX(pn); h$('h2', null, '📚 Biblioteca da Torre', pn); h$('div', 'sub', 'Toque num livro para ler. Cada livro novo ensina algo (e dá XP).', pn);
+    const l = h$('div', 'labl', null, pn); for (const b of LAB_BOOKS) hBtn(`${b.t}${LAB().books[b.id] ? ' ✓' : ''}`, 'rbtn', () => { closePanel(); labRead(b, 0); }, l);
+  });
+}
+function labRead(b, i) {
+  openPanel('lab_book', pn => {
+    closeX(pn); h$('h2', null, b.t, pn); h$('div', 'sub', `página ${i + 1} de ${b.p.length}`, pn); h$('div', 'labbook', fmt(b.p[i]), pn);
+    const bt = h$('div', 'labtabs', null, pn);
+    if (i > 0) hBtn('‹ voltar', 'rbtn', () => { closePanel(); labRead(b, i - 1); }, bt);
+    if (i < b.p.length - 1) hBtn('próxima ›', 'rbtn gold', () => { closePanel(); labRead(b, i + 1); }, bt);
+    else hBtn('fechar o livro ✦', 'rbtn gold', () => { closePanel(); if (!LAB().books[b.id]) { LAB().books[b.id] = 1; rpgEvent('lab_livro'); gainXP(20, 'leitura'); rpgSave(); } else labLibrary(); }, bt);
+    hBtn('📚 estante', 'rbtn', () => { closePanel(); labLibrary(); }, bt);
+  });
+}
+let labStudyT = 0;
+function labStudy() {
+  if (performance.now() - labStudyT < 60000) { whisper('📖 a senhora já estudou agora há pouco… que tal ler um livro da estante?', 3); return; }
+  labStudyT = performance.now(); rpgEvent('lab_estudo'); gainXP(10, 'estudos'); sfx.chime([523, 659], 0.06);
+  const tips = ['📖 anotou: "a massa molar da água é 18 g/mol (2 + 16)"', '📖 anotou: "1 mol = 6,02 × 10²³ partículas"', '📖 anotou: "pH menor que 7 é ácido, maior que 7 é básico"', '📖 anotou: "o Musgo Lunar é a essência da vida"', '📖 anotou: "gases nobres não reagem com ninguém"'];
+  whisper(tips[Math.floor(Math.random() * tips.length)], 4.5);
+}
+
+/* ---- 🧮 desafios de cálculo no quadro ---- */
+const LAB_QUIZ = [
+  ['Quantos átomos de hidrogênio há numa molécula de água (H₂O)?', ['1', '2', '3', '4'], 1, 'O "2" pequenininho diz: dois hidrogênios para um oxigênio.'],
+  ['Qual é a massa molar aproximada da água (H = 1, O = 16)?', ['16 g/mol', '17 g/mol', '18 g/mol', '32 g/mol'], 2, '2 × 1 + 16 = 18 g/mol.'],
+  ['Balanceie: __ H₂ + O₂ → 2 H₂O', ['1', '2', '3', '4'], 1, 'Dois H₂ têm 4 hidrogênios, os mesmos das duas águas.'],
+  ['Qual elemento tem número atômico 6?', ['Oxigênio', 'Nitrogênio', 'Carbono', 'Boro'], 2, 'O Carbono, a base de toda a vida, tem 6 prótons.'],
+  ['NaCl é o nome científico de…', ['açúcar', 'sal de cozinha', 'água sanitária', 'bicarbonato'], 1, 'Cloreto de sódio: o sal da sua comida.'],
+  ['Qual a massa molar do CO₂ (C = 12, O = 16)?', ['28 g/mol', '32 g/mol', '44 g/mol', '48 g/mol'], 2, '12 + 2 × 16 = 44 g/mol.'],
+  ['Quantos mols há em 36 g de água?', ['1 mol', '2 mols', '3 mols', '18 mols'], 1, '36 ÷ 18 = 2 mols.'],
+  ['Uma solução com pH 7 é…', ['ácida', 'neutra', 'básica', 'explosiva'], 1, 'pH 7 é neutro, como a água pura.'],
+  ['Qual metal é líquido na temperatura ambiente?', ['Ferro', 'Mercúrio', 'Prata', 'Chumbo'], 1, 'O Mercúrio (Hg) derrete a −39 °C.'],
+  ['Qual é o símbolo químico do ouro?', ['Ou', 'Go', 'Au', 'Ag'], 2, 'Au vem do latim "aurum". Ag é a prata!'],
+  ['Na fotossíntese, as plantas transformam CO₂ e água em glicose e…', ['nitrogênio', 'oxigênio', 'hélio', 'ferro'], 1, 'Elas devolvem oxigênio para o ar ♥'],
+  ['Quantos prótons tem um átomo de Oxigênio?', ['6', '7', '8', '16'], 2, 'O Oxigênio é o número 8 da tabela.'],
+  ['Qual a fórmula do gás metano?', ['CH₄', 'CO₂', 'NH₃', 'H₂O₂'], 0, 'Um carbono e quatro hidrogênios.'],
+  ['Se 1 mol tem 6,02 × 10²³ partículas, quantas partículas há em 2 mols?', ['3,01 × 10²³', '6,02 × 10²³', '1,2 × 10²⁴', '12,04 × 10²⁴'], 2, '2 × 6,02 × 10²³ = 12,04 × 10²³ = 1,2 × 10²⁴.'],
+];
+let labQuizLast = -1;
+function labQuiz() {
+  let i; do i = Math.floor(Math.random() * LAB_QUIZ.length); while (i === labQuizLast && LAB_QUIZ.length > 1); labQuizLast = i;
+  const [q, opts, ok, why] = LAB_QUIZ[i];
+  showDialog('🧮 Desafio de Cálculo', 'quadro da torre', q, opts.map((o, k) => [o, () => {
+    if (k === ok) { LAB().quiz = (LAB().quiz || 0) + 1; rpgEvent('lab_quiz'); gainXP(15, 'cálculo certo'); gainGold(5); sfx.chime([659, 880, 1175], 0.06); whisper(`✔ certíssimo! ${why}`, 5); rpgSave(); }
+    else { sfx.chime([330, 262], 0.08); whisper(`✘ quase… a resposta era "${opts[ok]}". ${why}`, 6); }
+  }, false]));
+}
+
+/* ---- ⚛ tabela periódica ---- */
+function ptDraw(g, w, h, sel) {
+  const has = typeof RPG !== 'undefined' && RPG.lab && RPG.lab.el ? RPG.lab.el : {};
+  g.fillStyle = '#efe6d2'; g.fillRect(0, 0, w, h); g.fillStyle = '#2a2450'; g.font = 'italic 64px Georgia, serif'; g.textAlign = 'center'; g.fillText('Tabela Periódica dos Elementos', w / 2, 72);
+  const cw = (w - 60) / 18, chh = (h - 140) / 10.3;
+  for (let Z = 1; Z <= 118; Z++) {
+    const [r, c] = ptPos(Z), x = 30 + (c - 1) * cw, y = 100 + (r - 1 + (r >= 9 ? 0.3 : 0)) * chh;
+    g.globalAlpha = has[Z] || !Object.keys(has).length ? 1 : 0.5; g.fillStyle = PT_COL[ptCat(Z)]; g.fillRect(x + 2, y + 2, cw - 4, chh - 4);
+    g.fillStyle = '#1a1424'; g.textAlign = 'center'; g.font = 'bold 44px Georgia, serif'; g.fillText(PT_S[Z - 1], x + cw / 2, y + chh * 0.66); g.font = '20px Georgia, serif'; g.fillText(Z, x + cw / 2, y + chh * 0.25); g.globalAlpha = 1;
+    if (Z === sel) { g.strokeStyle = '#ffffff'; g.lineWidth = 10; g.strokeRect(x + 3, y + 3, cw - 6, chh - 6); g.strokeStyle = '#ff3a8a'; g.lineWidth = 4; g.strokeRect(x + 3, y + 3, cw - 6, chh - 6); }
+  }
+}
+function chalkDraw(g, a) {
+  g.fillStyle = '#1f3a2a'; g.fillRect(0, 0, 1024, 584); g.strokeStyle = 'rgba(255,255,255,.07)'; for (let i = 0; i < 30; i++) { g.beginPath(); g.moveTo(Math.random() * 1024, Math.random() * 584); g.lineTo(Math.random() * 1024, Math.random() * 584); g.stroke(); }
+  g.fillStyle = '#f4f4ec'; g.textAlign = 'left'; g.font = 'italic 46px Georgia, serif';
+  const L = a ? ['2H₂ + O₂ → 2H₂O', 'Na + Cl → NaCl', 'n = m / M', '18 g ÷ 18 g/mol = 1 mol', 'PV = nRT'] : ['E = mc²', '6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂', 'pH = −log[H⁺]', '1 mol = 6,02 × 10²³', '♥ + ♥ → ∞'];
+  L.forEach((t, i) => g.fillText(t, 50, 90 + i * 100));
+}
+const PT_SUB = [['1s', 2], ['2s', 2], ['2p', 6], ['3s', 2], ['3p', 6], ['4s', 2], ['3d', 10], ['4p', 6], ['5s', 2], ['4d', 10], ['5p', 6], ['6s', 2], ['4f', 14], ['5d', 10], ['6p', 6], ['7s', 2], ['5f', 14], ['6d', 10], ['7p', 6]];
+function ptShells(Z) { const sh = []; let left = Z; for (const [o, c] of PT_SUB) { if (left <= 0) break; const n = +o[0], e = Math.min(c, left); sh[n - 1] = (sh[n - 1] || 0) + e; left -= e; } return sh.map(x => x || 0); } // distribuição de Aufbau (camadas K, L, M…)
+const ptHas = Z => !!(LAB().el || {})[Z];
+const PT_FAM_REW = 'cartas';
+function ptWall(sel) { // redesenha a tabela da parede: as cartas que você tem acesas, o elemento escolhido brilhando
+  const F = TWF[3]; if (!F || !F.ptc) return; ptDraw(F.ptc.getContext('2d'), 2048, 1170, sel); F.ptt.needsUpdate = true;
+}
+function ptHolo(Z) { // o átomo do elemento no projetor
+  const F = TWF[3]; if (!F || !F.holo) return; F.holoZ = Z; const sh = ptShells(Z);
+  F.nuc.material.color.set(PT_COL[ptCat(Z)]); F.nuc.scale.setScalar(0.12 * (0.7 + Math.cbrt(Z) * 0.18)); // o núcleo cresce um pouco com o número de prótons
+  F.shells.forEach((S, k) => { S.n = sh[k] || 0; S.o.visible = k < sh.length; S.es.forEach((e, j) => { e.visible = j < Math.min(12, S.n); }); });
+  const g = F.symc.getContext('2d'); g.clearRect(0, 0, 256, 256); g.fillStyle = 'rgba(10,30,40,.55)'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.strokeStyle = '#7affe0'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#e8fffa'; g.textAlign = 'center'; g.font = 'bold 96px Georgia, serif'; g.fillText(PT_S[Z - 1], 128, 140); g.font = '28px Georgia, serif'; g.fillText(Z + ' · ' + PT_N[Z - 1], 128, 190); F.symt.needsUpdate = true;
+}
+function labScale() {
+  const Z = TWF[3].holoZ; sfx.chime([392, 523], 0.06);
+  if (!Z) { whisper('⚖ a balança está esperando… escolha um elemento na tabela periódica e eu peso 1 mol dele', 4.5); return; }
+  whisper(`⚖ 1 mol de ${PT_N[Z - 1]} (${PT_S[Z - 1]}) pesa ${PT_M[Z - 1].toLocaleString('pt-BR')} g · são 6,02 × 10²³ átomos na balança!`, 6);
+}
+function ptCollect(Z) { // carta nova na coleção (e prêmio quando completa uma família)
+  const L = LAB(); L.el = L.el || {}; if (L.el[Z]) return false; L.el[Z] = 1; rpgEvent('lab_elemento'); gainXP(2);
+  const c = ptCat(Z), fam = []; for (let k = 1; k <= 118; k++) if (ptCat(k) === c) fam.push(k);
+  if (fam.every(k => L.el[k])) { L.fam = L.fam || {}; if (!L.fam[c]) { L.fam[c] = 1; setTimeout(() => { banner(PT_CAT[c][0].toUpperCase() + PT_CAT[c].slice(1), 'família completa ✦', 3.2); gainXP(40 + fam.length * 4, 'família completa'); gainGold(10 + fam.length * 2); sfx.chime([523, 659, 784, 1047, 1319], 0.1); }, 400); } }
+  if (Object.keys(L.el).length === 118) setTimeout(() => { banner('Tabela Completa!', 'os 118 elementos ✦', 4); gainXP(300, 'colecionadora de elementos'); addItem('pocao_amor'); }, 1200);
+  rpgSave(); return true;
+}
+function labPeriodic(selZ) {
+  openPanel('lab_pt', pn => {
+    pn.classList.add('ptwide'); closeX(pn); const L = LAB(); L.el = L.el || {};
+    h$('h2', null, `⚛ Tabela Periódica · 🃏 ${Object.keys(L.el).length}/118`, pn); h$('div', 'sub', innerWidth < innerHeight ? 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor (deite o celular para ver maior)' : 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor ✦', pn);
+    const info = h$('div', 'ptinfo', 'Cada elemento tocado vira uma carta na sua coleção. Complete uma família inteira (as cores) para ganhar um prêmio!', pn);
+    const wrap = h$('div', 'ptwrap', null, pn), grid = h$('div', 'ptab', null, wrap), cells = [];
+    for (let r = 1; r <= 10; r++) for (let c = 1; c <= 18; c++) {
+      if (r === 8) { if (c === 1) h$('div', 'gap', null, grid); continue; }
+      let Z = 0; for (let k = 1; k <= 118; k++) { const p = ptPos(k); if (p[0] === r && p[1] === c) { Z = k; break; } }
+      if (!Z) { h$('div', null, null, grid); continue; }
+      const b = h$('button', null, null, grid); b.style.background = PT_COL[ptCat(Z)]; b.innerHTML = `<span><small>${Z}</small><br>${PT_S[Z - 1]}</span>`; if (!L.el[Z]) b.style.opacity = 0.45;
+      b.addEventListener('click', e => { e.stopPropagation(); show(Z); }); cells[Z] = b;
+    }
+    const fams = h$('div', 'ptfam', null, pn);
+    const famDraw = () => { fams.innerHTML = ''; PT_CAT.forEach((n, c) => { let t = 0, h = 0; for (let k = 1; k <= 118; k++) if (ptCat(k) === c) { t++; if (L.el[k]) h++; } const sp = h$('span', null, `${n} ${h}/${t}${h === t ? ' ✓' : ''}`, fams); sp.style.borderColor = PT_COL[c]; }); };
+    function show(Z) {
+      const nova = ptCollect(Z); if (cells[Z]) cells[Z].style.opacity = 1; famDraw(); ptHolo(Z); ptWall(Z);
+      info.innerHTML = ''; h$('b', null, `${nova ? '🃏 carta nova! ' : ''}${PT_S[Z - 1]} · ${PT_N[Z - 1]}`, info);
+      h$('div', null, `nº ${Z} · massa ≈ ${PT_M[Z - 1].toLocaleString('pt-BR')} u · ${PT_CAT[ptCat(Z)]} · elétrons por camada: ${ptShells(Z).join(' · ')}`, info);
+      if (PT_FACT[Z]) h$('div', null, '✦ ' + PT_FACT[Z], info); sfx.chime([523 + Z * 6], 0.03);
+    }
+    famDraw(); if (selZ) show(selZ);
+  });
+}
+/* ---- 💻 terminal da pesquisa e microscópio ---- */
+function labTerminal(tab = 'desc') {
+  openPanel('lab_term', pn => {
+    closeX(pn); h$('h2', null, '💻 Terminal da Pesquisa', pn);
+    const tb = h$('div', 'labtabs', null, pn);
+    for (const [k, n] of [['desc', '⚗ Descobertas'], ['pets', '🧬 Bestiário'], ['prog', '📊 Progresso']]) hBtn(n, 'rbtn' + (k === tab ? ' gold' : ''), () => { closePanel(); labTerminal(k); }, tb);
+    const L = LAB();
+    if (tab === 'desc') { for (const r of LAB_RX) { const row = h$('div', 'labrow', null, pn); if (L.rec[r.id]) { h$('span', null, `${r.i} ${r.n}`, row); h$('span', 'q', r.k.map(x => LAB_R[x].s).join(' + '), row); } else { h$('span', 'q', '❔ reação ainda não descoberta', row); h$('span', 'q', r.k.length + ' ingredientes', row); } } }
+    if (tab === 'pets') {
+      h$('div', 'sub', 'Criaturas nascidas na Câmara de Criação. Escolha quem vai com a senhora.', pn);
+      for (const c of LAB_CR) { const row = h$('div', 'labrow', null, pn); const has = L.rec[c.id];
+        h$('span', has ? null : 'q', has ? `${c.i} ${c.n}${c.foe ? ' (fugiu!)' : ''}` : '❔ criatura desconhecida', row);
+        if (c.pet && L.pets.includes(c.id)) hBtn(L.pet === c.id ? '✓ com você' : 'levar comigo', 'rbtn' + (L.pet === c.id ? ' gold' : ''), () => { L.pet = L.pet === c.id ? null : c.id; petSet(L.pet, true); rpgSave(); closePanel(); labTerminal('pets'); }, row); }
+    }
+    if (tab === 'prog') {
+      const n = labFound(); h$('div', 'sub', `Descobertas: ${n} de ${LAB_TOTAL}`, pn); const bar = h$('div', 'labbar', null, pn); h$('i', null, null, bar).style.width = (n / LAB_TOTAL * 100) + '%';
+      h$('div', 'labrow', `📚 livros lidos: ${Object.keys(L.books).length} de ${LAB_BOOKS.length}`, pn); h$('div', 'labrow', `🧮 cálculos resolvidos: ${L.quiz || 0}`, pn); h$('div', 'labrow', `⚛ elementos estudados: ${RPG.ev.lab_elemento || 0} de 118`, pn); h$('div', 'labrow', `🧬 criaturas: ${L.pets.length}`, pn);
+    }
+  });
+}
+function labMicroscope() {
+  const kinds = [['células de cebola', '#e8e0a8', '#a89a5a'], ['sangue (glóbulos vermelhos)', '#f4d8d0', '#c83a3a'], ['cristais de sal', '#d8e8f4', '#ffffff'], ['algas do lago', '#d8f0d0', '#3a9a5a'], ['pó de estrela', '#1a1a3a', '#fff2a8']];
+  const [n, bg, fg] = kinds[Math.floor(Math.random() * kinds.length)];
+  openPanel('lab_mic', pn => {
+    closeX(pn); h$('h2', null, '🔬 Microscópio', pn); h$('div', 'sub', `lâmina: ${n} · aumento de 400×`, pn);
+    const cv = h$('canvas', 'labscope', null, pn); cv.width = cv.height = 360; const g = cv.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 360, 360);
+    for (let i = 0; i < 26; i++) { const x = Math.random() * 360, y = Math.random() * 360, r = 12 + Math.random() * 26; g.strokeStyle = fg; g.fillStyle = fg + '55'; g.lineWidth = 2; g.beginPath();
+      if (n.startsWith('cristais')) { g.rect(x, y, r, r); } else if (n.startsWith('células')) { g.rect(x, y, r * 2, r); } else g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill(); g.stroke(); if (n.startsWith('células') || n.startsWith('algas')) { g.fillStyle = fg; g.beginPath(); g.arc(x + r * 0.6, y + r * 0.5, 4, 0, Math.PI * 2); g.fill(); } }
+    hBtn('🔄 trocar a lâmina', 'rbtn gold', () => { closePanel(); labMicroscope(); }, h$('div', 'labtabs', null, pn));
+  });
+  if (!RPG.ev.lab_micro) gainXP(10, 'observação'); rpgEvent('lab_micro');
+}
+function labBoardDraw() {
+  const B = TWF[2] && TWF[2].board; if (!B) return; const g = B.g, n = labFound();
+  g.fillStyle = '#081418'; g.fillRect(0, 0, 1024, 512); g.fillStyle = '#7affe0'; g.font = 'bold 54px monospace'; g.fillText('PESQUISA DA TORRE', 40, 80);
+  g.font = '32px monospace'; g.fillText(`descobertas: ${n}/${LAB_TOTAL}`, 40, 150); g.strokeStyle = '#7affe0'; g.strokeRect(40, 180, 940, 40); g.fillRect(44, 184, 932 * n / LAB_TOTAL, 32);
+  const last = Object.keys(LAB().rec).slice(-5).map(id => (LAB_RX.find(r => r.id === id) || LAB_CR.find(r => r.id === id))).filter(Boolean);
+  g.font = '30px monospace'; last.forEach((r, i) => g.fillText(`> ${r.n}`, 40, 280 + i * 44)); if (!last.length) g.fillText('> aguardando o primeiro experimento…', 40, 280);
+  B.tex.needsUpdate = true;
+}
+function labScreens(dt) {
+  for (const S of LAB_SCR) {
+    if ((S.t -= dt) > 0) continue; S.t = 0.35 + Math.random() * 0.4;
+    const ids = Object.keys(LAB_R), a = LAB_R[ids[Math.floor(Math.random() * ids.length)]], Z = PT_S.indexOf(a.s) + 1;
+    const opts = [`> analisando ${a.n}… ok`, Z ? `> elemento ${a.s} (${Z}) · ${PT_M[Z - 1]} u` : `> essência mágica: ${a.n}`, `> reação ${Math.floor(Math.random() * 999)} · ${['estável', 'instável', 'brilhante', '💥'][Math.floor(Math.random() * 4)]}`, `> ${'█'.repeat(1 + Math.floor(Math.random() * 12))}`];
+    S.lines.push(opts[Math.floor(Math.random() * opts.length)]); if (S.lines.length > 9) S.lines.shift();
+    const g = S.g; g.fillStyle = '#04140a'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#5aff8a'; g.font = '14px monospace'; S.lines.forEach((l, i) => g.fillText(l, 8, 20 + i * 19)); S.tex.needsUpdate = true;
+  }
+}
+function twJarsUpdate() { const F = TWF[4]; if (!F) return; for (const j of F.jars) { const has = LAB().pets.includes(j.id); if (has && !j.inner.children.length) j.inner.add(petModel(j.id).g); j.inner.visible = has; } }
+
+function labAgata() {
+  sfx.chime([523, 659, 523, 784], 0.06); const L = LAB(), all = [...LAB_RX, ...LAB_CR], next = all.find(r => !L.rec[r.id]);
+  if (!next) { whisper('🖥 ÁGATA: "pesquisa completa, Majestade. Não há mais nada a descobrir… por enquanto ✦"', 5); return; }
+  const ks = next.k.map(k => LAB_R[k].n), last = ks.length - 1, where = LAB_CR.includes(next) ? 'na Câmara de Criação' : 'no béquer';
+  whisper(`🖥 ÁGATA calculou: misture ${ks.slice(0, last).join(' + ')} e mais um ingrediente ${where}… ${ks.length} ao todo`, 7);
+  if (!RPG.ev.lab_agata) gainXP(10, 'pesquisa'); rpgEvent('lab_agata');
+}
+const ATOM_EL = [1, 2, 3, 6, 7, 8, 10, 11, 17, 26, 29, 79];
+function labAtom() {
+  const F = TWF[2]; F.atomZ = (F.atomZ + 1) % ATOM_EL.length; const Z = ATOM_EL[F.atomZ], cap = [2, 8, 18, 32, 32, 18, 8], sh = []; let left = Z;
+  const bohr = { 26: [2, 8, 14, 2], 29: [2, 8, 18, 1], 79: [2, 8, 18, 32, 18, 1] }; // os metais de transição enchem as camadas fora de ordem
+  if (bohr[Z]) sh.push(...bohr[Z]); else for (const c of [2, 8, 8, 18]) { if (left <= 0) break; const n = Math.min(c, left); sh.push(n); left -= n; }
+  F.atomSh = sh; sfx.chime([659 + Z * 4], 0.04);
+  whisper(`⚛ ${PT_N[Z - 1]} (${PT_S[Z - 1]}): ${Z} prótons no núcleo e ${Z} elétrons em camadas · ${sh.join(' · ')}`, 6);
+}
+const PIANO_SONGS = [['Brilha, brilha, estrelinha', [523, 523, 784, 784, 880, 880, 784, 0, 698, 698, 659, 659, 587, 587, 523]], ['Ode à Alegria', [659, 659, 698, 784, 784, 698, 659, 587, 523, 523, 587, 659, 659, 587, 587]], ['Parabéns pra você', [392, 392, 440, 392, 523, 494, 0, 392, 392, 440, 392, 587, 523]], ['Valsinha da Rainha', [523, 659, 784, 659, 523, 0, 587, 698, 880, 698, 587, 0, 659, 784, 1047]]];
+let pianoI = -1;
+function twPiano() {
+  if (twPiano.busy) return; twPiano.busy = true; pianoI = (pianoI + 1) % PIANO_SONGS.length; const [n, notes] = PIANO_SONGS[pianoI];
+  whisper(`🎹 a senhora toca "${n}"…`, 4); rpgEvent('tw_piano');
+  notes.forEach((f, k) => setTimeout(() => { if (f) sfx.chime([f], 0.01); if (k === notes.length - 1) twPiano.busy = false; }, k * 330));
+  const p = twW(-5.6, 2.4); for (let k = 0; k < 5; k++) setTimeout(() => spawnFX(TEX.spark, V3(p.x + rv(0.5), TWR.fy[4] + 1.6, p.z + rv(0.5)), { vel: V3(rv(0.2), 0.6, rv(0.2)), life: 1.6, size: 0.18, grow: 0.3, add: true, color: 0xffe6a0 }), k * 600);
+}
+/* ---- o elevador mágico e a porta ---- */
+function twDoor() { if (mode !== 'walk') return; markInteracted(); twMenu(true); }
+function twLift() { twMenu(false); }
+function twMenu(outside) {
+  const btns = TW_FLOORS.map((f, i) => [f.n + (TWR.cur === i ? ' (aqui)' : ''), () => twGo(i), i === 4]).reverse();
+  if (!outside) btns.push(['🚪 Térreo (sair da torre)', () => twGo(-1)]);
+  btns.push(['ficar', null]);
+  showDialog('✦ Elevador Mágico', 'Torre de Pesquisas', outside ? 'A porta se abre e um círculo de luz espera no meio da torre. Para qual andar a senhora quer subir?' : 'Para qual andar?', btns);
+}
+async function twGo(i) {
+  if (mode !== 'walk' || TWR.busy || i === TWR.cur) return; TWR.busy = true;
+  if (player.seat) { player.seat.onStand?.(); player.seat = null; }
+  mode = 'busy'; sfx.chime([523, 659, 784, 1047], 0.07); fadeEl.style.opacity = 1; await waitMs(700);
+  if (i !== 1) labDrop(false);
+  TWR.cur = i; TWF.forEach((f, k) => { f.g.visible = k === i; });
+  const q = i < 0 ? twW(0, 10.5) : twW(0, 2.6);
+  Object.assign(player, { x: q.x, z: q.z, yaw: twYawOut(), pitch: i < 0 ? 0.05 : -0.05, vx: 0, vz: 0, pose: 'stand', eyeH: EYE_H });
+  if (i === 2) labBoardDraw(); if (i === 4) twJarsUpdate(); mcLast.again = 3; // o andar novo aparece inteiro, sem objetos sumidos
+  if (PET.on) { PET.x = player.x + 1; PET.z = player.z; }
+  placeCamera(); await waitMs(200); mode = 'walk'; fadeEl.style.opacity = 0; TWR.busy = false;
+  if (i >= 0) { banner(TW_FLOORS[i].n, 'Torre de Pesquisas', 2.4); if (!RPG.ev['tw_andar' + i]) { rpgEvent('tw_andar' + i); gainXP(10); } }
+}
+
+/* ---- 🐾 criaturas de estimação ---- */
+const PET = { g: new THREE.Group(), kind: null, m: null, x: 0, z: 0, y: 0, hd: 0, ph: 0, amt: 0, on: false };
+scene.add(PET.g); PET.g.visible = false;
+{ const hit = invis(PET.g, new THREE.SphereGeometry(0.55, 8, 6), 0, 0.5, 0); hit.userData.keep = true; PET.hit = hit;
+  addInteract([hit], () => { if (!PET.on || mode !== 'walk') return; markInteracted(); PET.jump = 0.6; spawnHearts(V3(PET.x, PET.y + 0.9, PET.z), 4); sfx.chime([988, 1175, 1319], 0.05);
+    const c = LAB_CR.find(x => x.id === PET.kind); whisper(`${c ? c.i + ' ' + c.n : ''} ${['adora carinho ♥', 'está feliz de passear com a senhora', 'fez um barulhinho fofo', 'quer brincar!'][Math.floor(Math.random() * 4)]}`, 2.6, true); }, { at: () => PET.on ? PET : TW_FAR, near: 2.4, range: 12 }); }
+function petModel(kind) {
+  const g = new THREE.Group(), m = { g, kind };
+  const eye = (par, x, y, z, s = 0.045) => { ps(par, s, x, y, z, matC(0xffffff, true)); ps(par, s * 0.55, x, y, z + s * 0.6, matC(0x111111, true)); };
+  if (kind === 'dragao') {
+    const b = new THREE.Group(); b.position.y = 0.32; g.add(b); m.b = b; ps(b, 0.24, 0, 0, 0, matC(0x3aa86a), 1, 0.9, 1.3); ps(b, 0.16, 0, -0.06, 0.1, matC(0xb8e0a0), 1, 0.8, 1.1);
+    const hd = new THREE.Group(); hd.position.set(0, 0.2, 0.3); b.add(hd); ps(hd, 0.17, 0, 0, 0, matC(0x3aa86a)); ps(hd, 0.1, 0, -0.04, 0.14, matC(0x4ab87a)); eye(hd, 0.08, 0.06, 0.12); eye(hd, -0.08, 0.06, 0.12);
+    for (const sx of [-1, 1]) cone(hd, 0.035, 0.14, sx * 0.08, 0.17, -0.04, matC(0xf4ecd8), 5).rotation.x = -0.4;
+    m.w = []; for (const sx of [-1, 1]) { const w = new THREE.Group(); w.position.set(sx * 0.15, 0.12, -0.02); b.add(w); const wm = mmesh(w, gBox(0.36, 0.02, 0.26), matC(0x2a8a5a), sx * 0.18, 0, 0); m.w.push({ w, sx }); }
+    const tl = cone(b, 0.07, 0.4, 0, -0.02, -0.38, matC(0x3aa86a), 6); tl.rotation.x = -Math.PI / 2 - 0.3;
+    m.legs = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = pb(g, 0.07, 0.18, 0.07, sx * 0.12, 0.09, sz * 0.12, matC(0x2a8a5a)); m.legs.push(l); }
+  } else if (kind === 'slime') {
+    const b = new THREE.Group(); g.add(b); m.b = b; mmesh(b, gSph, new THREE.MeshLambertMaterial({ color: 0x6aff8a, transparent: true, opacity: 0.8, emissive: 0x1a5a2a }), 0, 0.26, 0, 0.3, 0.26, 0.3); eye(b, 0.09, 0.32, 0.24, 0.05); eye(b, -0.09, 0.32, 0.24, 0.05);
+  } else if (kind === 'fadinha') {
+    const b = new THREE.Group(); b.position.y = 1.3; g.add(b); m.b = b; m.fly = true; ps(b, 0.1, 0, 0, 0, matC(0xffb8e8, true)); ps(b, 0.07, 0, 0.13, 0, matC(0xffe0c8));
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffe8a8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); gl.scale.setScalar(0.9); b.add(gl);
+    m.w = []; for (const sx of [-1, 1]) { const w = new THREE.Group(); w.position.set(sx * 0.05, 0.05, -0.05); b.add(w); mmesh(w, gBox(0.22, 0.01, 0.14), new THREE.MeshBasicMaterial({ color: 0xd8f4ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide }), sx * 0.12, 0, 0); m.w.push({ w, sx }); }
+  } else if (kind === 'golem') {
+    const b = new THREE.Group(); g.add(b); m.b = b; pb(b, 0.42, 0.4, 0.3, 0, 0.5, 0, matC(0x7a7a84)); pb(b, 0.28, 0.24, 0.24, 0, 0.82, 0.02, matC(0x8a8a94)); for (const sx of [-1, 1]) ps(b, 0.035, sx * 0.07, 0.84, 0.15, matC(0x7affe0, true));
+    m.arms = []; for (const sx of [-1, 1]) { const a = new THREE.Group(); a.position.set(sx * 0.28, 0.66, 0); b.add(a); pb(a, 0.13, 0.42, 0.13, 0, -0.2, 0, matC(0x6a6a74)); m.arms.push(a); }
+    m.legs = []; for (const sx of [-1, 1]) { const l = pb(g, 0.15, 0.3, 0.15, sx * 0.12, 0.15, 0, matC(0x6a6a74)); m.legs.push(l); }
+  } else if (kind === 'florzinha') {
+    const b = new THREE.Group(); g.add(b); m.b = b; cyl(b, 0.025, 0.03, 0.5, 0, 0.3, 0, matC(0x3a8a3a), 6); for (const sx of [-1, 1]) { const lf = ps(b, 0.08, sx * 0.08, 0.28, 0, matC(0x4aa84a), 1, 0.3, 0.6); lf.rotation.z = sx * 0.6; }
+    const hd = new THREE.Group(); hd.position.set(0, 0.6, 0.02); b.add(hd); ps(hd, 0.07, 0, 0, 0.02, matC(0xffd23a)); for (let k = 0; k < 10; k++) { const an = k / 10 * Math.PI * 2, pt = ps(hd, 0.06, Math.cos(an) * 0.11, Math.sin(an) * 0.11, 0, matC(0xffffff), 1.4, 0.55, 0.3); pt.rotation.z = an; } eye(hd, 0.03, 0.02, 0.08, 0.02); eye(hd, -0.03, 0.02, 0.08, 0.02);
+    m.legs = []; for (const sx of [-1, 1]) m.legs.push(pb(g, 0.03, 0.12, 0.03, sx * 0.05, 0.06, 0, matC(0x3a8a3a)));
+  } else if (kind === 'fogofatuo') {
+    const b = new THREE.Group(); b.position.y = 1.2; g.add(b); m.b = b; m.fly = true; addFlame(b, 0, 0, 0, 0.6); ps(b, 0.08, 0, -0.05, 0, matC(0xd8a8ff, true));
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xb070ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); gl.scale.setScalar(1.3); b.add(gl);
+  } else if (kind === 'coruja') {
+    const b = new THREE.Group(); g.add(b); m.b = b; ps(b, 0.2, 0, 0.3, 0, matC(0xc8ccd8), 1, 1.15, 0.95); ps(b, 0.14, 0, 0.28, 0.08, matC(0xe8ecf4), 1, 1.1, 0.8);
+    for (const sx of [-1, 1]) { ps(b, 0.07, sx * 0.08, 0.42, 0.15, matC(0xfff4c0, true)); ps(b, 0.035, sx * 0.08, 0.42, 0.21, matC(0x111111, true)); cone(b, 0.035, 0.1, sx * 0.11, 0.56, 0, matC(0xa8acb8), 4); }
+    cone(b, 0.025, 0.06, 0, 0.36, 0.2, matC(0xd8a040), 4).rotation.x = Math.PI / 2 + 0.3;
+    m.w = []; for (const sx of [-1, 1]) { const w = new THREE.Group(); w.position.set(sx * 0.17, 0.32, 0); b.add(w); mmesh(w, gBox(0.06, 0.24, 0.16), matC(0xa8acb8), sx * 0.03, -0.04, 0); m.w.push({ w, sx }); }
+  } else if (kind === 'robo') {
+    const b = new THREE.Group(); g.add(b); m.b = b; ps(b, 0.12, 0, 0.12, 0, matC(0x3a3a44)); pb(b, 0.36, 0.32, 0.3, 0, 0.42, 0, matC(0xc87a3a)); pb(b, 0.3, 0.24, 0.26, 0, 0.72, 0, matC(0xd88a4a));
+    pb(b, 0.22, 0.12, 0.02, 0, 0.73, 0.14, matC(0x7affe0, true)); cyl(b, 0.012, 0.012, 0.2, 0, 0.94, 0, M.iron, 5); m.led = ps(b, 0.035, 0, 1.05, 0, new THREE.MeshBasicMaterial({ color: 0xff4a4a }));
+  }
+  return m;
+}
+function petSet(kind, near) {
+  if (PET.m) { PET.g.remove(PET.m.g); PET.m = null; }
+  PET.kind = kind; PET.on = !!kind; PET.g.visible = !!kind; if (!kind) return;
+  PET.m = petModel(kind); PET.g.add(PET.m.g);
+  if (near || !PET.x) { PET.x = player.x + Math.sin(player.yaw) * 1.5; PET.z = player.z + Math.cos(player.yaw) * 1.5; }
+}
+function petUpdate(dt) {
+  if (!PET.on || !PET.m) return;
+  const hide = BE.inside || DW.inside || DGM.inside || mode === 'fly' || mode === 'scope' || !RPG.made;
+  PET.g.visible = !hide; if (hide) return;
+  const t = uTime.value, bx = player.x + Math.sin(player.yaw) * 1.4 + Math.cos(player.yaw) * 0.9, bz = player.z + Math.cos(player.yaw) * 1.4 - Math.sin(player.yaw) * 0.9; // atrás e ao lado
+  let dx = bx - PET.x, dz = bz - PET.z, d = Math.hypot(dx, dz);
+  if (d > 25 || Math.abs(floorY(PET.x, PET.z) - floorY(player.x, player.z)) > 3) { PET.x = bx; PET.z = bz; d = 0; }
+  const moving = d > 0.4, sp = Math.min(d * 2.6, mode === 'ride' ? 14 : 8);
+  if (moving) { PET.x += dx / d * Math.min(d, sp * dt); PET.z += dz / d * Math.min(d, sp * dt); PET.hd += clamp(wrapAngle(Math.atan2(dx, dz) - PET.hd), -dt * 6, dt * 6); }
+  else PET.hd += clamp(wrapAngle(Math.atan2(player.x - PET.x, player.z - PET.z) - PET.hd), -dt * 3, dt * 3);
+  PET.amt += ((moving ? 1 : 0) - PET.amt) * Math.min(1, dt * 6); PET.ph += dt * 9 * PET.amt + dt;
+  PET.jump = Math.max(0, (PET.jump || 0) - dt); const hop = PET.jump > 0 ? Math.sin(PET.jump / 0.6 * Math.PI) * 0.4 : 0;
+  PET.y = floorY(PET.x, PET.z); PET.g.position.set(PET.x, PET.y + hop, PET.z); PET.g.rotation.y = PET.hd;
+  const m = PET.m;
+  if (m.kind === 'slime') { const s = Math.abs(Math.sin(PET.ph * 0.8)); m.b.scale.set(1 + 0.15 * (1 - s), 0.8 + 0.3 * s, 1 + 0.15 * (1 - s)); m.b.position.y = s * 0.18 * PET.amt; }
+  if (m.w) for (const { w, sx } of m.w) w.rotation.z = sx * Math.sin(t * (m.fly ? 24 : 9)) * (m.fly ? 0.6 : 0.4);
+  if (m.fly) m.b.position.y = 1.3 + Math.sin(t * 2.2) * 0.12;
+  else if (m.b && m.kind !== 'slime') m.b.position.y = (m.kind === 'dragao' ? 0.32 : 0) + Math.abs(Math.sin(PET.ph)) * 0.04 * PET.amt;
+  if (m.legs) m.legs.forEach((l, i) => { l.rotation.x = Math.sin(PET.ph + (i % 2 ? Math.PI : 0)) * 0.6 * PET.amt; });
+  if (m.arms) m.arms.forEach((a, i) => { a.rotation.x = Math.sin(PET.ph + (i ? Math.PI : 0)) * 0.5 * PET.amt; });
+  if (m.led) m.led.material.color.setHex(Math.sin(t * 6) > 0 ? 0xff4a4a : 0x4a1a1a);
+  if (m.kind === 'dragao' && Math.random() < dt * 0.4) spawnFX(TEX.smoke, V3(PET.x + Math.sin(PET.hd) * 0.5, PET.y + 0.55, PET.z + Math.cos(PET.hd) * 0.5), { vel: V3(0, 0.4, 0), life: 1.2, size: 0.08, grow: 1.5, color: 0xd8d8d8 });
+}
+
+/* ---- zona de batalha no pé da torre (para as criaturas que fogem) ---- */
+const TWZ = fwZone(TWREG, 'Pé da Torre', { x: TWR.x, z: TWR.z }, 30, { ...twW(0, 13), yaw: twYawOut() });
+
+/* ---- missões da Professora Lumi ---- */
+QUESTS.lab_ciencia = { t: 'A Ciência da Rainha', giver: 'lumi', d: 'A Professora Lumi quer ver do que a senhora é capaz nos laboratórios da Torre de Pesquisas.', obj: [['ev:lab_desc', 3, 'Descubra 3 reações no béquer ⚗'], ['ev:lab_livro', 1, 'Leia um livro no Andar de Estudos 📚'], ['ev:lab_quiz', 2, 'Acerte 2 cálculos no quadro 🧮']], r: { xp: 260, gold: 80, items: { pocao_vida: 2 } },
+  offer: '— Majestade! Que honra! Esta torre foi construída para a senhora descobrir os segredos do mundo. Vamos começar? Faça três reações, leia um livro e resolva dois cálculos ⚗', wait: '— O béquer fica no Andar de Experimentos: pegue um frasco, toque no béquer para despejar e depois aqueça. Os quadros estão no Andar de Cálculos 🧮', ready: '— Incrível! A senhora tem mãos de cientista. Agora vem a parte proibida… 🧬', thanks: '— A ciência agradece, Majestade ✦' };
+QUESTS.lab_vida = { t: 'O Segredo da Vida', giver: 'lumi', d: 'Na Câmara de Criação, o Musgo Lunar dá vida ao que tocar. A Professora Lumi quer ver a primeira criatura da rainha.', obj: [['ev:lab_criatura', 1, 'Dê vida a uma criatura na Câmara de Criação 🧬'], ['ev:lab_desc', 4, 'Faça mais 4 descobertas']], r: { xp: 420, gold: 140, items: { elixir: 2 } },
+  offer: '— O Livro Proibido da Vida… a senhora já leu? Lá diz que tudo começa com o Musgo Lunar. Crie uma criatura na Câmara. Só tome cuidado com as escamas! 🐉', wait: '— Três ingredientes na câmara, o Musgo Lunar entre eles, e depois a faísca ⚡', ready: '— Ela é linda! Nunca vi uma criatura tão feliz de seguir alguém… acho que puxou ao rei 💛', thanks: '— Cuide bem dela, Majestade 🧬' };
+PLACES.push({ id: 'torre', n: 'Torre de Pesquisas', i: '🧪', x: TWR.x, z: TWR.z, r: 24 }); PLACE_SUB.torre = 'ciência, magia e criaturas';
+MAP_PLACES.push({ i: '🧪', n: 'Torre de Pesquisas', x: TWR.x, z: TWR.z });
+TRAVEL.push({ id: 'torre', icon: '🧪', name: 'Torre de Pesquisas', to: 'rumo à Torre de Pesquisas', h: () => twW(0, 13), d: () => twW(-8, 24) });
+
+/* ---- a cada quadro ---- */
+let twScrT = 0;
+function updateTower(dt) {
+  petUpdate(dt); labHandUpdate(); cupUpdate(dt);
+  if (RPG.made) LUMI.quest = RPG.q.lab_ciencia?.s === 'done' ? 'lab_vida' : 'lab_ciencia';
+  const i = TWR.cur; if (i < 0) return;
+  if (mode === 'walk' && Math.hypot(player.x - TWR.x, player.z - TWR.z) > 12) { TWR.cur = -1; TWF.forEach(f => { f.g.visible = false; }); labDrop(false); return; } // saiu de outro jeito (viagem, desmaio): fecha a torre
+  const t = uTime.value, F = TWF[i], fl = 0.88 + 0.08 * Math.sin(t * 9) + 0.05 * Math.sin(t * 21 + 1);
+  dunLight.position.copy(camera.position).add(V3(-Math.sin(player.yaw) * 0.6, 0.4, -Math.cos(player.yaw) * 0.6)); dunLight.intensity = 7 * fl; dunLight.distance = 12; // suave: forte demais estourava as mesas e os quadros perto da câmera
+  F.beam.material.opacity = 0.16 + 0.08 * Math.sin(t * 3);
+  if (i === 0) F.globe.rotation.y += dt * 0.2;
+  if (i === 1) {
+    LABB.heat = Math.max(0, LABB.heat - dt); LABC.zap = Math.max(0, (LABC.zap || 0) - dt);
+    const lv = LABC.liq; lv.scale.y += (LABC.k - lv.scale.y) * Math.min(1, dt * 3); lv.position.y = 0.6 + lv.scale.y * 1.5; LABC.liqM.opacity = 0.45 + 0.15 * Math.sin(t * 2) + LABC.zap * 0.3;
+    if (Math.random() < dt * (2 + LABC.list.length * 4)) { const c = twW(-5.2 + rv(0.8), 0.6 + rv(0.8)); spawnFX(TEX.glow, V3(c.x, TWR.fy[1] + 0.8, c.z), { vel: V3(0, 0.9, 0), life: lv.scale.y * 2.6, size: 0.07, grow: 0.3, add: true, color: LABC.liqM.color.getHex() }); }
+    if (LABB.heat > 0 && Math.random() < dt * 10) { const c = twW(0.9, 4.5); spawnFX(TEX.smoke, V3(c.x, TWR.fy[1] + 1.7, c.z), { vel: V3(rv(0.1), 0.5, rv(0.1)), life: 1.6, size: 0.12, grow: 2, color: 0xe8e8e8 }); }
+    if (Math.random() < dt * 1.5) spawnFX(TEX.glow, V3(LABC.cau.x + rv(0.4), TWR.fy[1] + 1.0, LABC.cau.z + rv(0.4)), { vel: V3(0, 0.4, 0), life: 1.2, size: 0.1, grow: 0.4, add: true, color: 0xb88aff });
+  }
+  if (i === 2) { for (const R of F.reels) R.r.rotation.z += dt * R.sp; F.atom.rotation.y += dt * 0.4;
+    const sh = F.atomSh || [1]; F.orbits.forEach((O, k) => { const n = Math.min(8, sh[k] || 0); O.o.visible = k < Math.min(3, sh.length); O.es.forEach((e, j) => { e.visible = j < n; const an = t * O.sp + j / Math.max(1, n) * Math.PI * 2; e.position.set(Math.cos(an) * O.r, 0, Math.sin(an) * O.r); }); });
+    labScreens(dt); if ((twScrT -= dt) < 0) { twScrT = 0.5; F.leds.forEach(m => { m.visible = Math.random() > 0.3; }); F.mlight.forEach(m => { m.visible = Math.random() > 0.4; }); } }
+  if (i === 3) { for (const g of LAB_MOL) { g.rotation.y += dt * 0.5; g.position.y = 1.6 + Math.sin(t * 1.3 + g.id) * 0.04; }
+    F.holo.rotation.y += dt * 0.3; F.holo.position.y = 2.1 + Math.sin(t * 1.4) * 0.05; F.shells.forEach(S => { const n = Math.min(12, S.n); S.es.forEach((e, j) => { if (j >= n) return; const an = t * S.sp + j / n * Math.PI * 2; e.position.set(Math.cos(an) * S.r, 0, Math.sin(an) * S.r); }); });
+    for (const P of F.planets) P.a.rotation.y += dt * P.sp * 0.5; }
+  if (i === 4) {
+    beFire.position.set(F.fire.x, TWR.fy[4] + 0.8, F.fire.z); beFire.intensity = 26 * fl; beFire.distance = 14;
+    const p = LUMI.p; p.arms[0].rotation.set(-0.3 + Math.sin(t * 1.1) * 0.15, 0, -0.1); p.arms[1].rotation.set(-0.1 + Math.sin(t * 0.8) * 0.08, 0, 0.1);
+    for (const j of F.jars) if (j.inner.visible) j.inner.rotation.y += dt * 0.6;
+  }
+}
+if (RPG.made && RPG.lab && RPG.lab.pet) petSet(RPG.lab.pet, true);
+labBoardDraw(); ptHolo(1); ptWall(0);
+
 /* desenha o mapa do chão ocupado: tudo o que é sólido (pedras, troncos, muros, casas) e os chãos elevados */
 {
   const { R, N } = OCC, k = N / (2 * R), cv = document.createElement('canvas'); cv.width = cv.height = N;
@@ -11094,6 +12176,7 @@ function frame() {
   sparkle.material.rotation = uTime.value * 0.3;
   windmillBlades.rotation.z -= dt * 0.35;
   updateWorld2(dt);
+  updateTower(dt);
   for (const f of flags) {
     const pa = f.mesh.geometry.attributes.position, b = f.base;
     for (let i = 0; i < pa.count; i++) {
