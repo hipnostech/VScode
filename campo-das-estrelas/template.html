@@ -1825,6 +1825,22 @@ const sfx = (() => {
   const noise = () => { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; return s; };
   const filt = (type, f, q = 1) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
   const chain = (...n) => { for (let i = 0; i < n.length - 1; i++) n[i].connect(n[i + 1]); return n[n.length - 1]; };
+  const BT = { on: false, g: null, iv: null, next: 0, step: 0 }; // música de batalha: bumbo, caixa, chimbal, baixo e melodia em lá menor (120 bpm)
+  const BT_BASS = [55, 55, 65.4, 49, 55, 55, 73.4, 65.4], BT_LEAD = [440, 523, 659, 523, 587, 523, 494, 392, 440, 523, 659, 784, 698, 659, 587, 523];
+  const btTone = (t, type, f, f2, vol, a, d, lp) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d * 0.6); if (lp) chain(o, filt('lowpass', lp), g, BT.g); else chain(o, g, BT.g); env(g, t, a, vol, d); o.start(t); o.stop(t + d + 0.05); };
+  const btNoise = (t, hp, vol, d) => { const n = noise(), g = ctx.createGain(); chain(n, filt('highpass', hp), g, BT.g); env(g, t, 0.003, vol, d); n.start(t); n.stop(t + d + 0.05); };
+  function btTick() {
+    if (!ctx || !BT.g) return;
+    while (BT.next < ctx.currentTime + 0.3) {
+      const t = BT.next, st = BT.step % 16, bar = Math.floor(BT.step / 16);
+      if (st % 8 === 0) btTone(t, 'sine', 150, 42, 0.9, 0.003, 0.28);
+      if (st % 8 === 4) { btNoise(t, 1400, 0.35, 0.16); btTone(t, 'triangle', 210, 0, 0.18, 0.003, 0.1); }
+      if (st % 2 === 0) btNoise(t, 7000, st % 4 === 2 ? 0.07 : 0.04, 0.04);
+      if (st % 4 === 0) btTone(t, 'sawtooth', BT_BASS[(bar * 4 + st / 4) % 8], 0, 0.22, 0.01, 0.42, 520);
+      if (bar % 2 === 1 && st % 2 === 0) btTone(t, 'square', BT_LEAD[(st / 2 + (bar % 4 === 3 ? 8 : 0)) % 16], 0, 0.05, 0.01, 0.22, 2400);
+      BT.next += 0.125; BT.step++;
+    }
+  }
   function chime(notes, vol = 0.16) {
     if (!ok()) return;
     notes.forEach((fr, i) => { const t = ctx.currentTime + i * 0.1, o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = fr; chain(o, g, master); env(g, t, 0.01, vol, 1.4); o.start(t); o.stop(t + 1.5); });
@@ -1865,6 +1881,11 @@ const sfx = (() => {
       if (!ok()) return; const t = ctx.currentTime, n = noise(), lp = filt('lowpass', 170), am = ctx.createGain(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
       lfo.frequency.value = 24; lg.gain.value = .5; am.gain.value = .5; lfo.connect(lg); lg.connect(am.gain);
       chain(n, lp, am, g, master); env(g, t, .3, 1.1, d); n.start(t); n.stop(t + d + .1); lfo.start(t); lfo.stop(t + d + .1);
+    },
+    battle(on) { // liga/desliga a música de batalha com fade
+      if (!ok() || on === BT.on) return; BT.on = on; const t = ctx.currentTime;
+      if (on) { if (!BT.g) { BT.g = ctx.createGain(); BT.g.gain.value = 0.0001; BT.g.connect(master); } BT.g.gain.cancelScheduledValues(t); BT.g.gain.setTargetAtTime(0.5, t, 0.7); BT.next = t + 0.05; BT.step = 0; if (!BT.iv) BT.iv = setInterval(btTick, 70); }
+      else { BT.g.gain.cancelScheduledValues(t); BT.g.gain.setTargetAtTime(0.0001, t, 0.9); setTimeout(() => { if (!BT.on && BT.iv) { clearInterval(BT.iv); BT.iv = null; } }, 4000); }
     },
     roar() {
       if (!ok()) return; const t = ctx.currentTime, g = ctx.createGain(), lp = filt('lowpass', 500, 2);
@@ -5526,11 +5547,17 @@ function dgSwing() { // ataque básico: espada corta, arco atira, cajado lança 
   const lute = h === 'lute', y0 = out ? floorY(player.x, player.z) : DGP.y; DGM.cd = lute ? 0.5 : 0.42; DGM.swing = 0.3;
   if (lute) { sfx.chime([659, 988], 0.05); for (let k = 0; k < 5; k++) spawnFX(noteTex, V3(player.x + fx * (1 + k * 0.5) + rv(0.4), y0 + 1.3 + rv(0.3), player.z + fz * (1 + k * 0.5) + rv(0.4)), { vel: V3(fx * 3, 0.4, fz * 3), life: 0.6, size: 0.3, grow: 0.3, color: [0xffe6a0, 0xcfe8ff, 0xffb8e0][k % 3] }); }
   else { sfx.whoosh(0.14, 0.25); if (out) for (let k = 0; k < 6; k++) { const a = Math.atan2(fx, fz) + (k - 2.5) * 0.22; spawnFX(TEX.spark, V3(player.x + Math.sin(a) * 1.5, y0 + 1.1, player.z + Math.cos(a) * 1.5), { vel: V3(Math.sin(a) * 1.5, 0, Math.cos(a) * 1.5), life: 0.25, size: 0.3, grow: -0.6, add: true, color: 0xffe6c0 }); } }
+  let mult = 1, big = false, hits = 0;
+  if (!lute) { const now = performance.now(); COMBO.n = now - COMBO.t < 950 ? COMBO.n % 3 + 1 : 1; COMBO.t = now; if (COMBO.n === 3) { mult = 1.8; big = true; DGM.cd = 0.62; sfx.whoosh(0.2, 0.35); if (out) for (let k = 0; k < 14; k++) { const a = Math.atan2(fx, fz) + (k - 6.5) * 0.17; spawnFX(TEX.spark, V3(player.x + Math.sin(a) * 1.9, y0 + 1.0, player.z + Math.cos(a) * 1.9), { vel: V3(Math.sin(a) * 2.4, 0.3, Math.cos(a) * 2.4), life: 0.35, size: 0.4, grow: -0.5, add: true, color: 0xffc040 }); } } } // combo: o 3º golpe seguido é forte e empurra
   for (const e of foesNow()) {
     if ((e.air || 0) > 0.3) continue; // voando alto: só flechas e magias
-    const dx = e.x - player.x, dz = e.z - player.z, d = Math.hypot(dx, dz), rng = (foeBig(e) ? 4.4 : 2.8) + (lute ? 0.6 : 0) + (out ? (e.st.r || 0.4) * 0.5 : 0);
-    if (d < rng && (dx * fx + dz * fz) / (d || 1) > (lute ? 0.3 : 0.42)) foeHit(e, DGM.dmg);
+    const dx = e.x - player.x, dz = e.z - player.z, d = Math.hypot(dx, dz), rng = (foeBig(e) ? 4.4 : 2.8) + (lute ? 0.6 : 0) + (big ? 0.5 : 0) + (out ? (e.st.r || 0.4) * 0.5 : 0);
+    if (d < rng && (dx * fx + dz * fz) / (d || 1) > (lute ? 0.3 : 0.42)) {
+      foeHit(e, Math.max(1, Math.round(DGM.dmg * mult))); hits++;
+      if (big && out && !foeBig(e) && !e.dead) { e.x += dx / (d || 1) * 2.0; e.z += dz / (d || 1) * 2.0; e.stun = Math.max(e.stun || 0, 0.8); }
+    }
   }
+  if (hits) { if (big) { shake(0.12, 0.3); hitStop(0.09); sfx.clop(); } else { shake(0.04, 0.12); hitStop(0.03); } }
   if (out) return;
   for (const p of DGM.projs) { const dx = p.x - player.x, dz = p.z - player.z; if (Math.hypot(dx, dz) < 2.4 && dx * fx + dz * fz > 0) p.life = 0; }
 }
@@ -8997,7 +9024,8 @@ function updateWalk(dt) {
   const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
   const tx = (-sy * mz + cy * mx) * speed, tz = (-cy * mz - sy * mx) * speed;
   const k = 1 - Math.exp(-dt * 8);
-  player.vx += (tx - player.vx) * k; player.vz += (tz - player.vz) * k;
+  if (DODGE.t > 0) { DODGE.t -= dt; player.vx = DODGE.dx * 11; player.vz = DODGE.dz * 11; } // esquiva: um impulso rápido
+  else { player.vx += (tx - player.vx) * k; player.vz += (tz - player.vz) * k; }
   const ox = player.x, oz = player.z;
   player.x += player.vx * dt; player.z += player.vz * dt;
   collide(player, 0.35);
@@ -9777,6 +9805,66 @@ $r('rpgBar').addEventListener('click', e => {
   fb.addEventListener('contextmenu', e => e.preventDefault());
 }
 const FIRE_ICON = { bow: '🏹', staff: '✦', lute: '🎵' };
+/* ---- combate com habilidade: esquiva (X), travar a mira (Tab), combo, tremor de tela e música de batalha ---- */
+const COMBO = { n: 0, t: 0 }, SHAKE = { t: 0, a: 0 }, HITSTOP = { t: 0 }, DODGE = { t: 0, cd: 0, dx: 0, dz: 0, rolled: false }, LOCK = { e: null, mk: null }, BATTLE = { on: false, calm: 0 };
+function shake(a, t) { if (a >= SHAKE.a * Math.min(1, SHAKE.t / 0.12)) { SHAKE.a = a; SHAKE.t = t; } }
+function hitStop(t) { HITSTOP.t = Math.max(HITSTOP.t, t); }
+function rpgDodge() {
+  if (mode !== 'walk' || DODGE.cd > 0 || player.pose !== 'stand' || !RPG.made || rpgOpen() || overlayOpen()) return;
+  let mx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0) + joy.x, mz = (keys['w'] || keys['arrowup'] ? 1 : 0) - (keys['s'] || keys['arrowdown'] ? 1 : 0) + joy.y;
+  if (Math.hypot(mx, mz) < 0.2) { mx = 0; mz = -1; } // parada: pula para trás
+  const l = Math.hypot(mx, mz), sy = Math.sin(player.yaw), cy = Math.cos(player.yaw); mx /= l; mz /= l;
+  DODGE.dx = -sy * mz + cy * mx; DODGE.dz = -cy * mz - sy * mx; DODGE.t = 0.34; DODGE.cd = 0.8; FW.inv = Math.max(FW.inv, 0.45); DGM.inv = Math.max(DGM.inv, 0.45);
+  markInteracted(); sfx.whoosh(0.08, 0.22); rpgEvent('esquiva');
+  const y = floorY(player.x, player.z); for (let k = 0; k < 8; k++) spawnFX(TEX.smoke, V3(player.x + rv(0.3), y + 0.15, player.z + rv(0.3)), { vel: V3(-DODGE.dx * 0.8 + rv(0.3), 0.3, -DODGE.dz * 0.8 + rv(0.3)), life: 0.7, size: 0.25, grow: 1.5, color: 0xd8ccb0 });
+}
+function lockPick() { // o monstro mais perto, dando preferência a quem está na frente
+  let best = null, bs = 1e9; const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  for (const e of FW.foes) { if (!fwLive(e)) continue; const dx = e.x - player.x, dz = e.z - player.z, d = Math.hypot(dx, dz); if (d > 26) continue; const sc = d * (1.6 - (dx * fx + dz * fz) / (d || 1)); if (sc < bs) { bs = sc; best = e; } }
+  return best;
+}
+function toggleLock() {
+  if (!RPG.made || mode !== 'walk' || DGM.inside) return; markInteracted();
+  if (LOCK.e) { LOCK.e = null; sfx.chime([523, 392], 0.04); return; }
+  LOCK.e = lockPick(); if (LOCK.e) { sfx.chime([659, 880], 0.04); rpgEvent('travar'); } else whisper('🎯 nenhum monstro por perto para travar a mira', 2, true);
+}
+{
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.strokeStyle = '#ff4a4a'; g.lineWidth = 9; g.beginPath(); g.arc(64, 64, 48, 0, 7); g.stroke(); g.fillStyle = '#ff4a4a'; for (let k = 0; k < 4; k++) { g.save(); g.translate(64, 64); g.rotate(k * Math.PI / 2); g.fillRect(-5, -62, 10, 22); g.restore(); }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  LOCK.mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false })); LOCK.mk.renderOrder = 20; LOCK.mk.visible = false; scene.add(LOCK.mk);
+}
+function combatFrame(dt) {
+  DODGE.cd = Math.max(0, DODGE.cd - dt);
+  // rolamento: o corpo gira para a frente durante a esquiva
+  const m = HERO.model; if (m) { if (DODGE.t > 0) { const k = 1 - DODGE.t / 0.34; m.g.rotation.x = k * Math.PI * 2; m.g.position.y = Math.sin(k * Math.PI) * 0.35 - 0.25 * Math.sin(k * Math.PI); HERO.yaw = Math.atan2(DODGE.dx, DODGE.dz); DODGE.rolled = true; } else if (DODGE.rolled) { m.g.rotation.x = 0; m.g.position.y = 0; DODGE.rolled = false; } }
+  if (DODGE.t > 0 && TP.back < 1.1) player.dip = -0.35 * Math.sin((1 - DODGE.t / 0.34) * Math.PI);
+  // mira travada: a câmera acompanha o monstro e uma marca vermelha fica em cima dele
+  const e = LOCK.e;
+  if (e && (!fwLive(e) || mode !== 'walk' || DGM.inside || Math.hypot(e.x - player.x, e.z - player.z) > 32)) LOCK.e = null;
+  if (LOCK.e) {
+    const c = foeCenter(LOCK.e); LOCK.mk.visible = true; LOCK.mk.position.set(c.x, c.y + LOCK.e.h * 0.55 + 0.6, c.z); LOCK.mk.scale.setScalar(0.7 + 0.08 * Math.sin(uTime.value * 6)); LOCK.mk.material.rotation = uTime.value * 1.5;
+    if (!AIM.on && player.pose === 'stand') { const want = Math.atan2(-(c.x - player.x), -(c.z - player.z)); player.yaw += wrapAngle(want - player.yaw) * Math.min(1, dt * 5); }
+  } else LOCK.mk.visible = false;
+  // música de batalha: começa quando um monstro te persegue, acaba depois de alguns segundos de calma
+  const fight = RPG.made && mode === 'walk' && (DGM.inside ? (DGM.floors[DGM.cur] || { enemies: [] }).enemies.some(x => !x.dead) : FW.foes.some(x => x.aggro && fwLive(x) && Math.hypot(x.x - player.x, x.z - player.z) < 34));
+  BATTLE.calm = fight ? 0 : BATTLE.calm + dt;
+  const on = fight || (BATTLE.on && BATTLE.calm < 5);
+  if (on !== BATTLE.on) { BATTLE.on = on; sfx.battle(on); if (on && FW.foes.some(x => x.aggro && fwLive(x) && x.st.boss)) sfx.roar(); }
+  if (typeof music !== 'undefined' && music && music.volume > 0.02 && !W3.boxPlaying) { const want = BATTLE.on ? 0.22 : 0.7; try { music.volume += (want - music.volume) * Math.min(1, dt * 1.2); } catch (er) {} } // a música do reino abaixa durante a batalha
+}
+/* celular: botões de esquiva e de travar a mira, ao lado do botão de ataque */
+{
+  for (const [id, ic, fn] of [['rpgDodgeB', '💨', () => rpgDodge()], ['rpgLockB', '🎯', () => toggleLock()]]) {
+    const b = document.createElement('button'); b.id = id; b.className = 'hidden'; b.textContent = ic; document.body.appendChild(b);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 150); });
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  const css = document.createElement('style');
+  css.textContent = `#rpgDodgeB,#rpgLockB{position:fixed;z-index:20;width:54px;height:54px;border-radius:50%;border:2px solid rgba(255,220,163,.5);background:rgba(30,40,70,.55);color:#fff;font-size:24px;display:grid;place-items:center;touch-action:none;user-select:none;-webkit-user-select:none;transition:opacity .4s,transform .1s}
+#rpgDodgeB{right:calc(104px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom))} #rpgLockB{right:calc(28px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom))}
+#rpgDodgeB.on,#rpgLockB.on{transform:scale(.88)} body:not(.touch) #rpgDodgeB,body:not(.touch) #rpgLockB{display:none!important} body.photo #rpgDodgeB,body.photo #rpgLockB{opacity:0!important;pointer-events:none!important}`;
+  document.head.appendChild(css);
+}
 /* gestos e modo foto */
 const EMOTES = [['acenar', '👋 acenar', 2.2], ['dancar', '💃 dançar', 5], ['reverencia', '🙇 reverência', 2.4], ['beijo', '😘 mandar beijo', 2.2], ['comemorar', '🎉 comemorar', 2.4]];
 const EMO = { k: null, t: 0 };
@@ -9813,8 +9901,8 @@ function rpgTitle() {
 function openHelp() {
   openPanel('help', pn => {
     closeX(pn); h$('h2', null, 'Como jogar', pn);
-    const L = isTouch ? ['🕹 Polegar esquerdo: andar · arrastar o resto da tela: olhar', '✨ Toque no que brilha para interagir: pessoas, portas, baús, bichos…', '⤒ Pular · ✦ Habilidade da sua classe · 🧪 Poção de vida', '🎒 Mochila · 📜 Missões · 👤 Personagem · 😊 Gestos · 🎥 Câmera atrás de você ou nos seus olhos', '🗺 Toque no minimapa para abrir o mapa do reino']
-      : ['WASD ou setas: andar · Shift: correr · arraste o mouse: olhar', 'Clique no que brilha (ou E perto) para interagir', 'Espaço: pular · Q: habilidade da classe · 1: poção de vida', 'I: mochila · J: missões · K: personagem · G: gestos · V: câmera · M: mapa · Esc: menu', 'C: sentar · F: desfolhar a margarida'];
+    const L = isTouch ? ['🕹 Polegar esquerdo: andar · arrastar o resto da tela: olhar', '✨ Toque no que brilha para interagir: pessoas, portas, baús, bichos…', '⤒ Pular · ✦ Habilidade da sua classe · 🧪 Poção de vida · ⚔ Atacar (3 golpes seguidos = golpe forte) · 💨 Esquivar · 🎯 Travar a mira', '🎒 Mochila · 📜 Missões · 👤 Personagem · 😊 Gestos · 🎥 Câmera atrás de você ou nos seus olhos', '🗺 Toque no minimapa para abrir o mapa do reino']
+      : ['WASD ou setas: andar · Shift: correr · arraste o mouse: olhar', 'Clique no que brilha (ou E perto) para interagir', 'Espaço: pular · Q: habilidade da classe · 1: poção de vida · X: esquivar (rolamento) · Tab: travar a mira num monstro · 3 golpes seguidos de espada = golpe forte', 'I: mochila · J: missões · K: personagem · G: gestos · V: câmera · M: mapa · Esc: menu', 'C: sentar · F: desfolhar a margarida'];
     for (const s of L) h$('p', null, s, pn).style.margin = '8px 0';
     h$('h3', null, 'Dicas', pn);
     for (const s of ['Descubra lugares novos para ganhar experiência e subir de nível.', 'Converse com as pessoas das vilas: algumas têm lojas e outras pedem ajuda (missões).', 'Fragmentos de estrela dourados estão escondidos pelo reino inteiro.', 'Na Dungeon das Sombras, sua classe faz diferença: vida, dano e habilidades.', 'O jogo salva sozinho neste aparelho.']) h$('p', null, '✦ ' + s, pn).style.margin = '6px 0';
@@ -10355,6 +10443,7 @@ function foesNow() { if (DGM.inside) { const fl = DGM.floors[DGM.cur]; return fl
 function foeHit(e, dmg) { if (DGM.inside) { const keep = DGM.dmg; DGM.dmg = dmg; dgHit(DGM.floors[DGM.cur], e); DGM.dmg = keep; } else fwHit(e, dmg); }
 function fwNearFoe(r) { if (DGM.inside || !RPG.made) return false; for (const e of FW.foes) if (fwLive(e) && Math.hypot(e.x - player.x, e.z - player.z) < r) return true; return false; }
 function fwSoftTarget() { // o monstro mais perto que está na frente (para o golpe não errar por pouco)
+  if (LOCK.e && fwLive(LOCK.e) && Math.hypot(LOCK.e.x - player.x, LOCK.e.z - player.z) < (heroHold() === 'bow' || heroHold() === 'staff' ? 26 : 4.5 + LOCK.e.st.r)) return LOCK.e; // mira travada
   const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw); let best = null, bd = 1e9;
   for (const e of FW.foes) { if (!fwLive(e)) continue; const dx = e.x - player.x, dz = e.z - player.z, d = Math.hypot(dx, dz), lim = heroHold() === 'bow' || heroHold() === 'staff' ? 22 : 4 + e.st.r; if (d > lim || (dx * fx + dz * fz) / (d || 1) < (d < 2.2 ? -0.2 : 0.35)) continue; if (d < bd) { bd = d; best = e; } }
   return best;
@@ -10456,7 +10545,7 @@ function fwHit(e, dmg) {
   e.hp -= dmg; e.hitT = 0.25; FW.calm = 0; fwAlert(e);
   if (!e.st.boss && !e.chg) { const dx = e.x - player.x, dz = e.z - player.z, d = Math.hypot(dx, dz) || 1; e.x += dx / d * 0.7; e.z += dz / d * 0.7; }
   const c = foeCenter(e); spawnSparkles(c, crit ? 14 : 7, 0.3, crit ? 0xffd23a : 0xffffff); fwNum(c.add(V3(0, e.h * 0.4, 0)), crit ? `${dmg}!` : `${dmg}`, crit ? 'crit' : '');
-  sfx.chime([e.st.boss ? 196 : 330, 262], 0.05); if (crit) sfx.clop();
+  sfx.chime([e.st.boss ? 196 : 330, 262], 0.05); if (crit) { sfx.clop(); shake(0.07, 0.15); hitStop(0.05); }
   if (e.st.boss) fwBossBar(e);
   if (e.hp <= 0) fwKill(e);
 }
@@ -10506,7 +10595,7 @@ function fwDrops(dt) {
 /* monstros atacam: dano, empurrão, flash vermelho e desmaio */
 function fwHurt(n, from) {
   if (FW.inv > 0 || FW.faint || mode !== 'walk' || DGM.inside) return;
-  DGM.hp -= n; FW.inv = 0.8; FW.hurtT = 6; FW.calm = 0; player.dip = -0.12; sfx.chime([196, 147], 0.08); hudUpdate();
+  DGM.hp -= n; FW.inv = 0.8; FW.hurtT = 6; FW.calm = 0; player.dip = -0.12; shake(0.1, 0.25); hitStop(0.05); sfx.chime([196, 147], 0.08); hudUpdate();
   const f = $r('dgFlash'); f.style.opacity = 1; setTimeout(() => { f.style.opacity = 0; }, 180);
   fwNum(V3(player.x, floorY(player.x, player.z) + 2.1, player.z), `-${n}`, 'hurt');
   if (from) { const dx = player.x - from.x, dz = player.z - from.z, d = Math.hypot(dx, dz) || 1; player.x += dx / d * 0.5; player.z += dz / d * 0.5; collide(player, 0.3); }
@@ -11024,6 +11113,8 @@ addEventListener('keydown', e => {
   else if (k === 'q') { rpgCast(); e.stopImmediatePropagation(); } else if (k === 'v') { toggleCam(); e.stopImmediatePropagation(); } else if (k === '1') { rpgUseItem('pocao_vida'); e.stopImmediatePropagation(); }
   else if (k === ' ' && !DGM.inside) { rpgJump(); e.preventDefault(); e.stopImmediatePropagation(); }
   else if (k === 'g') { toggleEmo(); e.stopImmediatePropagation(); }
+  else if (k === 'x') { rpgDodge(); e.stopImmediatePropagation(); }
+  else if (k === 'tab') { e.preventDefault(); toggleLock(); e.stopImmediatePropagation(); }
   else if (k === 'escape' && document.body.classList.contains('photo')) { photoMode(false); e.stopImmediatePropagation(); }
   else if (k === 'escape' && player.pose === 'stand' && !player.seat) { openMenu(); e.stopImmediatePropagation(); }
 }, true);
@@ -11037,14 +11128,14 @@ function clockHud(dt) {
   const n = isNight(); if (CLK.night !== null && n !== CLK.night && RPG.made && TIME.ff == null) toast(n ? '🌙 anoiteceu · os monstros ficam mais fortes, mas dão mais XP e ouro' : '🌅 amanheceu · os mortos do cemitério voltam a dormir', 4200); CLK.night = n;
 }
 function rpgFrame(dt) {
-  updateHero(dt); updateFish(dt); clockHud(dt);
+  updateHero(dt); updateFish(dt); clockHud(dt); combatFrame(dt);
   if (!RPG.made) return;
   updateAbility(dt); updatePlaces(dt); fwFrame(dt); evFrame(dt);
   RPG_BUFF.t = Math.max(0, RPG_BUFF.t - dt); RPG.t += dt;
   if ((regenT += dt) > 1) { regenT = 0; RPG.mp = Math.min(ST.maxMp, RPG.mp + 0.22 + ST.mag * 0.02); if (!DGM.inside && DGM.hp < DGM.max && FW.hurtT <= 0) DGM.hp = Math.min(DGM.max, DGM.hp + (FW.calm > 8 ? 0.35 : 0.12)); hudUpdate(); }
   const hide = UI.title || UI.panel || UI.dlg || FISH.on || mode === 'scope' || mode === 'busy' && !DGM.inside || !bigEl.classList.contains('hidden');
   $r('rpgBar').classList.toggle('hidden', !!hide); $r('rpgHud').classList.toggle('hidden', !!hide);
-  if (isTouch) { const fb = $r('rpgFire'), ic = FIRE_ICON[heroHold()] || '⚔'; fb.classList.toggle('hidden', !!hide || mode !== 'walk' || player.pose !== 'stand'); if (fb.textContent !== ic) fb.textContent = ic; }
+  if (isTouch) { const fb = $r('rpgFire'), ic = FIRE_ICON[heroHold()] || '⚔', off = !!hide || mode !== 'walk' || player.pose !== 'stand'; fb.classList.toggle('hidden', off); if (fb.textContent !== ic) fb.textContent = ic; $r('rpgDodgeB').classList.toggle('hidden', off); $r('rpgLockB').classList.toggle('hidden', off || DGM.inside); $r('rpgLockB').style.background = LOCK.e ? 'rgba(170,40,50,.75)' : ''; }
   $r('rpgAim').classList.toggle('hidden', !!hide || mode !== 'walk' || player.pose !== 'stand' || !aimsRanged()); $r('rpgAim').classList.toggle('on', AIM.on || AIM.shotT > 0); if (hide) $r('rpgEmo').classList.add('hidden');
   if (hide) $r('rpgTrack').classList.add('hidden'); else if (RPG.opt.tracker && RPG.track && RPG.q[RPG.track]?.s === 'active') $r('rpgTrack').classList.remove('hidden');
   if ((saveT += dt) > 15) { saveT = 0; rpgSave(); }
@@ -12154,7 +12245,8 @@ addEventListener('orientationchange', () => setTimeout(onResize, 250));
 
 const clock = new THREE.Clock();
 function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  let dt = Math.min(clock.getDelta(), 0.05);
+  if (HITSTOP.t > 0) { HITSTOP.t -= dt; dt *= 0.06; } // pausa no impacto: o mundo quase para por um instante
   uTime.value += dt;
   updateTweens(dt);
   if (mode === 'walk') updateWalk(dt);
@@ -12165,6 +12257,7 @@ function frame() {
   else placeCamera();
   rpgFrame(dt);
   camera.rotation.set(player.pitch, player.yaw, 0);
+  if (SHAKE.t > 0) { SHAKE.t -= dt; const a = SHAKE.a * Math.min(1, SHAKE.t / 0.12); camera.position.x += rv(a); camera.position.y += rv(a); camera.position.z += rv(a); camera.rotation.z += rv(a * 0.15); } // tremor de tela
   uCam.value.copy(camera.position);
   skyGroup.position.copy(camera.position);
 
