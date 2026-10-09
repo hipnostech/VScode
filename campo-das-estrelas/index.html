@@ -13882,7 +13882,7 @@ function rstStartCook(r) {
   whisper(`${r.st === 'forno' ? '🔥' : r.st === 'fogao' ? '🍲' : '🔪'} ${r.st === 'bancada' ? 'picando, misturando' : 'no fogo'}… ${ITEMS[r.id].n} saindo!`, 3.2); sfx.crackle(); if (r.st === 'bancada') [0, 180, 360, 540].forEach(d => setTimeout(() => sfx.clop(), d));
 }
 function rstDone() {
-  const { r, s } = RK.cook; RK.cook = null; addItem(r.id); rpgEvent('cozinhar'); rpgEvent('cook:' + r.id);
+  const { r, s } = RK.cook, home = typeof HK !== 'undefined' && RK.at === HK.stations; RK.cook = null; if (home) holdFood(r.id); else addItem(r.id); rpgEvent('cozinhar'); /* em casa o prato vai direto para a mão */ rpgEvent('cook:' + r.id);
   const st = rkS(); if (!st.known[r.id]) { st.known[r.id] = 1; gainXP(20, 'receita nova'); toast(`📖 receita nova no livro: ${ITEMS[r.id].i} ${ITEMS[r.id].n} (${Object.keys(st.known).length}/${RECIPES.length})`); }
   const p = s.w ? s.w(0.4) : rstW(s.lx, s.y + 0.4, s.lz); spawnSparkles(p, 16, 0.5, 0xffd890); const em = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(ITEMS[r.id].i), transparent: true, depthWrite: false })); em.position.copy(p); em.scale.setScalar(0.55); scene.add(em); RK.plates.push({ o: em, t: 2.2, rise: true });
   sfx.chime([659, 784, 1047], 0.06); rpgSave();
@@ -14682,14 +14682,15 @@ const NAIL_C = [[0xe82a4a, 'vermelho paixão'], [0xff8ab8, 'rosa chiclete'], [0x
     addInteract([m], () => { if (mode !== 'walk') return; markInteracted(); homePlot(P); }, { at: q, near: 2.6 });
   });
   { const q = gq(9.3, -7.2), g = vlGrp(S, q, HOME.rot); cyl(g, 0.4, 0.42, 0.9, 0, 0.45, 0, wood, 12); cyl(g, 0.38, 0.38, 0.02, 0, 0.88, 0, matC(0x4a7aa8), 12); const can = new THREE.Group(); can.position.set(0.55, 0, 0.1); g.add(can); cyl(can, 0.14, 0.16, 0.3, 0, 0.15, 0, matC(0x5a9a5a), 10); const sp = cyl(can, 0.02, 0.03, 0.35, 0.18, 0.28, 0, matC(0x5a9a5a), 6); sp.rotation.z = -0.9;
-    colliders.push({ ...q, r: 0.5 }); HK.canG = can; addInteract([invis(HOMER.a, gBox(1.4, 1.2, 1.2), q.x, terrainH(q.x, q.z) + 0.6, q.z)], () => { if (mode !== 'walk') return; markInteracted(); HK.can = !HK.can; RK.can = HK.can; can.visible = !HK.can; sfx.splash(0.12, 0.35); whisper(HK.can ? '💧 regador cheio: toque nos canteiros para regar' : '🪣 regador de volta no barril', 2.4); }, { at: q, near: 2.0 }); }
+    signBox(g, boardTex('💧 Regador', '#2a4a3a', 384, 80, 42), 0.8, 0.2, 0, 1.15, 0.43); colliders.push({ ...q, r: 0.5 }); HK.canG = can; addInteract([invis(HOMER.a, gBox(1.4, 1.2, 1.2), q.x, terrainH(q.x, q.z) + 0.6, q.z)], () => { if (mode !== 'walk') return; markInteracted(); HK.can = !HK.can; RK.can = HK.can; can.visible = !HK.can; sfx.splash(0.12, 0.35); whisper(HK.can ? '💧 regador cheio: toque nos canteiros para regar' : '🪣 regador de volta no barril', 2.4); }, { at: q, near: 2.0 }); }
   { const q = gq(11.6, -9.0), g = vlGrp(S, q, HOME.rot - Math.PI / 2); pb(g, 1.0, 0.6, 0.6, 0, 0.3, 0, matC(0x8a5a3a)); for (let k = 0; k < 5; k++) pb(g, 0.16, 0.1, 0.2, -0.36 + k * 0.18, 0.62, 0, matC([0xe8402a, 0xff8a2a, 0x7ad85a, 0xe82a4a, 0xf4e8c8][k])); signBox(g, boardTex('🌱 Sementes', '#2a4a3a', 384, 80, 40), 0.9, 0.22, 0, 0.95, 0.31);
     colliders.push({ ...q, r: 0.55 }); addInteract([invis(HOMER.a, gBox(1.2, 1.2, 1.0), q.x, terrainH(q.x, q.z) + 0.6, q.z)], () => { if (mode !== 'walk') return; markInteracted(); openShop('sementes', null); }, { at: q, near: 2.0 }); }
-  { const q = gq(11.6, -13.6), g = vlGrp(S, q, HOME.rot); for (const sx of [-0.5, 0.5]) for (const sz of [-0.5, 0.5]) cyl(g, 0.05, 0.05, 0.9, sx, 0.45, sz, woodD, 5); for (let k = 0; k < 4; k++) for (const sz of [-0.5, 0.5]) pb(g, 1.0, 0.12, 0.04, 0, 0.15 + k * 0.2, sz, wood); cyl(g, 0.45, 0.45, 0.5, 0, 0.25, 0, matC(0x3a2a18), 10); colliders.push({ ...q, r: 0.6 }); }
+  { const q = gq(11.6, -13.6), g = vlGrp(S, q, HOME.rot); for (const sx of [-0.5, 0.5]) for (const sz of [-0.5, 0.5]) cyl(g, 0.05, 0.05, 0.9, sx, 0.45, sz, woodD, 5); for (let k = 0; k < 4; k++) for (const sz of [-0.5, 0.5]) pb(g, 1.0, 0.12, 0.04, 0, 0.15 + k * 0.2, sz, wood); cyl(g, 0.45, 0.45, 0.5, 0, 0.25, 0, matC(0x3a2a18), 10); signBox(g, boardTex('♻ Composteira', '#2a4a3a', 384, 80, 40), 0.9, 0.22, 0, 1.1, 0.53); colliders.push({ ...q, r: 0.6 });
+    addInteract([invis(HOMER.a, gBox(1.2, 1.2, 1.2), q.x, terrainH(q.x, q.z) + 0.6, q.z)], () => { if (mode !== 'walk') return; markInteracted(); const st = homeS(), day = RPG.dia || 0; if (st.adubo === day) { whisper('♻ o adubo de hoje já foi para a horta… a composteira precisa de um dia para fazer mais', 3, true); return; } st.adubo = day; let n = 0; for (const d of Object.values(st.horta || {})) if (d.g < 1) { d.g = Math.min(1, d.g + 0.25); n++; } sfx.chime([523, 659, 784], 0.05); whisper(n ? `♻ a senhora espalha adubo fresquinho: ${n} canteiro${n > 1 ? 's' : ''} cresceram um tanto! 🌱` : '♻ adubo pronto, mas não tem nada crescendo agora… plante alguma coisa!', 3.4); rpgSave(); }, { at: q, near: 2.0 }); }
   { const q = gq(-5.2, -10.4), g = vlGrp(S, q, HOME.rot + Math.PI / 2); pb(g, 1.5, 0.08, 0.45, 0, 0.45, 0, matC(0xf4f0e8)); pb(g, 1.5, 0.5, 0.06, 0, 0.75, -0.2, matC(0xf4f0e8)); for (const sx of [-0.65, 0.65]) pb(g, 0.07, 0.45, 0.4, sx, 0.22, 0, matC(0xd8d4cc)); colliders.push({ ...q, r: 0.55 });
     const seat = vlSeat(q, HOME.rot + Math.PI / 2 + Math.PI, terrainH(q.x, q.z) + 1.0); addInteract([invis(HOMER.a, gBox(1.5, 1, 0.8), q.x, terrainH(q.x, q.z) + 0.5, q.z)], () => sitOn(seat, '🌻 do banquinho branco dá para ver a horta crescendo… paz'), { at: q, near: 1.8 }); }
   for (let k = 0; k < 14; k++) { const lx = x0 + 0.5 + (k % 7) * ((x1 - x0 - 1) / 6), lz = k < 7 ? z1 + 0.5 : z1 + 0.5, q = gq(lx, lz + (k < 7 ? 0 : 0)); if (k >= 7) continue; const g = vlGrp(S, q, HOME.rot); for (let j = 0; j < 6; j++) ps(g, 0.1, (j - 2.5) * 0.18, 0.35, 0, matC([0xff7aa8, 0xffd84a, 0xffffff, 0xb07aff][j % 4])); ps(g, 0.3, 0, 0.18, 0, matC(0x3a7a3a), 2.2, 0.6, 0.8); } // flores na cerca do fundo
-  signBox(S, boardTex('🌱 Horta da Rainha', '#2a4a3a', 512, 90, 44), 1.8, 0.32, ...(() => { const q = gq(11, -5.9); return [q.x, terrainH(q.x, q.z) + 1.3, q.z]; })()).rotation.y = HOME.rot;
+  signBox(S, boardTex('🌱 Horta da Rainha', '#2a4a3a', 512, 90, 44), 1.8, 0.32, ...(() => { const q = gq(3.0, -5.95); return [q.x, terrainH(q.x, q.z) + 1.15, q.z]; })()).rotation.y = HOME.rot; /* presa na cerca, fora do caminho da escada */
 }
 { // árvores e pedras do mundo que nasceram onde a ala nova e a horta ficam somem (sem mexer no sorteio)
   scene.traverse(o => { if (!o.isInstancedMesh || o.count > 200000 || o === HK.leaves) return; const m = new THREE.Matrix4(), p = new THREE.Vector3(), z0 = new THREE.Matrix4().makeScale(0, 0, 0); let ch = false;
@@ -14728,6 +14729,38 @@ function homeGardenFrame(dt) {
   for (const P of HK.plots) { const d = st.horta[P.k]; if (!d) { if (P.built) homePlotBuild(P); continue; } if (P.built !== d.id) homePlotBuild(P);
     if (d.g < 1) { d.g = Math.min(1, d.g + dt * rate * (d.w > 0 ? 1 : 0.35)); } d.w = Math.max(0, d.w - dt);
     if (HOMER.near) { const s = 0.25 + 0.75 * d.g; P.plants.scale.set(1, s, 1); P.plants.children.forEach(pl => { const f = pl.getObjectByName('fruto'); if (f) f.visible = d.g >= 1; }); P.soil.material = d.w > 0 ? RST_SOILW : RST_SOIL; } }
+}
+
+/* ---- 🍽 prato na mão: a comida feita em casa sai do fogão direto para a mão (dá para comer andando ou guardar) ---- */
+const HOLD = { id: null, bites: 0, tilt: 0 };
+{
+  const mk = () => { const g = new THREE.Group(); cyl(g, 0.16, 0.13, 0.025, 0, 0, 0, matC(0xf6f2ea), 18); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.01, 5, 18), matC(0x5a9a5a)); rim.rotation.x = Math.PI / 2; rim.position.y = 0.012; g.add(rim);
+    const em = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })); em.position.y = 0.11; em.scale.setScalar(0.2); g.add(em); g.userData.em = em; g.visible = false; return g; };
+  HOLD.fp = mk(); HOLD.fp.scale.setScalar(0.42); camera.add(HOLD.fp); HOLD.tp = mk(); scene.add(HOLD.tp);
+  const el = document.createElement('div'); el.id = 'foodHold'; el.className = 'pill hidden'; document.body.appendChild(el); HOLD.el = el;
+  el.innerHTML = '<span class="t"></span> <b class="go">😋 comer</b> <b class="sv">🎒 guardar</b>';
+  el.querySelector('.go').addEventListener('click', e => { e.stopPropagation(); holdBite(); });
+  el.querySelector('.sv').addEventListener('click', e => { e.stopPropagation(); holdStore(); });
+  const css = document.createElement('style'); css.textContent = `#foodHold{position:fixed;left:50%;top:calc(116px + env(safe-area-inset-top));transform:translateX(-50%);z-index:21;white-space:nowrap} #foodHold b{cursor:pointer;padding:2px 8px;margin-left:4px;border-radius:10px;background:rgba(255,220,163,.14)}`; document.head.appendChild(css);
+}
+function holdFood(id) {
+  if (HOLD.id) holdStore(true); HOLD.id = id; HOLD.bites = 3; for (const g of [HOLD.fp, HOLD.tp]) { g.userData.em.material.map = emojiTex(ITEMS[id].i); g.userData.em.material.needsUpdate = true; g.userData.em.scale.setScalar(g === HOLD.fp ? 0.2 : 0.24); }
+  if (CUP.kind) cupDrop(false); whisper(`🍽 ${ITEMS[id].i} ${ITEMS[id].n} quentinho na mão! Toque em "comer" lá em cima (ou guarde na mochila)`, 4);
+}
+function holdStore(quiet) { if (!HOLD.id) return; if (HOLD.bites === 3) addItem(HOLD.id, 1, quiet); else if (!quiet) whisper('🍽 o resto foi para a cozinha', 2, true); HOLD.id = null; }
+function holdBite() {
+  if (!HOLD.id || mode !== 'walk') return; markInteracted(); const u = ITEMS[HOLD.id].use || {}, part = k => Math.ceil((u[k] || 0) / 3);
+  eatEffects({ food: part('food'), hp: part('hp'), mp: part('mp'), buff: HOLD.bites === 3 ? u.buff : 0, alc: HOLD.bites === 3 ? u.alc : 0 }, HOLD.bites === 1 ? talR('gourmet') : 0);
+  HOLD.bites--; HOLD.tilt = 0.8; sfx.chime([784, 988], 0.04); spawnHearts(V3(player.x, floorY(player.x, player.z) + 1.4, player.z), 2);
+  if (HOLD.bites <= 0) { whisper(`😋 ${RST_EAT[HOLD.id] || 'que delícia'}… comidinha de casa é outra coisa 💛`, 3.4); rpgEvent('comer_casa'); HOLD.id = null; rpgSave(); }
+  else for (const g of [HOLD.fp, HOLD.tp]) g.userData.em.scale.multiplyScalar(0.8);
+}
+function holdUpdate(dt) {
+  const on = !!HOLD.id && mode === 'walk' && !overlayOpen(); HOLD.el.classList.toggle('hidden', !on);
+  const tp = on && HERO.root.visible && HERO.model; HOLD.tp.visible = !!tp; HOLD.fp.visible = on && !tp; if (!on) return;
+  HOLD.el.querySelector('.t').textContent = `${ITEMS[HOLD.id].i} ${ITEMS[HOLD.id].n} (${HOLD.bites}/3)`; HOLD.tilt = Math.max(0, HOLD.tilt - dt * 1.6);
+  if (tp) { const a = HERO.model.arms[1]; a.rotation.set(-1.15 + HOLD.tilt * -0.6, 0, 0.15); a.updateMatrixWorld(true); const w = a.localToWorld(V3(0, -0.58, 0.04)); HOLD.tp.position.copy(w); HOLD.tp.rotation.set(0, HERO.yaw, 0); }
+  else { const halfH = 0.42 * Math.tan(BASE_FOV / 2 * deg), halfW = halfH * camera.aspect; HOLD.fp.position.set(-Math.min(halfW * 0.42, 0.17), -halfH * 0.55 + HOLD.tilt * 0.05, -0.4); HOLD.fp.rotation.set(0.5 + HOLD.tilt * 0.5, 0, 0); }
 }
 
 /* desenha o mapa do chão ocupado: tudo o que é sólido (pedras, troncos, muros, casas) e os chãos elevados */
@@ -14783,7 +14816,7 @@ function frame() {
   sparkle.material.rotation = uTime.value * 0.3;
   windmillBlades.rotation.z -= dt * 0.35;
   updateWorld2(dt);
-  updateTower(dt); updateVilas(dt); updateRestaurant(dt); boatUpdate(dt); updateHome(dt); seasonFrame(dt);
+  updateTower(dt); updateVilas(dt); updateRestaurant(dt); boatUpdate(dt); updateHome(dt); seasonFrame(dt); holdUpdate(dt);
   for (const f of flags) {
     const pa = f.mesh.geometry.attributes.position, b = f.base;
     for (let i = 0; i < pa.count; i++) {
