@@ -13600,10 +13600,11 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
     for (const [p0, p1, yb, yt] of pieces) { const m = (p0 + p1) / 2, w = p1 - p0, cx = ax + ux * m, cz = az + uz * m; if (yt - yb < 0.05 || w < 0.02) continue;
       if (yb === 0) { const sp = pb(G, w, 1.2, 0.36, cx, 0.6, cz, stone); sp.rotation.y = yaw; const u = pb(G, w, H - 1.2, 0.3, cx, 1.2 + (H - 1.2) / 2, cz, plaster); u.rotation.y = yaw; seg(ax + ux * p0, az + uz * p0, ax + ux * p1, az + uz * p1); }
       else { const u = pb(G, w, yt - yb - 0.04, 0.32, cx, yb + 0.04 + (yt - yb - 0.04) / 2, cz, plaster); u.rotation.y = yaw; const lt = pb(G, w + 0.3, 0.24, 0.4, cx, yb + 0.1, cz, timber); lt.rotation.y = yaw; } }
-    for (let d = 0; d <= L + 0.01; d += L / Math.max(1, Math.round(L / 2.2))) { if (gaps.some(([g0, g1]) => d > g0 - 0.15 && d < g1 + 0.15)) continue; const px = ax + ux * d, pz = az + uz * d; for (const off of [-0.19, 0.19]) { const p = pb(G, 0.2, H - 1.23, 0.06, px - uz * off, 1.22 + (H - 1.23) / 2, pz + ux * off, timber); p.rotation.y = yaw; } }
+    for (let d = 0; d <= L + 0.01; d += L / Math.max(1, Math.round(L / 2.2))) { if (gaps.some(([g0, g1]) => d > g0 - 0.15 && d < g1 + 0.15)) continue; const px = ax + ux * d, pz = az + uz * d; if (typeof RWIN !== 'undefined' && RWIN.some(([wx, wz]) => Math.abs(px - wx) < 1.0 && Math.abs(pz - wz) < 1.0)) continue; for (const off of [-0.19, 0.19]) { const p = pb(G, 0.2, H - 1.23, 0.06, px - uz * off, 1.22 + (H - 1.23) / 2, pz + ux * off, timber); p.rotation.y = yaw; } }
     const solid = []; let s0 = 0; for (const [g0, g1] of [...gaps].sort((a, b) => a[0] - b[0])) { if (g0 > s0) solid.push([s0, g0]); s0 = g1; } if (s0 < L) solid.push([s0, L]); // a viga de baixo não atravessa portas nem o passa-pratos
     for (const off of [-0.19, 0.19]) { for (const [q0, q1] of solid) { const p0 = q0 > 0 ? q0 + 0.03 : q0, p1 = q1 < L ? q1 - 0.03 : q1, m = (p0 + p1) / 2, b1 = pb(G, p1 - p0, 0.18, 0.06, ax + ux * m - uz * off, 1.25, az + uz * m + ux * off, timber); b1.rotation.y = yaw; } const b2 = pb(G, L, 0.18, 0.06, (ax + bx) / 2 - uz * off, H - 0.1, (az + bz) / 2 + ux * off, timber); b2.rotation.y = yaw; }
   };
+  const RWIN = [[-7, 9], [3.2, 9], [6.6, 9], [3.6, RKB], [-6.0, RKB], [-9, 1.4], [-9, 7.9], [-9, -2.4], [9, -2.5], [9, -7.0]]; // janelas (as vigas em pé não passam por elas)
   wall(-9, 9, 9, 9, [[6, 8.4, 2.8]]); // frente (porta em x -3 a -0.6)
   wall(9, RKB, -9, RKB, [[9.6, 11.6, 2.5]]); // fundos: porta da horta alinhada com o corredor (x -0,6 a -2,6)
   wall(-9, RKB, -9, 9); wall(9, 9, 9, RKB);
@@ -13612,7 +13613,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
   for (const sx of [-1, 1]) { cyl(G, 0.13, 0.15, 3.0, -1.8 + sx * 1.35, 1.5, 9.25, timber, 8); } pb(G, 3.3, 0.25, 0.5, -1.8, 3.0, 9.25, timber); // batente da porta
   // janelas que brilham de noite (dos dois lados)
   const winM = matC(0xffd890, true), win = (x, z, yaw, w = 1.2, h = 1.1, y = 2.3) => { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw; G.add(g); pb(g, w + 0.24, h + 0.24, 0.42, 0, 0, 0, timber); pb(g, w, h, 0.44, 0, 0, 0, winM); pb(g, 0.06, h, 0.46, 0, 0, 0, timber); pb(g, w, 0.06, 0.46, 0, 0, 0, timber); pb(g, w + 0.5, 0.1, 0.3, 0, -h / 2 - 0.15, 0.25, wood); };
-  for (const x of [-7, 3.2, 6.6]) win(x, 9, 0); for (const x of [3.6, 7.0, -6.0]) win(x, RKB, 0); for (const z of [1.4, 7.9, -2.4]) win(-9, z, Math.PI / 2); for (const z of [-2.5, -7.0]) win(9, z, Math.PI / 2); for (const sx of [-1, 1]) { cyl(G, 0.13, 0.15, 2.8, -1.7 + sx * 1.15, 1.4, 0, matC(0x4a3020), 8); }
+  for (const x of [-7, 3.2, 6.6]) win(x, 9, 0); for (const x of [3.6, -6.0]) win(x, RKB, 0); for (const z of [1.4, 7.9, -2.4]) win(-9, z, Math.PI / 2); for (const z of [-2.5, -7.0]) win(9, z, Math.PI / 2); for (const sx of [-1, 1]) { cyl(G, 0.13, 0.15, 2.8, -1.7 + sx * 1.15, 1.4, 0, matC(0x4a3020), 8); }
   // telhado de duas águas, com as pontas triangulares e a cumeeira
   const rise = 3.6, half = (9 - RKB) / 2 + 0.6, mid = (9 + RKB) / 2, sl = Math.hypot(half, rise), ang = Math.atan2(rise, half);
   for (const sz of [1, -1]) { const r = pb(G, 19.8, 0.22, sl + 0.3, 0, H + rise / 2, mid + sz * half / 2, roofM); r.rotation.x = sz * ang; for (let k = 0; k < 14; k++) { const t = pb(G, 19.8, 0.06, 0.08, 0, 0, 0, matC(0x6a2a1a)); t.position.set(0, H + rise - (k + 0.5) / 14 * rise + 0.13, mid + sz * (k + 0.5) / 14 * half); t.rotation.x = sz * ang; } }
@@ -13735,7 +13736,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
     RST.col(3.2, K / 2, 0.8); RST.col(4.8, K / 2, 0.8); RK.stations.bancada = { lx: 4.0, lz: K / 2, y: 1.2 }; hit(3.4, 1.3, 1.8, 4.0, 0.8, K / 2, () => rstCook('bancada'), 2.6); }
   // ervas e alhos pendurados numa trave sobre a bancada, prateleiras de potes na parede da direita
   pb(G, 4.2, 0.12, 0.12, 4.0, 3.2, K / 2, woodD); for (let k = 0; k < 8; k++) { const x = 2.3 + k * 0.48, c = k % 3 === 0 ? 0xf4ecd8 : 0x5a8a3a; cyl(G, 0.008, 0.008, 0.35, x, 3.0, K / 2, iron, 3); for (let j = 0; j < 4; j++) ps(G, 0.07, x + (j - 1.5) * 0.05, 2.72 - j * 0.04, K / 2, matC(c), 1, k % 3 === 0 ? 1 : 1.8, 1); }
-  for (let r = 0; r < 3; r++) { pb(G, 0.35, 0.05, 3.6, 8.75, 1.5 + r * 0.6, -4.6, woodL); for (let k = 0; k < 8; k++) cyl(G, 0.08, 0.08, 0.22, 8.75, 1.65 + r * 0.6, -6.1 + k * 0.42, matC([0xc8a050, 0x7a1f2a, 0x3a7a3a, 0xf4ecd8, 0x8a5a2a][(k + r) % 5]), 8); }
+  for (let r = 0; r < 3; r++) { pb(G, 0.35, 0.05, 2.3, 8.75, 1.5 + r * 0.6, -4.75, woodL); for (let k = 0; k < 5; k++) cyl(G, 0.08, 0.08, 0.22, 8.75, 1.65 + r * 0.6, -5.6 + k * 0.42, matC([0xc8a050, 0x7a1f2a, 0x3a7a3a, 0xf4ecd8, 0x8a5a2a][(k + r) % 5]), 8); }
   // mesinha dos cozinheiros e o livro de receitas no atril, perto da porta da cozinha
   { const t = new THREE.Group(); t.position.set(-5.4, 0, -2.6); G.add(t); cyl(t, 0.6, 0.6, 0.07, 0, 0.78, 0, woodL, 14); cyl(t, 0.07, 0.1, 0.76, 0, 0.38, 0, woodD, 8); for (const sx of [-0.85, 0.85]) { cyl(t, 0.2, 0.2, 0.06, sx, 0.5, 0, matC(0x7a1f2a), 10); cyl(t, 0.04, 0.05, 0.48, sx, 0.25, 0, woodD, 6); }
     cyl(t, 0.05, 0.045, 0.12, 0.15, 0.88, 0.1, matC(0x8a5a2a), 8); cyl(t, 0.18, 0.15, 0.06, -0.15, 0.85, -0.1, matC(0xf4f0e8), 12); RST.col(-5.4, -2.6, 0.75); }
@@ -14101,7 +14102,7 @@ function fomeFrame(dt) {
   RPG.fome = Math.max(0, f - dt * (FW.calm < 4 ? 0.07 : 0.04)); // ~40 min para esvaziar (lutando, mais rápido)
   if ((FOME.t -= dt) < 0) { FOME.t = 1; setW('rpgFome', RPG.fome); $r('rpgFomeB').classList.toggle('low', RPG.fome < 20); }
   if (RPG.fome < 20 && (FOME.said -= dt) < 0 && mode === 'walk') { FOME.said = 150; whisper(RPG.fome <= 0 ? '😩 a senhora está faminta: a vida não volta e as pernas pesam… coma alguma coisa!' : '🍽 a barriga ronca… hora de comer alguma coisa', 3.4); }
-  if (RPG.drunk > 0 && (FOME.drunkT += dt) > 50) { FOME.drunkT = 0; RPG.drunk--; if (!RPG.drunk) whisper('😌 a cabeça parou de girar', 2.2); }
+  if (RPG.drunk > 0 && (FOME.drunkT += dt * (player.pose === 'seat' || player.pose === 'sit' || player.pose === 'lie' ? 4 : 1)) > 25) { // sentada passa 4× mais rápido FOME.drunkT = 0; RPG.drunk--; if (!RPG.drunk) whisper('😌 a cabeça parou de girar', 2.2); }
   const k = clamp(((RPG.drunk || 0) - 2) / 3, 0, 1); FOME.sway += (k - FOME.sway) * Math.min(1, dt); document.body.style.filter = FOME.sway > 0.02 ? `blur(${(FOME.sway * 1.6).toFixed(2)}px) saturate(${1 + FOME.sway * 0.4})` : '';
 }
 { const css = document.createElement('style'); css.textContent = `.bar.fome i{background:linear-gradient(90deg,#a8682a,#ffc06a)} .bar.fome{height:6px} .bar.fome.low i{background:linear-gradient(90deg,#8a2a1a,#e8582a);animation:fomeP 1s infinite alternate} @keyframes fomeP{to{opacity:.4}}`; document.head.appendChild(css);
