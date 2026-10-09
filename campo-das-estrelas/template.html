@@ -2962,7 +2962,7 @@ const DAWN_FOG = V3(0.94, 0.56, 0.72), DAWN_Z = V3(0.3, 0.18, 0.5), DAWN_ML = ne
 function updateWeather(dt) {
   if ((WX.t -= dt) <= 0) { const prev = WX.want; WX.want = wxPick(); WX.t = 180 + Math.random() * 240; if (WX.want !== prev) WX.said = false; }
   const tg = WX_TYPES[WX.want]; for (const k in WX.k) WX.k[k] += clamp((tg[k] || 0) - WX.k[k], -dt / 25, dt / 25);
-  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || TWR.cur >= 0 || magic.indoor > 0.5 || (typeof RST !== 'undefined' && RST.in) ? 1 : 0;
+  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || TWR.cur >= 0 || magic.indoor > 0.5 || (typeof RST !== 'undefined' && RST.in) || (typeof BEF !== 'undefined' && BEF.cds && Math.hypot(camera.position.x - BEF.cds.x, camera.position.z - BEF.cds.z) < BEF.cds.R - 0.3) ? 1 : 0;
   WX.snow += clamp((inSnowLand(camera.position.x, camera.position.z) ? 1 : 0) - WX.snow, -dt / 3, dt / 3);
   if (!WX.said && RPG.made && mode === 'walk' && !WX.under) { WX.said = true; const sn = WX.snow > 0.5 && WX_SNOW_SAY[WX.want]; if (WX.want !== 'clear' || WX.k.cloud > 0.3) toast(sn || WX_SAY[WX.want], 3600); }
   // raios na tempestade: clarão agora, trovão um pouquinho depois
@@ -4105,7 +4105,7 @@ function updateAutumn(dt) {
       L.x += (0.35 + Math.cos(t * L.sw + L.ph) * L.amp) * dt; L.z += (0.15 + Math.sin(t * L.sw * 0.8 + L.ph) * L.amp * 0.6) * dt;
       const gy = terrainH(L.x, L.z) + 0.04;
       if (L.y <= gy) { L.y = gy; L.rest = 4 + Math.random() * 6; }
-      if (Math.hypot(L.x - cx, L.z - cz) > 70 || (typeof RST !== 'undefined' && RST.G && rstIn(L.x, L.z) && L.y < RST.y0 + 9)) respawnLeaf(L, false); // embaixo do telhado da taverna não cai folha
+      if (Math.hypot(L.x - cx, L.z - cz) > 70 || (typeof RST !== 'undefined' && RST.G && rstIn(L.x, L.z) && L.y < RST.y0 + 9) || (BEF.cds && Math.hypot(L.x - BEF.cds.x, L.z - BEF.cds.z) < BEF.cds.R + 1 && L.y < terrainH(BEF.cds.x, BEF.cds.z) + 13)) respawnLeaf(L, false); // embaixo do telhado da taverna não cai folha
     }
     dummy.position.set(L.x, L.y, L.z);
     if (flat) dummy.rotation.set(-Math.PI / 2, 0, L.ph);
@@ -7733,11 +7733,51 @@ const BEF = xRegion('bosque', 'Bosque Élfico', vW(0, 95), 75, 420, 90);
   // casas élficas, biblioteca, mercado, fonte que cura e ponte em arco
   xPav(-24, 44, 2.8); xPav(-28, 92, 3.1, ELF.roof2); xPav(-21, 124, 2.6); xPav(24, 84, 3, ELF.roof2); xPav(18, 140, 2.6);
   const music = xPav(13, 100, 3.4); BEF.music = vW(13, 100);
-  { const g = new THREE.Group(); put(g, -22, 78, Math.PI / 2); const R = 4.4; // Casa dos Saberes
-    cyl(g, R + 0.6, R + 0.8, 0.6, 0, 0.3, 0, ELF.pale, 24); cyl(g, R, R, 6, 0, 3.6, 0, ELF.cream, 24); mmesh(g, elfRoof(R + 0.7, 5.5), ELF.roof, 0, 6.6, 0); cone(g, 0.08, 1.4, 0, 12.6, 0, ELF.gold, 6);
-    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; cyl(g, 0.2, 0.24, 6, Math.sin(a) * (R + 0.25), 3.6, Math.cos(a) * (R + 0.25), ELF.pale, 8); if (k % 2) { const w = pb(g, 1.0, 2.2, 0.06, Math.sin(a + 0.31) * (R + 0.03), 3.8, Math.cos(a + 0.31) * (R + 0.03), matC(0xb8d8ff, true)); w.rotation.y = a + 0.31; } }
-    pb(g, 1.6, 2.6, 0.1, 0, 1.9, R + 0.02, M.woodDark); signBox(g, boardTex('📚 Casa dos Saberes', '#2a3a5a', 512, 96, 46), 2.6, 0.5, 0, 3.6, R + 0.35);
-    col(-22, 78, R + 0.8); const q = vW(-22, 78); xFoot(q.x, q.z, 0, R * 2, R * 2, '#e8e0cc'); BEF.lib = vW(-22 + R + 2.2, 78); }
+  { // 📚 Casa dos Saberes: torre redonda de biblioteca, com porta de verdade e interior para entrar
+    const R = 4.4, q0 = vW(-22, 78), g = new THREE.Group(); let gmin = 1e9; for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; gmin = Math.min(gmin, terrainH(q0.x + Math.sin(a) * (R + 1), q0.z + Math.cos(a) * (R + 1))); }
+    const gy = Math.max(gmin, terrainH(q0.x, q0.z) - 0.4), fy = gy + 0.6; g.position.set(q0.x, gy, q0.z); g.rotation.y = VYAW + Math.PI / 2; S.add(g); g.updateMatrixWorld(true);
+    const W = (lx, lz) => { const v = new THREE.Vector3(lx, 0, lz).applyMatrix4(g.matrixWorld); return { x: v.x, z: v.z }; };
+    const gd = new THREE.Group(); gd.position.copy(g.position); gd.rotation.copy(g.rotation); A.add(gd);
+    const wallM = new THREE.MeshLambertMaterial({ color: 0xe2d8c2, side: THREE.DoubleSide }), DG = 0.27; // meia abertura da porta (rad)
+    cyl(g, R + 0.6, R + 0.8, 2.6, 0, -0.7, 0, ELF.pale, 24); // base (afunda no morro: não flutua)
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 6, 28, 1, true, DG, Math.PI * 2 - DG * 2), wallM); wall.position.y = 3.6; g.add(wall); // parede com o vão da porta
+    const lint = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 3.0, 6, 1, true, -DG, DG * 2), wallM); lint.position.y = 5.1; g.add(lint); // em cima da porta
+    mmesh(g, elfRoof(R + 0.7, 5.5), ELF.roof, 0, 6.6, 0); cone(g, 0.08, 1.4, 0, 12.6, 0, ELF.gold, 6);
+    const ceil = new THREE.Mesh(new THREE.CircleGeometry(R, 28), new THREE.MeshLambertMaterial({ color: 0x3a4a6a, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.y = 6.55; g.add(ceil); // teto azul de estrelas
+    for (let k = 0; k < 24; k++) { const a = k * 2.399, r = Math.sqrt((k + 0.5) / 24) * (R - 0.4); ps(g, 0.05, Math.sin(a) * r, 6.5, Math.cos(a) * r, matC(0xfff2c0, true)); }
+    for (let k = 1; k < 10; k++) { const a = k / 10 * Math.PI * 2; cyl(g, 0.2, 0.24, 6, Math.sin(a) * (R + 0.25), 3.6, Math.cos(a) * (R + 0.25), ELF.pale, 8); if (k % 2) { const w = pb(g, 1.0, 2.2, 0.36, Math.sin(a + 0.31) * R, 3.8, Math.cos(a + 0.31) * R, matC(0xb8d8ff, true)); w.rotation.y = a + 0.31; } } // colunas (nenhuma na porta) e vitrais
+    for (const sx of [-1, 1]) { const a = sx * (DG + 0.04); cyl(g, 0.24, 0.28, 3.4, Math.sin(a) * (R + 0.15), 1.7 + 0.6, Math.cos(a) * (R + 0.15), ELF.gold, 8); } // batentes dourados
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.12, 6, 16, Math.PI), ELF.gold); arch.position.set(0, 3.0 + 0.6, R + 0.12); g.add(arch);
+    signBox(g, boardTex('📚 Casa dos Saberes', '#2a3a5a', 512, 96, 46), 2.6, 0.5, 0, 5.0, R + 0.3);
+    // piso de madeira (chão elevado), degrau na porta e colisão: parede com abertura
+    addPad({ x: q0.x, z: q0.z, r: R - 0.1, y: fy }); addPad({ x: q0.x, z: q0.z, r: R + 0.75, y: fy - 0.02 });
+    const st = W(0, R + 1.25); addPad({ ...st, W: 2.4, D: 0.9, yaw: VYAW + Math.PI / 2, y: gy + 0.3 }); pb(g, 2.4, 0.3 + (gy - gmin), 0.9, 0, 0.15 - (gy - gmin) / 2, R + 1.25, ELF.pale);
+    const fl = new THREE.Mesh(new THREE.CircleGeometry(R - 0.02, 28), matC(0x8a6038)); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.61; g.add(fl);
+    for (let k = 0; k < 28; k++) { const a0 = DG + (Math.PI * 2 - DG * 2) * k / 28, a1 = DG + (Math.PI * 2 - DG * 2) * (k + 1) / 28, p0 = W(Math.sin(a0) * R, Math.cos(a0) * R), p1 = W(Math.sin(a1) * R, Math.cos(a1) * R); segColliders.push({ ax: p0.x, az: p0.z, bx: p1.x, bz: p1.z, r: 0.3 }); }
+    OCC.fill.push({ x: q0.x, z: q0.z, r: R + 1 }); const q = q0; xFoot(q.x, q.z, 0, R * 2, R * 2, '#e8e0cc');
+    // por dentro: estantes curvas, escada de rodinha, mesa de leitura com lampião, poltronas, globo e tapete
+    const cdsR = mulberry32(7700), bookC = [0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0x6a3a8a, 0xc8a050, 0x8a5a2a, 0x3a6a7a];
+    for (let k = 0; k < 6; k++) { const a = Math.PI * 0.42 + k * Math.PI * 0.232, sh = new THREE.Group(); sh.position.set(Math.sin(a) * (R - 0.42), 0.6, Math.cos(a) * (R - 0.42)); sh.rotation.y = a + Math.PI; g.add(sh); twShelf(sh, 1.9, 3.4, 0.5, matC(0x4a3020));
+      for (let r = 0; r < 4; r++) { pb(sh, 1.8, 0.05, 0.45, 0, 0.35 + r * 0.8, 0.02, matC(0x6a4428)); let bx = -0.82; while (bx < 0.8) { const w = 0.07 + cdsR() * 0.07, h = 0.42 + cdsR() * 0.28; pb(sh, w, h, 0.32, bx + w / 2, 0.38 + r * 0.8 + h / 2, 0.06, matC(bookC[Math.floor(cdsR() * bookC.length)])); bx += w + 0.005; } }
+      const p = W(Math.sin(a) * (R - 0.5), Math.cos(a) * (R - 0.5)); colliders.push({ ...p, r: 0.55 }); }
+    cyl(g, 2.0, 2.0, 0.03, 0, 0.62, 0, matC(0x2a3a6a), 24); cyl(g, 1.75, 1.75, 0.035, 0, 0.625, 0, matC(0xc8a050), 24); cyl(g, 1.65, 1.65, 0.04, 0, 0.63, 0, matC(0x2a3a6a), 24);
+    { const t = new THREE.Group(); t.position.set(0, 0.6, -0.4); g.add(t); cyl(t, 0.8, 0.8, 0.07, 0, 0.8, 0, matC(0x6a4428), 16); cyl(t, 0.08, 0.14, 0.78, 0, 0.39, 0, matC(0x3a2618), 8);
+      for (const sx of [-1, 1]) pb(t, 0.34, 0.03, 0.44, sx * 0.18, 0.86, 0.1, matC(0xf4ecd8)).rotation.y = sx * 0.12; cyl(t, 0.07, 0.09, 0.04, -0.5, 0.86, -0.3, ELF.gold, 8); cyl(t, 0.02, 0.02, 0.3, -0.5, 1.02, -0.3, ELF.gold, 5); ps(gd, 0.09, ...(() => { const v = new THREE.Vector3(-0.5, 1.83, -0.7); return [v.x, v.y, v.z]; })(), matC(0xffe2a0, true));
+      const tw = W(0, -0.4); colliders.push({ ...tw, r: 0.85 }); }
+    for (const [lx, lz, rot] of [[-1.6, 1.0, 2.4], [1.6, 1.0, -2.4]]) { const c = new THREE.Group(); c.position.set(lx, 0.6, lz); c.rotation.y = rot + Math.PI; g.add(c); pb(c, 0.9, 0.42, 0.8, 0, 0.3, 0, matC(0x2a3a6a)); pb(c, 0.9, 0.75, 0.2, 0, 0.75, -0.32, matC(0x2a3a6a)); for (const sx of [-1, 1]) pb(c, 0.16, 0.55, 0.8, sx * 0.45, 0.45, 0, matC(0x1f2a52));
+      const cw = W(lx, lz); colliders.push({ ...cw, r: 0.5 }); const fyaw = g.rotation.y + rot + Math.PI; const seat = { yaw: fyaw + Math.PI, pitch: -0.05, exit: W(lx * 0.6, lz + 0.9), eye: () => V3(cw.x, fy + 1.0, cw.z) };
+      addInteract([invis(gd, gBox(1, 1.1, 1), lx, 1.1, lz)], () => sitOn(seat, '📖 a senhora se ajeita na poltrona azul da Casa dos Saberes… o cheirinho de livro velho é o melhor do mundo'), { at: cw, near: 1.8 }); }
+    { const gl = new THREE.Group(); gl.position.set(-2.4, 0.6, -1.6); g.add(gl); cyl(gl, 0.3, 0.42, 0.1, 0, 0.05, 0, matC(0x3a2618), 10); cyl(gl, 0.04, 0.04, 0.85, 0, 0.47, 0, ELF.gold, 6); ps(gl, 0.38, 0, 1.25, 0, matC(0x3a6aa8)); const gw = W(-2.4, -1.6); colliders.push({ ...gw, r: 0.45 }); }
+    for (const a of [0.9, -0.9, 2.2, -2.2]) { const lx = Math.sin(a) * (R - 0.2), lz = Math.cos(a) * (R - 0.2); pb(g, 0.1, 0.4, 0.1, lx, 3.4, lz, ELF.gold); addFlame(gd, Math.sin(a) * (R - 0.35), 3.85, Math.cos(a) * (R - 0.35), 0.26); }
+    // livros para ler
+    const BOOKS = [['A Primeira Estrela', '— Antes de existir o reino, havia só a noite. Uma elfa subiu ao topo da maior montanha e cantou tão bonito que o céu se abriu num ponto de luz: a primeira estrela. Até hoje ela pisca mais forte quando alguém canta para ela.'],
+      ['O Vale das Três Cachoeiras', '— Três irmãs encontraram este vale fugindo de uma tempestade. Choraram de alívio, e as lágrimas viraram as cachoeiras. Por isso, quem bebe dessa água nunca mais se sente perdida.'],
+      ['Diário de um Viajante Élfico', '— Dia 412: cheguei a um campo de margaridas onde uma rainha dormia debaixo das estrelas. Os vaga-lumes formavam um coração em volta dela. Nunca vi o céu tão feliz.'],
+      ['Herbário da Curandeira', '— Folha-de-Prata: abre só à luz das estrelas. Fervida com cebola, vira caldo que devolve a força. Misturada com mel, acalma o coração. Colher sempre agradecendo.']];
+    const read = k => { const [t, txt] = BOOKS[k]; showDialog('📚 ' + t, 'Casa dos Saberes', txt, [k < BOOKS.length - 1 ? ['próximo livro ›', () => read(k + 1), true] : ['voltar ao primeiro', () => read(0)], ['fechar', null]]); sfx.chime([659, 880], 0.03); rpgEvent('casa_saberes'); };
+    const ib = W(0, -(R - 0.9)); addInteract([invis(gd, gBox(3.6, 3.4, 1.4), 0, 2.2, -(R - 0.9))], () => { if (mode !== 'walk') return; markInteracted(); read(0); }, { at: ib, near: 2.4 });
+    BEF.lib = W(1.4, -2.0); BEF.cds = { x: q0.x, z: q0.z, R };
+  }
   { const cols = [['#e8f0ff', '#3a8a7a'], ['#fff4e0', '#5a7ab0'], ['#f0ffe8', '#8a6ab0']]; [[8, 40], [13, 46], [18, 40]].forEach(([sx, fz], i) => { const q = vW(sx, fz); xStall(S, q.x, q.z, VYAW + Math.PI, cols[i], [[0xf0d070, 0xffffff, 0x8ad08a], [0xb8d8ff, 0xd8b84a, 0xf3ead8], [0xc8a0ff, 0x9fe8d0, 0xffe08a]][i]); }); }
   { const q = vW(12, 68), gy = terrainH(q.x, q.z), g = new THREE.Group(); g.position.set(q.x, gy, q.z); S.add(g); // fonte que cura
     cyl(g, 3.6, 3.8, 0.6, 0, 0.3, 0, ELF.pale, 28); const w = new THREE.Mesh(new THREE.CircleGeometry(3.2, 28), new THREE.MeshBasicMaterial({ color: 0x3aa8c8 })); w.rotation.x = -Math.PI / 2; w.position.y = 0.55; g.add(w); BEF.springW = w;
@@ -7758,9 +7798,9 @@ const BEF = xRegion('bosque', 'Bosque Élfico', vW(0, 95), 75, 420, 90);
   BEF.range = vW(10, 130);
   [[28, 120], [29, 125.5], [28, 131], [29, 136.5], [28, 142]].forEach(([sx, fz], i) => {
     const g = new THREE.Group(); put(g, sx, fz, -Math.PI / 2, BEF.g);
-    for (const s of [-1, 1]) pb(g, 0.08, 1.9, 0.08, s * 0.5, 0.95, -0.2, M.wood);
+    for (const s of [-1, 1]) { const lg = pb(g, 0.08, 2.0, 0.08, s * 0.45, 0.95, -0.36, M.wood); lg.rotation.x = 0.12; } pb(g, 1.0, 0.08, 0.08, 0, 1.3, -0.3, M.wood); /* cavalete atrás do alvo (antes os pés atravessavam o disco) */
     const face = new THREE.Group(); face.position.set(0, 1.3, 0); g.add(face);
-    cyl(face, 0.65, 0.65, 0.2, 0, 0, 0, matC(0xd8c890), 16).rotation.x = Math.PI / 2; for (const [r, c] of [[0.5, 0x3a6a9a], [0.32, 0xf3e6cc], [0.15, 0xd8b25a]]) cyl(face, r, r, 0.22, 0, 0, 0, matC(c), 16).rotation.x = Math.PI / 2;
+    cyl(face, 0.65, 0.65, 0.2, 0, 0, 0, matC(0xd8c890), 16).rotation.x = Math.PI / 2; for (const [r, c, d] of [[0.5, 0x3a6a9a, 0.24], [0.32, 0xf3e6cc, 0.28], [0.15, 0xd8b25a, 0.32]]) cyl(face, r, r, d, 0, 0, 0, matC(c), 16).rotation.x = Math.PI / 2; /* cada anel um pouco mais saltado: com a mesma espessura as faces piscavam */
     mergeSiblings(face); mergeSiblings(g); col(sx, fz, 0.6);
     const q = vW(sx, fz), t = { g, face, x: q.x, z: q.z, y: terrainH(q.x, q.z) + 1.3, k: 0, i };
     XW.targets.push(t); addInteract([invis(g, gBox(1.5, 1.5, 0.6), 0, 1.3, 0)], () => rpgTarget(t), { range: 40 });
@@ -7784,7 +7824,7 @@ const BEF = xRegion('bosque', 'Bosque Élfico', vW(0, 95), 75, 420, 90);
   // elfos do bosque
   const elfLook = (o = {}) => ({ body: xpick([0x5a8a6a, 0x8aa0c8, 0x6a5a8a, 0xc8b878, 0xe8e6dc, 0x3a6a5a]), skirt: o.girl === false ? undefined : xpick([0x6a80a8, 0x2a4a40, 0xeceae4, 0x8a7a4a]), legs: 0x3a5a4a, skin: xpick([0xf0d8c8, 0xf0d0b8, 0xe8c8a8, 0xc8987a]), hair: xpick([0xe8d8a8, 0xd8d8e8, 0x2a1a10, 0x8a4a2a, 0xf0e8d0]), long: true, elf: true, scale: 1.04, ...o });
   { const q = vW(12, 44); xNPC(BEF, { id: 'elara', name: 'Elara', title: 'mercadora élfica', shop: 'elfos', x: q.x, z: q.z, yaw: VYAW + Math.PI, look: elfLook({ body: 0xe8f0ff, skirt: 0x3a8a7a, hair: 0xf0e8d0, hat: 'crown' }), lines: BE_ELARA_LINES }); }
-  { const q = BEF.lib; xNPC(BEF, { id: 'thalion', name: 'Thalorin', title: 'guardião da Casa dos Saberes', quest: 'carta', x: q.x, z: q.z, yaw: VYAW + Math.PI / 2, look: elfLook({ body: 0x2a3a5a, skirt: 0x1a2a4a, hair: 0xd8d8e8, acc: { book: 0x7a2a2a } }), lines: BE_THALION_LINES }); }
+  { const q = BEF.lib; xNPC(BEF, { id: 'thalion', name: 'Thalorin', title: 'guardião da Casa dos Saberes', quest: 'carta', x: q.x, z: q.z, yaw: Math.atan2(BEF.cds.x - q.x, BEF.cds.z - q.z) + Math.PI * 0.6, look: elfLook({ body: 0x2a3a5a, skirt: 0x1a2a4a, hair: 0xd8d8e8, acc: { book: 0x7a2a2a } }), lines: BE_THALION_LINES }); }
   { const q = BEF.range; xNPC(BEF, { id: 'liriel', name: 'Mestra Liriel', title: 'mestra arqueira', quest: 'treino', x: q.x, z: q.z, yaw: VYAW + Math.PI / 2, look: elfLook({ body: 0x3a6a3a, skirt: undefined, legs: 0x2a4a2a, hair: 0xe8c860, acc: { bow: true, quiver: true, cape: 0x2a4a2a } }), lines: BE_LIRIEL_LINES }); }
   for (const s of [-1, 1]) { const q = vW(-12 + s * 5.2, 147.5); xNPC(BEF, { name: s < 0 ? 'Sentinela Aerin' : 'Sentinela Faelar', title: 'guarda do portão élfico', x: q.x, z: q.z, yaw: VYAW, idle: 'guard', look: elfLook({ body: 0xd8dce8, skirt: undefined, legs: 0x5a6a7a, hair: s < 0 ? 0xe8d8a8 : 0x2a1a10, acc: { bow: true, quiver: true, cape: 0x2a5a4a } }), lines: BE_GUARD_LINES }); }
   for (const s of [-1, 1]) { const m = BEF.music, a = VYAW + s * 1.2, q = { x: m.x + Math.sin(a) * 1.6, z: m.z + Math.cos(a) * 1.6 }; xNPC(BEF, { name: s < 0 ? 'Menestrel Eldrin' : 'Flautista Ayla', title: 'música do bosque', x: q.x, z: q.z, yaw: xFace(q, m) + Math.PI, idle: 'play', dy: 0.6, r: 0, look: elfLook({ girl: s > 0 }), lines: BE_MUSIC_LINES }); }
@@ -14102,7 +14142,7 @@ function fomeFrame(dt) {
   RPG.fome = Math.max(0, f - dt * (FW.calm < 4 ? 0.07 : 0.04)); // ~40 min para esvaziar (lutando, mais rápido)
   if ((FOME.t -= dt) < 0) { FOME.t = 1; setW('rpgFome', RPG.fome); $r('rpgFomeB').classList.toggle('low', RPG.fome < 20); }
   if (RPG.fome < 20 && (FOME.said -= dt) < 0 && mode === 'walk') { FOME.said = 150; whisper(RPG.fome <= 0 ? '😩 a senhora está faminta: a vida não volta e as pernas pesam… coma alguma coisa!' : '🍽 a barriga ronca… hora de comer alguma coisa', 3.4); }
-  if (RPG.drunk > 0 && (FOME.drunkT += dt * (player.pose === 'seat' || player.pose === 'sit' || player.pose === 'lie' ? 4 : 1)) > 25) { // sentada passa 4× mais rápido FOME.drunkT = 0; RPG.drunk--; if (!RPG.drunk) whisper('😌 a cabeça parou de girar', 2.2); }
+  if (RPG.drunk > 0 && (FOME.drunkT += dt * (player.pose === 'seat' || player.pose === 'sit' || player.pose === 'lie' ? 4 : 1)) > 25) { /* sentada passa 4× mais rápido */ FOME.drunkT = 0; RPG.drunk--; if (!RPG.drunk) whisper('😌 a cabeça parou de girar', 2.2); }
   const k = clamp(((RPG.drunk || 0) - 2) / 3, 0, 1); FOME.sway += (k - FOME.sway) * Math.min(1, dt); document.body.style.filter = FOME.sway > 0.02 ? `blur(${(FOME.sway * 1.6).toFixed(2)}px) saturate(${1 + FOME.sway * 0.4})` : '';
 }
 { const css = document.createElement('style'); css.textContent = `.bar.fome i{background:linear-gradient(90deg,#a8682a,#ffc06a)} .bar.fome{height:6px} .bar.fome.low i{background:linear-gradient(90deg,#8a2a1a,#e8582a);animation:fomeP 1s infinite alternate} @keyframes fomeP{to{opacity:.4}}`; document.head.appendChild(css);
