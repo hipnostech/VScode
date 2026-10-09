@@ -4105,7 +4105,7 @@ function updateAutumn(dt) {
       L.x += (0.35 + Math.cos(t * L.sw + L.ph) * L.amp) * dt; L.z += (0.15 + Math.sin(t * L.sw * 0.8 + L.ph) * L.amp * 0.6) * dt;
       const gy = terrainH(L.x, L.z) + 0.04;
       if (L.y <= gy) { L.y = gy; L.rest = 4 + Math.random() * 6; }
-      if (Math.hypot(L.x - cx, L.z - cz) > 70) respawnLeaf(L, false);
+      if (Math.hypot(L.x - cx, L.z - cz) > 70 || (typeof RST !== 'undefined' && RST.G && rstIn(L.x, L.z) && L.y < RST.y0 + 9)) respawnLeaf(L, false); // embaixo do telhado da taverna não cai folha
     }
     dummy.position.set(L.x, L.y, L.z);
     if (flat) dummy.rotation.set(-Math.PI / 2, 0, L.ph);
@@ -8994,7 +8994,7 @@ function pluck() {
   }
 }
 function tryPickDaisy(x, y) {
-  if (!DAISY || picking) return false;
+  if (!DAISY || picking || Math.hypot(player.x - SPAWN.x, player.z - SPAWN.z) > 55 || (typeof RST !== 'undefined' && rstIn(player.x, player.z))) return false; // margarida só no campo
   ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const o = raycaster.ray.origin, d = raycaster.ray.direction;
@@ -9186,7 +9186,7 @@ function updateWalk(dt) {
   const tx = (-sy * mz + cy * mx) * speed, tz = (-cy * mz - sy * mx) * speed;
   const k = 1 - Math.exp(-dt * 8);
   if (DODGE.t > 0) { DODGE.t -= dt; const sp = DODGE.t > 0 || !DODGE.kind ? DODGE.sp : 3; player.vx = DODGE.dx * sp; player.vz = DODGE.dz * sp; } // esquiva: um impulso rápido (investida e passo estelar vão mais longe)
-  else { player.vx += (tx - player.vx) * k; player.vz += (tz - player.vz) * k; }
+  else { player.vx += (tx - player.vx) * k; player.vz += (tz - player.vz) * k; if (FOME.sway > 0.05 && Math.hypot(tx, tz) > 0.5) { const w = Math.sin(uTime.value * 1.7) * FOME.sway * 2.4; player.vx += cy * w * dt * 6; player.vz -= sy * w * dt * 6; player.yaw += Math.sin(uTime.value * 0.9) * FOME.sway * dt * 0.5; } } // tonta: anda torto
   const ox = player.x, oz = player.z, nSub = Math.max(1, Math.ceil(Math.hypot(player.vx, player.vz) * dt / 0.3)); // passinhos curtos: rápido também não atravessa parede
   for (let s = 0; s < nSub; s++) { player.x += player.vx * dt / nSub; player.z += player.vz * dt / nSub; collide(player, 0.35); if (DGM.inside && nSub > 1) dgCollide(player, 0.35); }
   if (PADS.length && padY(player.x, player.z) - floorY(ox, oz) > 0.95) { player.x = ox; player.z = oz; player.vx *= 0.3; player.vz *= 0.3; } // degrau alto demais: é parede
@@ -9686,7 +9686,7 @@ let ST = rpgStats();
 function rpgApply() { // recalcula atributos e passa para a dungeon (vida máxima e dano)
   ST = rpgStats(); const was = DGM.max; DGM.max = ST.maxHp; DGM.dmg = ST.atk + (DGM.swordUp ? 1 : 0); DGM.hp = clamp(DGM.hp + Math.max(0, DGM.max - was), 0, DGM.max); RPG.mp = clamp(RPG.mp, 0, ST.maxMp);
 }
-const speedMul = () => (1 + clamp(ST.agi - 4, 0, 14) * 0.018) * (RPG_BUFF.t > 0 ? 1.45 : 1) * (1 + 0.05 * talR('passos'));
+const speedMul = () => (1 + clamp(ST.agi - 4, 0, 14) * 0.018) * (RPG_BUFF.t > 0 ? 1.45 : 1) * (1 + 0.05 * talR('passos')) * ((RPG.fome ?? 80) <= 0 ? 0.85 : 1);
 const priceOf = (id, sell) => { const p = ITEMS[id].p || 0; return sell ? Math.max(1, Math.floor(p / 2)) : Math.max(1, Math.round(p * (1 - clamp((ST.car - 4) * 0.02, 0, 0.25)))); };
 const RPG_BUFF = { t: 0 };
 const fmt = s => String(s).replaceAll('{nome}', RPG.name);
@@ -10283,8 +10283,8 @@ function takeItem(id, n = 1) { RPG.inv[id] = Math.max(0, (RPG.inv[id] || 0) - n)
 function rpgUseItem(id) {
   const it = ITEMS[id]; if (!it || !it.use) return;
   if (!RPG.inv[id]) { toast(`você não tem ${it.n}`); return; }
-  if (!it.use.buff && (!it.use.hp || DGM.hp >= DGM.max) && (!it.use.mp || RPG.mp >= ST.maxMp)) { toast(it.use.hp ? '❤ sua vida já está cheia' : '✦ sua mana já está cheia'); return; } // não gasta poção à toa
-  takeItem(id); if (it.use.hp) DGM.hp = Math.min(DGM.max, DGM.hp + it.use.hp + (/pocao|elixir|poeira|po_fada/.test(id) ? 0 : talR('gourmet'))); if (it.use.mp) RPG.mp = Math.min(ST.maxMp, RPG.mp + it.use.mp); if (it.use.buff) { RPG_BUFF.t = it.use.buff; toast('✨ pozinho de fada: pés levinhos!'); }
+  if (isFull(it.use)) { toast(it.use.food ? '😋 a senhora está satisfeita… não cabe mais nada' : it.use.hp ? '❤ sua vida já está cheia' : '✦ sua mana já está cheia'); return; } // não gasta à toa
+  takeItem(id); const magic = /pocao|elixir|poeira|po_fada/.test(id); eatEffects(it.use, magic ? 0 : talR('gourmet')); if (it.use.buff && id === 'po_fada') toast('✨ pozinho de fada: pés levinhos!'); if (it.use.food && !magic) whisper(`😋 ${RST_EAT[id] || 'que delícia'}`, 2.4);
   sfx.chime([659, 988, 1319], 0.07); spawnSparkles(V3(player.x, floorY(player.x, player.z) + 1.1, player.z), 14, 0.6, it.use.hp ? 0xff8aa0 : 0x8ab8ff); if (DGM.inside) dgHud(); hudUpdate(); rpgSave();
 }
 const rewardText = r => [r.xp ? `${r.xp} XP` : '', r.gold ? `🪙 ${r.gold}` : '', ...Object.entries(r.items || {}).map(([k, n]) => `${ITEMS[k].i} ${ITEMS[k].n}${n > 1 ? ' ×' + n : ''}`)].filter(Boolean).join(' · ');
@@ -11629,9 +11629,9 @@ function clockHud(dt) {
 function rpgFrame(dt) {
   updateHero(dt); updateFish(dt); clockHud(dt); combatFrame(dt);
   if (!RPG.made) return;
-  updateAbility(dt); updatePlaces(dt); fwFrame(dt); evFrame(dt); achCheck(dt);
+  updateAbility(dt); updatePlaces(dt); fwFrame(dt); evFrame(dt); achCheck(dt); fomeFrame(dt);
   RPG_BUFF.t = Math.max(0, RPG_BUFF.t - dt); RPG.t += dt;
-  if ((regenT += dt) > 1) { regenT = 0; RPG.mp = Math.min(ST.maxMp, RPG.mp + 0.22 + ST.mag * 0.02 + talR('meditacao') * 0.14); if (!DGM.inside && DGM.hp < DGM.max && FW.hurtT <= 0) DGM.hp = Math.min(DGM.max, DGM.hp + (FW.calm > 8 ? 0.35 : 0.12) * (1 + 0.5 * talR('folego'))); hudUpdate(); }
+  if ((regenT += dt) > 1) { regenT = 0; RPG.mp = Math.min(ST.maxMp, RPG.mp + 0.22 + ST.mag * 0.02 + talR('meditacao') * 0.14); if (!DGM.inside && DGM.hp < DGM.max && FW.hurtT <= 0) DGM.hp = Math.min(DGM.max, DGM.hp + (FW.calm > 8 ? 0.35 : 0.12) * (1 + 0.5 * talR('folego')) * ((RPG.fome ?? 80) <= 0 ? 0 : (RPG.fome ?? 80) < 20 ? 0.5 : 1)); hudUpdate(); } // com fome a vida volta devagar; faminta, não volta
   const hide = UI.title || UI.panel || UI.dlg || FISH.on || mode === 'scope' || mode === 'busy' && !DGM.inside || !bigEl.classList.contains('hidden');
   $r('rpgBar').classList.toggle('hidden', !!hide); $r('rpgHud').classList.toggle('hidden', !!hide);
   if (isTouch) { const fb = $r('rpgFire'), ic = FIRE_ICON[heroHold()] || '⚔', off = !!hide || mode !== 'walk' || player.pose !== 'stand'; fb.classList.toggle('hidden', off); if (fb.textContent !== ic) fb.textContent = ic; $r('rpgDodgeB').classList.toggle('hidden', off); for (let i = 0; i < 3; i++) $r('rpgS' + i + 'T').classList.toggle('hidden', off || !skUnlocked(i)); $r('rpgLockB').classList.toggle('hidden', off || DGM.inside); $r('rpgLockB').style.background = LOCK.e ? 'rgba(170,40,50,.75)' : ''; }
@@ -13514,8 +13514,9 @@ const RST = (() => {
 })();
 const RF = xFrame(RST.c, RST.rot), RW = (lx, lz) => RF.w(lx, lz);
 const rstLocal = (x, z) => { const dx = x - RST.c.x, dz = z - RST.c.z, cs = Math.cos(RST.rot), sn = Math.sin(RST.rot); return { x: dx * cs - dz * sn, z: dx * sn + dz * cs }; };
-const rstIn = (x, z) => { const l = rstLocal(x, z); return Math.abs(l.x) < 9 && l.z > -5 && l.z < 9; };
-{ let h = -1e9; for (let lx = -10; lx <= 10; lx += 1) for (let lz = -6; lz <= 14; lz += 1) { const q = RW(lx, lz); h = Math.max(h, terrainH(q.x, q.z)); } RST.y0 = h + 0.2; }
+const RKB = -10; // fundo da cozinha (a parede dos fundos fica em z = RKB)
+const rstIn = (x, z) => { const l = rstLocal(x, z); return Math.abs(l.x) < 9 && l.z > RKB && l.z < 9; };
+{ let h = -1e9; for (let lx = -10; lx <= 10; lx += 1) for (let lz = RKB - 1; lz <= 14; lz += 1) { const q = RW(lx, lz); h = Math.max(h, terrainH(q.x, q.z)); } RST.y0 = h + 0.2; }
 const RSTR = xRegion('rst', 'Delyzias da Delyza', RW(0, 0), 22, 380, 80);
 const RK = { stations: {}, tables: [], chairs: [], stools: [], beds: [], pats: [], waiter: null, bard: null, plates: [], cook: null, dart: null, fire: null, chick: [], bees: null, nest: { t: 0 }, hive: { t: 0 }, can: false, spawnT: 4, cheer: 0 };
 const rkS = () => (RPG.ck = RPG.ck || { known: {}, dart: 0 }); // progresso salvo: receitas já feitas e o melhor placar dos dardos
@@ -13577,47 +13578,53 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
   const seg = (x0, z0, x1, z1, r = 0.22) => { const a = RW(x0, z0), b = RW(x1, z1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r }); };
   RST.col = (lx, lz, r) => { const q = RW(lx, lz); colliders.push({ x: q.x, z: q.z, r }); };
   // piso de tábuas (é um chão elevado: dá para andar dentro)
-  addPad({ ...RW(0, 2), W: 18, D: 14, yaw: RST.rot, y: y0 }); addPad({ ...RW(0, 11), W: 18, D: 4, yaw: RST.rot, y: y0 - 0.02 }); // salão e varanda
-  OCC.fill.push({ ...RW(0, 4), W: 20, D: 20, yaw: RST.rot });
-  pb(G, 18.4, 1.6, 18.4, 0, -0.8, 4.2, stone); // alicerce (cobre o terreno por baixo)
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(17.6, 13.6), TW_PLANK || matC(0x7a5a3a)); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, 2); G.add(fl);
+  addPad({ ...RW(0, (9 + RKB) / 2), W: 18, D: 9 - RKB, yaw: RST.rot, y: y0 }); addPad({ ...RW(0, 11), W: 18, D: 4, yaw: RST.rot, y: y0 - 0.02 }); // salão e varanda
+  OCC.fill.push({ ...RW(0, (14 + RKB) / 2), W: 20, D: 15 - RKB, yaw: RST.rot });
+  pb(G, 18.4, 1.6, 13.4 - RKB, 0, -0.87, (13.2 + RKB - 0.2) / 2, stone); // alicerce (cobre o terreno por baixo; topo abaixo do assoalho para não piscar)
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(17.6, 8.6), TW_PLANK || matC(0x7a5a3a)); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, 4.5); G.add(fl); // salão de tábuas (a cozinha tem piso de pedra)
   const deck = new THREE.Mesh(new THREE.PlaneGeometry(18, 4), TW_PLANK || matC(0x7a5a3a)); deck.rotation.x = -Math.PI / 2; deck.position.set(0, -0.01, 11); G.add(deck);
   for (const sx of [-1, 1]) { pb(G, 0.1, 1, 4, sx * 9, 0.5, 11, wood); } for (let k = 0; k <= 8; k++) { if (k === 3 || k === 4) continue; cyl(G, 0.05, 0.05, 1.0, -9 + k * 2.25, 0.5, 12.95, wood, 5); } pb(G, 5.6, 0.08, 0.12, -6.2, 1.0, 12.95, wood); pb(G, 9.2, 0.08, 0.12, 4.4, 1.0, 12.95, wood); seg(-9, 12.95, -3.4, 12.95, 0.12); seg(-0.2, 12.95, 9, 12.95, 0.12); seg(-9, 9, -9, 12.95, 0.12); seg(9, 9, 9, 12.95, 0.12); // guarda-corpo da varanda (com abertura na escada)
   // escadas: da estrada para a varanda e da porta dos fundos para a horta
-  const stairs = (lx, lz0, dz, w) => { const q0 = RW(lx, lz0 + dz * 2.2), g0 = terrainH(q0.x, q0.z), n = Math.max(1, Math.ceil((y0 - g0) / 0.35)); for (let i = 1; i <= n; i++) { const yy = y0 - (y0 - g0) * i / (n + 1), lz = lz0 + dz * (0.45 + i * 0.5); addPad({ ...RW(lx, lz), W: w, D: 0.5, yaw: RST.rot, y: yy }); pb(G, w, 0.12, 0.5, lx, yy - y0 - 0.06, lz, wood); pb(G, w, Math.max(0.1, yy - g0), 0.5, lx, (yy - y0) - (yy - g0) / 2, lz, stone); } return n; };
-  stairs(-1.8, 13, 1, 3.2); stairs(-6.5, -5, -1, 1.8);
+  const stairs = (lx, lz0, dz, w) => { // escada de pedra: degraus de 0,5 m de largura, cada um 1 degrau abaixo do outro até encostar na grama
+    const step = 0.28; let y = y0, i = 0; const gAt = lz => { const q = RW(lx, lz); return Math.max(terrainH(q.x, q.z), terrainH(RW(lx - w / 2, lz).x, RW(lx - w / 2, lz).z), terrainH(RW(lx + w / 2, lz).x, RW(lx + w / 2, lz).z)); };
+    addPad({ ...RW(lx, lz0 + dz * 0.5), W: w + 0.6, D: 1.0, yaw: RST.rot, y: y0 }); pb(G, w + 0.6, 0.14, 1.0, lx, -0.07, lz0 + dz * 0.5, wood); pb(G, w + 0.56, 2, 0.96, lx, -1.15, lz0 + dz * 0.5, stone); // patamar na porta
+    while (i < 14) { const lz = lz0 + dz * (1.25 + i * 0.5), g = gAt(lz); if (y - step <= g + 0.06) break; y -= step; i++;
+      addPad({ ...RW(lx, lz), W: w, D: 0.52, yaw: RST.rot, y }); pb(G, w, 0.1, 0.52, lx, y - y0 - 0.05, lz, matC(0x9a9082)); const hh = Math.max(0.12, y - g + 0.3); pb(G, w - 0.04, hh, 0.48, lx, (y - y0) - 0.1 - hh / 2, lz, stone); }
+    for (const sx of [-1, 1]) { const len = 1.0 + i * 0.5; pb(G, 0.14, 0.5, len, lx + sx * (w / 2 + 0.07), (y - y0) / 2 + 0.05, lz0 + dz * (len / 2), stone); } // muretas dos lados
+    return i; };
+  stairs(-1.8, 13, 1, 3.2); stairs(-1.6, RKB, -1, 2.2);
   // paredes: pedra até 1,2 m, reboco com vigas de madeira até o telhado; vãos de porta
   const wall = (ax, az, bx, bz, gaps = []) => { // parede reta de a até b (alinhada com x ou z), com vãos [ini, fim, altura]
     const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L, yaw = Math.atan2(ux, uz) - Math.PI / 2;
     let s = 0; const pieces = []; for (const [g0, g1, gh] of [...gaps].sort((a, b) => a[0] - b[0])) { if (g0 > s) pieces.push([s, g0, 0, H]); pieces.push([g0, g1, gh, H]); s = g1; } if (s < L) pieces.push([s, L, 0, H]);
     for (const [p0, p1, yb, yt] of pieces) { const m = (p0 + p1) / 2, w = p1 - p0, cx = ax + ux * m, cz = az + uz * m; if (yt - yb < 0.05 || w < 0.02) continue;
       if (yb === 0) { const sp = pb(G, w, 1.2, 0.36, cx, 0.6, cz, stone); sp.rotation.y = yaw; const u = pb(G, w, H - 1.2, 0.3, cx, 1.2 + (H - 1.2) / 2, cz, plaster); u.rotation.y = yaw; seg(ax + ux * p0, az + uz * p0, ax + ux * p1, az + uz * p1); }
-      else { const u = pb(G, w, yt - yb, 0.32, cx, yb + (yt - yb) / 2, cz, plaster); u.rotation.y = yaw; const lt = pb(G, w + 0.3, 0.22, 0.4, cx, yb + 0.11, cz, timber); lt.rotation.y = yaw; } }
-    for (let d = 0; d <= L + 0.01; d += L / Math.max(1, Math.round(L / 2.2))) { if (gaps.some(([g0, g1]) => d > g0 - 0.15 && d < g1 + 0.15)) continue; const px = ax + ux * d, pz = az + uz * d; for (const off of [-0.17, 0.17]) { const p = pb(G, 0.2, H - 1.2, 0.06, px - uz * off, 1.2 + (H - 1.2) / 2, pz + ux * off, timber); p.rotation.y = yaw; } }
-    for (const off of [-0.17, 0.17]) { const b1 = pb(G, L, 0.18, 0.06, (ax + bx) / 2 - uz * off, 1.25, (az + bz) / 2 + ux * off, timber); b1.rotation.y = yaw; const b2 = pb(G, L, 0.18, 0.06, (ax + bx) / 2 - uz * off, H - 0.1, (az + bz) / 2 + ux * off, timber); b2.rotation.y = yaw; }
+      else { const u = pb(G, w, yt - yb - 0.04, 0.32, cx, yb + 0.04 + (yt - yb - 0.04) / 2, cz, plaster); u.rotation.y = yaw; const lt = pb(G, w + 0.3, 0.24, 0.4, cx, yb + 0.1, cz, timber); lt.rotation.y = yaw; } }
+    for (let d = 0; d <= L + 0.01; d += L / Math.max(1, Math.round(L / 2.2))) { if (gaps.some(([g0, g1]) => d > g0 - 0.15 && d < g1 + 0.15)) continue; const px = ax + ux * d, pz = az + uz * d; for (const off of [-0.19, 0.19]) { const p = pb(G, 0.2, H - 1.23, 0.06, px - uz * off, 1.22 + (H - 1.23) / 2, pz + ux * off, timber); p.rotation.y = yaw; } }
+    const solid = []; let s0 = 0; for (const [g0, g1] of [...gaps].sort((a, b) => a[0] - b[0])) { if (g0 > s0) solid.push([s0, g0]); s0 = g1; } if (s0 < L) solid.push([s0, L]); // a viga de baixo não atravessa portas nem o passa-pratos
+    for (const off of [-0.19, 0.19]) { for (const [q0, q1] of solid) { const p0 = q0 > 0 ? q0 + 0.03 : q0, p1 = q1 < L ? q1 - 0.03 : q1, m = (p0 + p1) / 2, b1 = pb(G, p1 - p0, 0.18, 0.06, ax + ux * m - uz * off, 1.25, az + uz * m + ux * off, timber); b1.rotation.y = yaw; } const b2 = pb(G, L, 0.18, 0.06, (ax + bx) / 2 - uz * off, H - 0.1, (az + bz) / 2 + ux * off, timber); b2.rotation.y = yaw; }
   };
   wall(-9, 9, 9, 9, [[6, 8.4, 2.8]]); // frente (porta em x -3 a -0.6)
-  wall(9, -5, -9, -5, [[14.7, 16.3, 2.5]]); // fundos (porta da horta em x -5.7 a -7.3)
-  wall(-9, -5, -9, 9); wall(9, 9, 9, -5);
-  wall(-9, 0, 9, 0, [[9, 13.5, 2.3], [16.2, 17.8, 2.5]]); // divisória da cozinha: passa-pratos (x 0 a 4,5) e porta atrás do balcão (x 7,2 a 8,8)
-  for (const [x0, x1] of [[0, 4.5]]) { const p = pb(G, x1 - x0, 1.05, 0.7, (x0 + x1) / 2, 0.52, 0, woodD); pb(G, x1 - x0 + 0.1, 0.08, 0.8, (x0 + x1) / 2, 1.08, 0, wood); seg(x0, 0, x1, 0, 0.4); } // balcão do passa-pratos
+  wall(9, RKB, -9, RKB, [[9.6, 11.6, 2.5]]); // fundos: porta da horta alinhada com o corredor (x -0,6 a -2,6)
+  wall(-9, RKB, -9, 9); wall(9, 9, 9, RKB);
+  wall(-9, 0, 9, 0, [[6.3, 8.3, 2.6], [9.5, 13.5, 2.3], [16.2, 17.8, 2.5]]); // divisória: porta da cozinha no corredor (x -2,7 a -0,7), passa-pratos (x 0,5 a 4,5) e porta atrás do balcão
+  for (const [x0, x1] of [[0.5, 4.5]]) { const p = pb(G, x1 - x0, 1.05, 0.7, (x0 + x1) / 2, 0.52, 0, woodD); pb(G, x1 - x0 + 0.1, 0.08, 0.8, (x0 + x1) / 2, 1.08, 0, wood); seg(x0, 0, x1, 0, 0.4); } // balcão do passa-pratos
   for (const sx of [-1, 1]) { cyl(G, 0.13, 0.15, 3.0, -1.8 + sx * 1.35, 1.5, 9.25, timber, 8); } pb(G, 3.3, 0.25, 0.5, -1.8, 3.0, 9.25, timber); // batente da porta
   // janelas que brilham de noite (dos dois lados)
   const winM = matC(0xffd890, true), win = (x, z, yaw, w = 1.2, h = 1.1, y = 2.3) => { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw; G.add(g); pb(g, w + 0.24, h + 0.24, 0.42, 0, 0, 0, timber); pb(g, w, h, 0.44, 0, 0, 0, winM); pb(g, 0.06, h, 0.46, 0, 0, 0, timber); pb(g, w, 0.06, 0.46, 0, 0, 0, timber); pb(g, w + 0.5, 0.1, 0.3, 0, -h / 2 - 0.15, 0.25, wood); };
-  for (const x of [-7, 3.2, 6.6]) win(x, 9, 0); for (const x of [1.5, 5.5]) win(x, -5, 0); for (const z of [1.4, 7.9]) win(-9, z, Math.PI / 2); win(9, -2.5, Math.PI / 2);
+  for (const x of [-7, 3.2, 6.6]) win(x, 9, 0); for (const x of [3.6, 7.0, -6.0]) win(x, RKB, 0); for (const z of [1.4, 7.9, -2.4]) win(-9, z, Math.PI / 2); for (const z of [-2.5, -7.0]) win(9, z, Math.PI / 2); for (const sx of [-1, 1]) { cyl(G, 0.13, 0.15, 2.8, -1.7 + sx * 1.15, 1.4, 0, matC(0x4a3020), 8); }
   // telhado de duas águas, com as pontas triangulares e a cumeeira
-  const rise = 3.2, half = 7.6, sl = Math.hypot(half, rise), ang = Math.atan2(rise, half);
-  for (const sz of [1, -1]) { const r = pb(G, 19.8, 0.22, sl + 0.3, 0, H + rise / 2, 2 + sz * half / 2, roofM); r.rotation.x = sz * ang; for (let k = 0; k < 14; k++) { const t = pb(G, 19.8, 0.06, 0.08, 0, 0, 0, matC(0x6a2a1a)); t.position.set(0, H + rise / 2 - Math.sin(ang) * (k - 6.5) * 0.58 * sz * 0 + (rise / 2 - (k + 0.5) / 14 * rise) * 1 + 0.13, 2 + sz * (k + 0.5) / 14 * half); } }
+  const rise = 3.6, half = (9 - RKB) / 2 + 0.6, mid = (9 + RKB) / 2, sl = Math.hypot(half, rise), ang = Math.atan2(rise, half);
+  for (const sz of [1, -1]) { const r = pb(G, 19.8, 0.22, sl + 0.3, 0, H + rise / 2, mid + sz * half / 2, roofM); r.rotation.x = sz * ang; for (let k = 0; k < 14; k++) { const t = pb(G, 19.8, 0.06, 0.08, 0, 0, 0, matC(0x6a2a1a)); t.position.set(0, H + rise - (k + 0.5) / 14 * rise + 0.13, mid + sz * (k + 0.5) / 14 * half); t.rotation.x = sz * ang; } }
   { const sh = new THREE.Shape(); sh.moveTo(-half, 0); sh.lineTo(half, 0); sh.lineTo(0, rise); sh.closePath(); const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: false });
-    for (const sx of [-1, 1]) { const m = new THREE.Mesh(geo, plaster); m.rotation.y = Math.PI / 2; m.position.set(sx * 9 - 0.15, H, 2); G.add(m); for (let k = -2; k <= 2; k++) { const v = pb(G, 0.08, rise * (1 - Math.abs(k) / 2.6) - 0.1, 0.18, sx * 9.05, H + (rise * (1 - Math.abs(k) / 2.6)) / 2, 2 + k * 2.6, timber); } } }
-  pb(G, 20, 0.3, 0.3, 0, H + rise + 0.1, 2, timber); // cumeeira
-  for (let k = 0; k < 9; k++) pb(G, 0.22, 0.26, 14.2, -8 + k * 2, H + 0.05, 2, timber); pb(G, 18, 0.28, 0.28, 0, H + 0.05, 2, timber); // vigas do teto (dá para ver de dentro)
+    for (const sx of [-1, 1]) { const m = new THREE.Mesh(geo, plaster); m.rotation.y = Math.PI / 2; m.position.set(sx * 9 - 0.15, H, mid); G.add(m); for (let k = -2; k <= 2; k++) { const v = pb(G, 0.08, rise * (1 - Math.abs(k) / 2.6) - 0.1, 0.18, sx * 9.05, H + (rise * (1 - Math.abs(k) / 2.6)) / 2, mid + k * half / 2.9, timber); } } }
+  pb(G, 20, 0.3, 0.3, 0, H + rise + 0.1, mid, timber); // cumeeira
+  for (let k = 0; k < 9; k++) pb(G, 0.22, 0.26, 9.2 - RKB, -8 + k * 2, H + 0.05, mid, timber); pb(G, 18, 0.28, 0.28, 0, H + 0.05, mid, timber); // vigas do teto (dá para ver de dentro)
   { const ch = new THREE.Group(); ch.position.set(-8.4, 0, 4.8); G.add(ch); pb(ch, 1.4, H + rise + 1.4, 1.2, -0.3, (H + rise + 1.4) / 2, 0, stone); pb(ch, 1.6, 0.25, 1.4, -0.3, H + rise + 1.45, 0, matC(0x6a6058)); RST.smoke = RW(-8.7, 4.8); } // chaminé da lareira
   // placa pendurada na frente e lanternas da varanda
   { const sg = new THREE.Group(); sg.position.set(-5.2, 3.3, 9.9); G.add(sg); pb(sg, 0.08, 0.08, 1.4, 0, 0.55, -0.55, M.iron); signBox(sg, boardTex('🍲 Delyzias da Delyza', '#5a1a14', 768, 150, 64), 3.0, 0.62, 0, 0, 0); }
   signBox(G, boardTex('taverna · restaurante · horta', '#3a2418', 640, 70, 32), 3.4, 0.32, -1.8, 3.42, 9.5);
   for (const x of [-8.6, -4.6, 1.2, 5.2, 8.6]) { cyl(G, 0.06, 0.06, 2.6, x, 1.3, 12.9, wood, 6); pb(GA, 0.22, 0.32, 0.22, x, 2.75, 12.9, matC(0xffd890, true)); addFlame(GA, x, 2.8, 12.9, 0.22); }
-  for (let k = 0; k < 24; k++) { const t = k / 23, x = -8.6 + t * 17.2, sag = Math.abs(Math.sin(t * 4 * Math.PI)) * 0.0 + Math.sin(((x + 8.6) % 4) / 4 * Math.PI) * 0.35; ps(GA, 0.06, x, 2.55 - sag, 12.9, matC([0xffd890, 0xffb07a, 0xfff2c0][k % 3], true)); } // varal de luzinhas
   // mesas da varanda
   for (const x of [-6.5, 4.5]) { const t = new THREE.Group(); t.position.set(x, 0, 11); G.add(t); cyl(t, 0.7, 0.7, 0.07, 0, 0.78, 0, wood, 14); cyl(t, 0.07, 0.1, 0.76, 0, 0.38, 0, woodD, 8);
     for (const [cx, cz] of [[-1, 0], [1, 0]]) { pb(t, 0.45, 0.06, 0.45, cx, 0.46, cz, wood); pb(t, 0.45, 0.5, 0.06, cx * 1.2, 0.72, cz, wood).rotation.y = Math.PI / 2; for (const sx of [-0.18, 0.18]) for (const sz of [-0.18, 0.18]) pb(t, 0.05, 0.46, 0.05, cx + sx, 0.23, cz + sz, woodD); }
@@ -13648,7 +13655,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
     RST.col(-7.9, 4.8, 1.5);
     hit(1.6, 2.2, 3.0, -7.6, 1.1, 4.8, () => { RK.fire.visible = !RK.fire.visible; sfx.crackle(); whisper(RK.fire.visible ? '🔥 a senhora joga mais uma lenha: o fogo estala e a taverna inteira fica quentinha' : '💨 o fogo virou brasa…', 3); if (RK.fire.visible) { DGM.hp = Math.min(DGM.max, DGM.hp + 1); hudUpdate(); } }, 2.6);
     rug(-5.9, 4.8, 2.6, 3.4, 0x7a2418, 0xc8a050);
-    for (const [lz, rot] of [[3.4, -2.2], [6.2, -0.94]]) { const c = new THREE.Group(); c.position.set(-5.6, 0, lz); c.rotation.y = rot; G.add(c); const v = matC(0x5a2a1a);
+    for (const lz of [3.4, 6.2]) { const rot = Math.atan2(-7.4 - -5.6, 4.8 - lz), c = new THREE.Group(); c.position.set(-5.6, 0, lz); c.rotation.y = rot; G.add(c); const v = matC(0x5a2a1a); /* virada para a boca da lareira */
       pb(c, 0.95, 0.42, 0.85, 0, 0.3, 0, v); pb(c, 0.95, 0.8, 0.2, 0, 0.8, -0.35, v); for (const sx of [-1, 1]) pb(c, 0.16, 0.55, 0.85, sx * 0.48, 0.45, 0, matC(0x3a1a10)); ps(c, 0.15, 0, 0.6, -0.15, matC(0xc8a050), 1, 0.7, 0.45);
       RST.col(-5.6, lz, 0.55); const q = RW(-5.6, lz), fy = RST.rot + rot; const seat = { yaw: fy + Math.PI, pitch: -0.05, exit: RW(-4.6, lz), eye: () => V3(q.x, y0 + 1.05, q.z) };
       hit(1, 1.1, 1, -5.6, 0.55, lz, () => sitOn(seat, '🛋 a senhora afunda na poltrona perto do fogo… o cheiro de comida e de lenha queimando é o melhor do mundo'), 1.8); }
@@ -13678,7 +13685,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
     for (let r = 0; r < 3; r++) { pb(G, 0.35, 0.05, 6.4, 8.75, 1.9 + r * 0.6, 4.2, woodL); for (let k = 0; k < 12; k++) { const c = [0x2a6a3a, 0x7a1f2a, 0xc8a050, 0x3a5a8a, 0x8a4a2a][(k + r) % 5]; cyl(G, 0.06, 0.07, 0.26, 8.75, 2.06 + r * 0.6, 1.4 + k * 0.5 + (r % 2) * 0.2, matC(c), 6); cyl(G, 0.025, 0.03, 0.08, 8.75, 2.23 + r * 0.6, 1.4 + k * 0.5 + (r % 2) * 0.2, matC(c), 5); } }
     for (let k = 0; k < 8; k++) { const z = 1.6 + k * 0.7; cyl(G, 0.008, 0.008, 0.3, 7.0, 3.85, z, iron, 3); cyl(G, 0.07, 0.065, 0.14, 7.0, 3.65, z, matC(0x8a5a2a), 8); } pb(G, 0.08, 0.08, 6.2, 7.0, 4.0, 4.2, woodD); // canecas penduradas
     for (const z of [1.8, 3.3, 5.2, 6.7]) { cyl(G, 0.07, 0.06, 0.14, 6.2, 1.22, z, matC(0x8a5a2a), 8); ps(G, 0.055, 6.2, 1.3, z, matC(0xf4efe4), 1, 0.4, 1); } // canecas no balcão
-    pb(G, 0.12, 0.7, 1.2, 6.2, 1.5, 7.0, woodD); signBox(G, boardTex('🍺 Balcão', '#3a2418', 384, 90, 46), 1.2, 0.3, 6.2, 2.0, 7.0).rotation.y = -Math.PI / 2;
+    pb(G, 0.12, 0.7, 1.2, 6.2, 1.5, 7.0, woodD); signBox(G, boardTex('🍺 Balcão da Delyza', '#3a2418', 512, 110, 46), 1.1, 0.4, 6.05, 1.55, 7.0).rotation.y = -Math.PI / 2;
     hit(1.2, 1.6, 6, 6.6, 1, 4.2, () => rstBar(), 2.4);
   }
   // cantinho do bardo e alvo de dardos
@@ -13693,7 +13700,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
   }
   // quadro do cardápio na porta, prateleira com potes, vasos de planta e um cachorro dormindo
   { const g = new THREE.Group(); g.position.set(-4.0, 0, 8.6); g.rotation.y = Math.PI; G.add(g); for (const sx of [-0.4, 0.4]) { const lg = pb(g, 0.06, 1.6, 0.06, sx, 0.8, 0, woodD); lg.rotation.x = 0.12; }
-    const mt = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.9), new THREE.MeshLambertMaterial({ map: canvasTex(256, 230, c => { c.fillStyle = '#1e2a22'; c.fillRect(0, 0, 256, 230); c.strokeStyle = '#8a6a3a'; c.lineWidth = 10; c.strokeRect(0, 0, 256, 230); c.fillStyle = '#f4ecd8'; c.textAlign = 'center'; c.font = 'bold 26px Georgia'; c.fillText('Hoje na Delyzias', 128, 38); c.font = '20px Georgia'; ['🍲 Ensopado da Delyza', '🥧 Torta de Morango', '🥣 Sopa de Legumes', '🍺 Hidromel da Casa'].forEach((s, k) => c.fillText(s, 128, 82 + k * 36)); }) }));
+    const mt = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.9), new THREE.MeshBasicMaterial({ color: 0xe0e0e0, map: canvasTex(256, 230, c => { c.fillStyle = '#1e2a22'; c.fillRect(0, 0, 256, 230); c.strokeStyle = '#8a6a3a'; c.lineWidth = 10; c.strokeRect(0, 0, 256, 230); c.fillStyle = '#f4ecd8'; c.textAlign = 'center'; c.font = 'bold 26px Georgia'; c.fillText('Hoje na Delyzias', 128, 38); c.font = '20px Georgia'; ['🍲 Ensopado da Delyza', '🥧 Torta de Morango', '🥣 Sopa de Legumes', '🍺 Hidromel da Casa'].forEach((s, k) => c.fillText(s, 128, 82 + k * 36)); }) }));
     mt.position.set(0, 1.25, 0.06); mt.rotation.x = -0.12; g.add(mt); RST.col(-4.0, 8.6, 0.4);
     hit(1.2, 1.8, 0.8, -4.0, 1, 8.4, () => showDialog('📋 Cardápio do dia', 'Delyzias da Delyza', 'Hoje tem Ensopado da Delyza, Torta de Morango, Sopa de Legumes e Hidromel da Casa! Peça no balcão… ou cozinhe a senhora mesma: a cozinha está aberta e o livro de receitas fica do lado da bancada 🍳', [['hmm, que fome!', null, true]]), 2.0);
     for (const [lx, lz] of [[-8.4, 8.4], [8.4, 8.4], [-8.4, 0.6]]) { cyl(G, 0.3, 0.24, 0.55, lx, 0.27, lz, matC(0xa8583a), 10); ps(G, 0.45, lx, 0.95, lz, matC(0x3a7a3a), 1, 1.3, 1); RST.col(lx, lz, 0.35); }
@@ -13702,41 +13709,56 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
   }
 }
 
-/* ---- a cozinha: forno a lenha, fogão de panelas, bancada, pia, despensa e o livro de receitas ---- */
+/* ---- a cozinha (10 m de fundo): forno, fogão e pia na parede do fundo, bancada no meio, despensa organizada no canto e corredor livre até a horta ---- */
 {
-  const G = RST.G, GA = RST.GA, hit = RST.hit, wood = matC(0x6a4428), woodD = matC(0x3a2618), iron = M.iron, brick = matC(0xa8583a);
-  pb(G, 13, 0.02, 4.4, 2.5, 0.015, -2.5, matC(0xb8b0a0)); // piso de pedra na cozinha
-  { const g = new THREE.Group(); g.position.set(1.0, 0, -4.1); G.add(g); // forno a lenha de tijolos
-    pb(g, 2.6, 1.0, 1.6, 0, 0.5, 0, brick); mmesh(g, gHemi, brick, 0, 1.0, 0, 1.25, 1.1, 0.8); pb(g, 0.9, 0.7, 0.2, 0, 1.25, 0.72, matC(0x1a120e)); cyl(g, 0.25, 0.3, 1.8, 0, 2.6, -0.3, brick, 8);
-    pb(g, 2.8, 0.1, 0.5, 0, 1.0, 1.0, matC(0x8a8070)); for (let k = 0; k < 4; k++) { const l = cyl(g, 0.07, 0.07, 0.6, -1.0 + k * 0.15, 0.25, 1.0, matC(0x6a4428), 6); l.rotation.x = Math.PI / 2; }
+  const G = RST.G, GA = RST.GA, hit = RST.hit, wood = matC(0x6a4428), woodD = matC(0x3a2618), woodL = matC(0x8a6038), iron = M.iron, brick = matC(0xa8583a), K = RKB;
+  pb(G, 17.6, 0.02, -K - 0.3, 0, 0.012, K / 2, matC(0xb8b0a0)); for (let k = 0; k < 9; k++) pb(G, 0.03, 0.025, -K - 0.3, -8 + k * 2, 0.014, K / 2, matC(0x9a9282)); // piso de pedra com rejunte
+  pb(G, 1.9, 0.026, -K - 0.6, -1.6, 0.016, K / 2, matC(0x8a5a3a)); // passadeira no corredor até a porta da horta
+  { const g = new THREE.Group(); g.position.set(2.2, 0, K + 0.95); G.add(g); // forno a lenha de tijolos
+    pb(g, 2.6, 1.0, 1.6, 0, 0.5, 0, brick); mmesh(g, gHemi, brick, 0, 1.0, 0, 1.25, 1.1, 0.8); pb(g, 0.9, 0.7, 0.2, 0, 1.25, 0.72, matC(0x1a120e)); cyl(g, 0.25, 0.3, 2.6, 0, 3.0, -0.3, brick, 8);
+    pb(g, 2.8, 0.1, 0.5, 0, 1.0, 1.0, matC(0x8a8070)); for (let k = 0; k < 4; k++) { const l = cyl(g, 0.07, 0.07, 0.6, -1.6, 0.12 + k * 0.14, 0.2 - k * 0.1, matC(0x6a4428), 6); l.rotation.x = Math.PI / 2; } // lenha empilhada do lado
+    pb(g, 0.15, 1.2, 0.05, 1.5, 1.2, 0.85, woodD); pb(g, 0.6, 0.04, 0.35, 1.5, 1.8, 0.85, woodD); // pá de pão encostada
     const gf = new THREE.Group(); gf.position.copy(g.position); GA.add(gf); addFlame(gf, -0.15, 1.25, 0.75, 0.4); addFlame(gf, 0.18, 1.2, 0.75, 0.32); vlGlow(gf, 0xff8a3a, 2.2, 0, 1.3, 0.9, 0.5);
-    RST.col(1.0, -4.1, 1.3); RK.stations.forno = { lx: 1.0, lz: -3.0, y: 1.2 }; hit(2.6, 2, 1.8, 1.0, 1, -3.7, () => rstCook('forno'), 2.4); }
-  { const g = new THREE.Group(); g.position.set(5.0, 0, -4.2); G.add(g); // fogão de ferro com panelas
-    pb(g, 2.6, 0.95, 1.2, 0, 0.47, 0, iron); pb(g, 2.7, 0.06, 1.3, 0, 0.97, 0, matC(0x2a2a30)); for (const sx of [-0.8, 0, 0.8]) cyl(g, 0.3, 0.3, 0.02, sx, 1.0, 0.05, matC(0xff6a2a, true), 14);
-    cyl(g, 0.32, 0.28, 0.42, -0.8, 1.22, 0.05, matC(0x6a6a72), 14); cyl(g, 0.24, 0.24, 0.32, 0, 1.17, 0.05, matC(0xb87a4a), 14); const pan = cyl(g, 0.3, 0.26, 0.08, 0.8, 1.05, 0.05, matC(0x2a2a30), 14); pb(g, 0.5, 0.04, 0.06, 1.25, 1.07, 0.05, woodD);
-    pb(g, 2.6, 0.08, 0.5, 0, 2.1, -0.4, woodD); for (let k = 0; k < 5; k++) { const x = -1.0 + k * 0.5; cyl(g, 0.006, 0.006, 0.2, x, 1.98, -0.3, iron, 3); cyl(g, 0.15 - k * 0.012, 0.13, 0.08, x, 1.84, -0.3, matC(k % 2 ? 0xb87a4a : 0x6a6a72), 10).rotation.x = Math.PI / 2; } // panelas penduradas
-    RST.col(5.0, -4.2, 1.3); RK.stations.fogao = { lx: 5.0, lz: -3.2, y: 1.4 }; hit(2.6, 2, 1.6, 5.0, 1, -3.8, () => rstCook('fogao'), 2.4); }
-  { const g = new THREE.Group(); g.position.set(3.0, 0, -1.8); G.add(g); // bancada no meio da cozinha
-    pb(g, 3.2, 0.9, 1.2, 0, 0.45, 0, wood); pb(g, 3.3, 0.1, 1.3, 0, 0.95, 0, matC(0xc8a878)); pb(g, 0.6, 0.04, 0.4, -0.6, 1.02, 0.1, matC(0x9a7048)); pb(g, 0.3, 0.015, 0.05, -0.6, 1.05, 0.25, matC(0xd8dce4));
-    for (const [x, c] of [[0.3, 0xe84a2a], [0.5, 0xff8a2a], [0.7, 0x6ab84a], [0.9, 0xf4e8c8]]) ps(g, 0.09, x, 1.08, -0.2, matC(c)); ps(g, 0.22, 1.2, 1.12, 0.15, matC(0xb07a44), 1.4, 0.6, 1); // legumes e cesto
-    RST.col(2.2, -1.8, 0.75); RST.col(3.8, -1.8, 0.75); RK.stations.bancada = { lx: 3.0, lz: -1.8, y: 1.2 }; hit(3.2, 1.3, 1.6, 3.0, 0.8, -1.8, () => rstCook('bancada'), 2.4); }
-  { const g = new THREE.Group(); g.position.set(8.0, 0, -4.3); G.add(g); pb(g, 1.4, 0.9, 0.9, 0, 0.45, 0, matC(0x9a9082)); pb(g, 1.1, 0.1, 0.6, 0, 0.92, 0.05, matC(0x3a4a5a)); cyl(g, 0.04, 0.04, 0.6, 0.4, 1.2, -0.2, iron, 6); pb(g, 0.35, 0.04, 0.04, 0.4, 1.5, -0.05, iron); RST.col(8.0, -4.3, 0.7); // pia com bomba
-    hit(1.4, 1.2, 1, 8.0, 0.9, -4.0, () => { sfx.splash(0.15, 0.5); whisper('🫧 a senhora lava as mãos antes de cozinhar: regra número um da Delyza!', 2.6); rpgEvent('lavar_maos'); }, 2.0); }
-  // ervas e alhos pendurados, prateleira de potes e temperos na parede do fundo
-  for (let k = 0; k < 10; k++) { const x = -1.6 + k * 1.0, c = k % 3 === 0 ? 0xf4ecd8 : 0x5a8a3a; cyl(G, 0.008, 0.008, 0.4, x, 3.9, -2.4, iron, 3); for (let j = 0; j < 4; j++) ps(G, 0.07, x + (j - 1.5) * 0.06, 3.55 - j * 0.04, -2.4, matC(c), 1, k % 3 === 0 ? 1 : 1.8, 1); }
-  for (let r = 0; r < 2; r++) { pb(G, 3.4, 0.06, 0.32, 5.0, 2.6 + r * 0.55, -4.8, wood); for (let k = 0; k < 9; k++) cyl(G, 0.08, 0.08, 0.2, 3.5 + k * 0.37, 2.74 + r * 0.55, -4.75, matC([0xc8a050, 0x7a1f2a, 0x3a7a3a, 0xf4ecd8, 0x8a5a2a][(k + r) % 5]), 8); }
-  // livro de receitas num atril, ao lado da bancada
-  { const g = new THREE.Group(); g.position.set(0.6, 0, -1.0); g.rotation.y = -0.6; G.add(g); cyl(g, 0.06, 0.1, 1.05, 0, 0.52, 0, woodD, 6); pb(g, 0.6, 0.05, 0.45, 0, 1.08, 0, woodD).rotation.x = -0.4;
+    RST.col(2.2, K + 0.95, 1.3); RK.stations.forno = { lx: 2.2, lz: K + 2.1, y: 1.2 }; hit(2.6, 2, 1.8, 2.2, 1, K + 1.4, () => rstCook('forno'), 2.6); signBox(G, boardTex('🔥 Forno a Lenha', '#3a2418', 384, 80, 40), 1.3, 0.28, 2.2, 3.0, K + 0.25); }
+  { const g = new THREE.Group(); g.position.set(5.6, 0, K + 0.8); G.add(g); // fogão de ferro com panelas
+    pb(g, 2.6, 0.95, 1.2, 0, 0.47, 0, iron); pb(g, 2.7, 0.06, 1.3, 0, 0.97, 0, matC(0x2a2a30)); for (const sx of [-0.8, 0, 0.8]) cyl(g, 0.3, 0.3, 0.02, sx, 1.012, 0.05, matC(0xff6a2a, true), 14);
+    cyl(g, 0.32, 0.28, 0.42, -0.8, 1.23, 0.05, matC(0x6a6a72), 14); cyl(g, 0.24, 0.24, 0.32, 0, 1.18, 0.05, matC(0xb87a4a), 14); cyl(g, 0.3, 0.26, 0.08, 0.8, 1.06, 0.05, matC(0x2a2a30), 14); pb(g, 0.5, 0.04, 0.06, 1.25, 1.07, 0.05, woodD);
+    pb(g, 2.6, 0.08, 0.5, 0, 2.1, -0.4, woodD); for (let k = 0; k < 5; k++) { const x = -1.0 + k * 0.5; cyl(g, 0.006, 0.006, 0.2, x, 1.98, -0.3, iron, 3); cyl(g, 0.15 - k * 0.012, 0.13, 0.08, x, 1.84, -0.3, matC(k % 2 ? 0xb87a4a : 0x6a6a72), 10).rotation.x = Math.PI / 2; }
+    pb(g, 2.8, 0.5, 1.0, 0, 3.2, 0.1, matC(0x8a8070)); // coifa de pedra
+    RST.col(5.6, K + 0.8, 1.3); RK.stations.fogao = { lx: 5.6, lz: K + 1.8, y: 1.4 }; hit(2.6, 2, 1.6, 5.6, 1, K + 1.2, () => rstCook('fogao'), 2.6); signBox(G, boardTex('🍲 Fogão', '#3a2418', 384, 80, 40), 1.1, 0.26, 5.6, 3.62, K + 0.62); }
+  { const g = new THREE.Group(); g.position.set(8.1, 0, K + 0.7); G.add(g); pb(g, 1.4, 0.9, 0.9, 0, 0.45, 0, matC(0x9a9082)); pb(g, 1.1, 0.1, 0.6, 0, 0.92, 0.05, matC(0x3a4a5a)); cyl(g, 0.04, 0.04, 0.6, 0.4, 1.2, -0.2, iron, 6); pb(g, 0.35, 0.04, 0.04, 0.4, 1.5, -0.05, iron); RST.col(8.1, K + 0.7, 0.7); // pia com bomba
+    hit(1.4, 1.2, 1, 8.1, 0.9, K + 1.0, () => { sfx.splash(0.15, 0.5); whisper('🫧 a senhora lava as mãos antes de cozinhar: regra número um da Delyza!', 2.6); rpgEvent('lavar_maos'); }, 2.0); }
+  { const g = new THREE.Group(); g.position.set(4.0, 0, K / 2); G.add(g); // bancada no meio, com espaço em volta
+    pb(g, 3.4, 0.9, 1.3, 0, 0.45, 0, wood); pb(g, 3.5, 0.1, 1.4, 0, 0.95, 0, matC(0xc8a878)); pb(g, 0.6, 0.04, 0.4, -0.7, 1.02, 0.1, matC(0x9a7048)); pb(g, 0.3, 0.015, 0.05, -0.7, 1.05, 0.25, matC(0xd8dce4));
+    for (const [x, c] of [[0.2, 0xe84a2a], [0.4, 0xff8a2a], [0.6, 0x6ab84a], [0.8, 0xf4e8c8]]) ps(g, 0.09, x, 1.08, -0.25, matC(c)); ps(g, 0.22, 1.25, 1.12, 0.2, matC(0xb07a44), 1.4, 0.6, 1);
+    for (const sx of [-1.2, 0, 1.2]) pb(g, 0.04, 0.6, 1.2, sx, 0.4, 0, woodD); for (const sx of [-0.6, 0.6]) for (let k = 0; k < 3; k++) ps(g, 0.1, sx + (k - 1) * 0.22, 0.32, 0.45, matC([0xc8a050, 0xe8dcc0, 0x7a1f2a][k]), 1, 0.8, 1); // prateleira de baixo com potes
+    RST.col(3.2, K / 2, 0.8); RST.col(4.8, K / 2, 0.8); RK.stations.bancada = { lx: 4.0, lz: K / 2, y: 1.2 }; hit(3.4, 1.3, 1.8, 4.0, 0.8, K / 2, () => rstCook('bancada'), 2.6); }
+  // ervas e alhos pendurados numa trave sobre a bancada, prateleiras de potes na parede da direita
+  pb(G, 4.2, 0.12, 0.12, 4.0, 3.2, K / 2, woodD); for (let k = 0; k < 8; k++) { const x = 2.3 + k * 0.48, c = k % 3 === 0 ? 0xf4ecd8 : 0x5a8a3a; cyl(G, 0.008, 0.008, 0.35, x, 3.0, K / 2, iron, 3); for (let j = 0; j < 4; j++) ps(G, 0.07, x + (j - 1.5) * 0.05, 2.72 - j * 0.04, K / 2, matC(c), 1, k % 3 === 0 ? 1 : 1.8, 1); }
+  for (let r = 0; r < 3; r++) { pb(G, 0.35, 0.05, 3.6, 8.75, 1.5 + r * 0.6, -4.6, woodL); for (let k = 0; k < 8; k++) cyl(G, 0.08, 0.08, 0.22, 8.75, 1.65 + r * 0.6, -6.1 + k * 0.42, matC([0xc8a050, 0x7a1f2a, 0x3a7a3a, 0xf4ecd8, 0x8a5a2a][(k + r) % 5]), 8); }
+  // mesinha dos cozinheiros e o livro de receitas no atril, perto da porta da cozinha
+  { const t = new THREE.Group(); t.position.set(-5.4, 0, -2.6); G.add(t); cyl(t, 0.6, 0.6, 0.07, 0, 0.78, 0, woodL, 14); cyl(t, 0.07, 0.1, 0.76, 0, 0.38, 0, woodD, 8); for (const sx of [-0.85, 0.85]) { cyl(t, 0.2, 0.2, 0.06, sx, 0.5, 0, matC(0x7a1f2a), 10); cyl(t, 0.04, 0.05, 0.48, sx, 0.25, 0, woodD, 6); }
+    cyl(t, 0.05, 0.045, 0.12, 0.15, 0.88, 0.1, matC(0x8a5a2a), 8); cyl(t, 0.18, 0.15, 0.06, -0.15, 0.85, -0.1, matC(0xf4f0e8), 12); RST.col(-5.4, -2.6, 0.75); }
+  { const g = new THREE.Group(); g.position.set(-0.2, 0, -1.4); g.rotation.y = -0.5; G.add(g); cyl(g, 0.06, 0.1, 1.05, 0, 0.52, 0, woodD, 6); pb(g, 0.6, 0.05, 0.45, 0, 1.08, 0, woodD).rotation.x = -0.4;
     const bk = new THREE.Group(); bk.position.set(0, 1.13, 0.02); bk.rotation.x = -0.4; g.add(bk); for (const sx of [-1, 1]) pb(bk, 0.26, 0.03, 0.36, sx * 0.14, 0.02, 0, matC(0xf4ecd8)).rotation.z = sx * 0.12; pb(bk, 0.58, 0.02, 0.4, 0, -0.01, 0, matC(0x7a1f2a));
-    vlGlow(GA, 0xffe8b0, 1.2, 0.6, 1.3, -1.0, 0.4); RST.col(0.6, -1.0, 0.3); hit(0.9, 1.5, 0.9, 0.6, 0.9, -1.0, () => rstBook(0), 1.8); }
-  // despensa: sacos de farinha, barris, caixotes, queijos e prateleiras
-  { for (let k = 0; k < 3; k++) { cyl(G, 0.35, 0.42, 0.75, -8.2 + k * 0.85, 0.37, -4.3, matC(0xe8dcc0), 8); ps(G, 0.3, -8.2 + k * 0.85, 0.78, -4.3, matC(0xe8dcc0), 1, 0.4, 1); }
-    for (const [x, z] of [[-5.4, -4.3], [-5.4, -3.4]]) { cyl(G, 0.4, 0.4, 0.95, x, 0.47, z, wood, 12); cyl(G, 0.42, 0.42, 0.06, x, 0.25, z, iron, 12); cyl(G, 0.42, 0.42, 0.06, x, 0.7, z, iron, 12); }
-    for (let k = 0; k < 3; k++) { pb(G, 0.8, 0.5, 0.6, -8.4 + k * 0.9, 0.25, -1.0, wood); for (let j = 0; j < 4; j++) ps(G, 0.11, -8.6 + k * 0.9 + j * 0.13, 0.55, -1.0, matC([0xe84a2a, 0xff8a2a, 0xc8a050][k])); }
-    for (let r = 0; r < 3; r++) { pb(G, 0.4, 0.05, 3.0, -8.75, 1.3 + r * 0.6, -2.6, wood); for (let k = 0; k < 6; k++) { if (r === 1) { const ch = cyl(G, 0.16, 0.16, 0.12, -8.75, 1.4 + r * 0.6, -3.8 + k * 0.48, matC(0xf0c850), 12); } else cyl(G, 0.09, 0.09, 0.26, -8.75, 1.46 + r * 0.6, -3.8 + k * 0.48, matC([0xd8a860, 0x9a3a2a, 0xf4ecd8][k % 3]), 8); } }
-    for (const [x, z, r] of [[-7.4, -4.3, 1.4], [-5.4, -3.85, 0.9], [-7.5, -1.0, 1.4], [-8.7, -2.6, 0.5]]) RST.col(x, z, r);
-    signBox(G, boardTex('🧺 Despensa', '#3a2418', 384, 90, 46), 1.2, 0.3, -6.8, 2.6, -0.2);
-    hit(3.6, 2, 4, -7.0, 1, -2.6, () => openShop('despensa', RK.delyza), 3.0); }
+    vlGlow(GA, 0xffe8b0, 1.2, -0.2, 1.3, -1.4, 0.4); RST.col(-0.2, -1.4, 0.3); hit(0.9, 1.5, 0.9, -0.2, 0.9, -1.4, () => rstBook(0), 1.8); }
+  // 🧺 despensa: quartinho no canto com porta para o corredor e tudo arrumado por tipo
+  { const x0 = -9, x1 = -4.0, z0 = K, z1 = K + 4.2, H = RST.H, plaster = matC(0xeadfc4), timber = matC(0x4a3020);
+    const pw = (ax, az, bx, bz) => { const L = Math.hypot(bx - ax, bz - az), cx = (ax + bx) / 2, cz = (az + bz) / 2, yaw = Math.atan2(bx - ax, bz - az) - Math.PI / 2; const w1 = pb(G, L, H, 0.2, cx, H / 2, cz, plaster); w1.rotation.y = yaw; const a = RW(ax, az), b = RW(bx, bz); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r: 0.2 }); };
+    pw(x0, z1, x1, z1); pw(x1, z1, x1, z0 + 2.4); pw(x1, z0 + 0.9, x1, z0); pb(G, 0.24, H - 2.5, 1.5, x1, 2.5 + (H - 2.5) / 2, z0 + 1.65, plaster); for (const zz of [z0 + 0.9, z0 + 2.4]) pb(G, 0.26, 2.5, 0.12, x1, 1.25, zz, timber); // paredes e a porta (de frente para o corredor)
+    signBox(G, boardTex('🧺 Despensa', '#3a2418', 384, 90, 46), 1.1, 0.28, x1 + 0.13, 2.75, z0 + 1.65).rotation.y = Math.PI / 2;
+    // prateleiras do fundo: potes de conserva e temperos com etiqueta
+    for (let r = 0; r < 4; r++) { pb(G, 3.2, 0.05, 0.4, -6.6, 0.5 + r * 0.55, z0 + 0.25, woodL); for (let k = 0; k < 8; k++) { const c = [0xd8a860, 0x9a3a2a, 0x3a7a3a, 0xf4ecd8][r]; cyl(G, 0.09, 0.09, 0.24, -7.95 + k * 0.38, 0.65 + r * 0.55, z0 + 0.25, matC(c), 8); pb(G, 0.12, 0.06, 0.01, -7.95 + k * 0.38, 0.63 + r * 0.55, z0 + 0.35, matC(0xf4ecd8)); } }
+    for (const sx of [-8.2, -5.0]) pb(G, 0.06, 2.4, 0.4, sx, 1.2, z0 + 0.25, woodD);
+    // parede da esquerda: sacos de farinha num estrado e queijos numa prateleira
+    pb(G, 0.9, 0.12, 2.0, -8.45, 0.06, z0 + 2.3, woodD); for (let k = 0; k < 3; k++) { cyl(G, 0.3, 0.36, 0.7, -8.45, 0.47, z0 + 1.6 + k * 0.65, matC(0xe8dcc0), 8); ps(G, 0.26, -8.45, 0.85, z0 + 1.6 + k * 0.65, matC(0xe8dcc0), 1, 0.4, 1); pb(G, 0.02, 0.18, 0.3, -8.12, 0.5, z0 + 1.6 + k * 0.65, matC(0x5a3a22)); }
+    for (let r = 0; r < 2; r++) { pb(G, 0.5, 0.05, 2.0, -8.7, 1.5 + r * 0.6, z0 + 2.3, woodL); for (let k = 0; k < 4; k++) cyl(G, 0.18, 0.18, 0.14, -8.7, 1.6 + r * 0.6, z0 + 1.55 + k * 0.5, matC(0xf0c850), 12); }
+    // parede da frente (por dentro): caixotes de legumes em fila e dois barris no canto
+    for (let k = 0; k < 3; k++) { pb(G, 0.8, 0.45, 0.55, -8.4 + k * 0.95, 0.22, z1 - 0.45, wood); for (let j = 0; j < 4; j++) ps(G, 0.11, -8.65 + k * 0.95 + j * 0.16, 0.52, z1 - 0.45, matC([0xe84a2a, 0xff8a2a, 0xc8a050][k])); }
+    for (const xx of [-5.4, -4.6]) { cyl(G, 0.36, 0.36, 0.9, xx, 0.45, z1 - 0.5, wood, 12); cyl(G, 0.38, 0.38, 0.06, xx, 0.22, z1 - 0.5, iron, 12); cyl(G, 0.38, 0.38, 0.06, xx, 0.68, z1 - 0.5, iron, 12); } // barris no canto da frente (a porta fica livre)
+    RST.col(-8.45, z0 + 2.3, 0.7); RST.col(-6.6, z0 + 0.35, 0.5); RST.col(-7.6, z0 + 0.35, 0.5); RST.col(-5.6, z0 + 0.35, 0.5); RST.col(-5.0, z1 - 0.5, 0.75); for (let k = 0; k < 3; k++) RST.col(-8.4 + k * 0.95, z1 - 0.45, 0.45);
+    pb(G, 2.4, 0.03, 1.6, -6.6, 0.03, z0 + 2.2, matC(0x6a3a2a)); // tapetinho no meio (o meio fica livre para andar)
+    hit(4.6, 2, 3.8, -6.5, 1, z0 + 2.1, () => openShop('despensa', RK.delyza), 2.6); }
 }
 
 /* ---- a horta atrás da taverna: 8 canteiros, galinheiro, colmeia, espantalho e o barril do regador ---- */
@@ -13745,14 +13767,14 @@ const RST_CROPS = [['tomate', 0xe8402a], ['cenoura', 0xff8a2a], ['batata', 0xc8a
   const S = RSTR.s, A = RSTR.a, wood = matC(0x6a4428), woodD = matC(0x3a2618), soil = matC(0x4a3020), soilW = matC(0x2e1c12);
   const gq = (lx, lz) => RW(lx, lz), put = (par, lx, lz, yaw = 0) => vlGrp(par, gq(lx, lz), RST.rot + yaw);
   // cerca com portão alinhado com a porta dos fundos
-  { const z0 = -6.6, z1 = -18, x0 = -8.6, x1 = 8.6, post = (lx, lz) => { const q = gq(lx, lz); const p = new THREE.Group(); p.position.set(q.x, terrainH(q.x, q.z), q.z); S.add(p); cyl(p, 0.06, 0.07, 1.1, 0, 0.55, 0, woodD, 5); };
+  { const z0 = RKB - 1.8, z1 = RKB - 13.4, x0 = -8.6, x1 = 8.6, post = (lx, lz) => { const q = gq(lx, lz); const p = new THREE.Group(); p.position.set(q.x, terrainH(q.x, q.z), q.z); S.add(p); cyl(p, 0.06, 0.07, 1.1, 0, 0.55, 0, woodD, 5); };
     const rail = (ax, az, bx, bz) => { const L = Math.hypot(bx - ax, bz - az), n = Math.ceil(L / 1.6); for (let i = 0; i <= n; i++) post(ax + (bx - ax) * i / n, az + (bz - az) * i / n); for (let i = 0; i < n; i++) { const a = gq(ax + (bx - ax) * i / n, az + (bz - az) * i / n), b = gq(ax + (bx - ax) * (i + 1) / n, az + (bz - az) * (i + 1) / n), m = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, l = Math.hypot(b.x - a.x, b.z - a.z), y = terrainH(m.x, m.z); for (const h of [0.45, 0.9]) { const r = pb(S, l, 0.06, 0.05, m.x, y + h, m.z, wood); r.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); } } const A2 = gq(ax, az), B2 = gq(bx, bz); segColliders.push({ ax: A2.x, az: A2.z, bx: B2.x, bz: B2.z, r: 0.12 }); };
-    rail(x0, z0, -7.5, z0); rail(-5.5, z0, x1, z0); rail(x1, z0, x1, z1); rail(x1, z1, x0, z1); rail(x0, z1, x0, z0);
+    rail(x0, z0, -2.9, z0); rail(-0.3, z0, x1, z0); rail(x1, z0, x1, z1); rail(x1, z1, x0, z1); rail(x0, z1, x0, z0); /* portão largo bem na frente da escada */
     OCC.fill.push({ ...gq(0, (z0 + z1) / 2), W: 17, D: 11, yaw: RST.rot }); }
   // canteiros
   const beds = [];
   RST_CROPS.forEach(([id, c], k) => {
-    const lx = k % 2 ? 3.6 : -4.0, lz = -8.6 - Math.floor(k / 2) * 2.4, root = put(S, lx, lz), q = gq(lx, lz);
+    const lx = k % 2 ? 2.0 : -4.6, lz = RKB - 3.9 - Math.floor(k / 2) * 2.5, root = put(S, lx, lz), q = gq(lx, lz);
     pb(root, 5.2, 0.3, 1.5, 0, 0.15, 0, wood);
     const pg = put(A, lx, lz), plants = new THREE.Group(); pg.add(plants); const so = pb(pg, 4.9, 0.06, 1.25, 0, 0.31, 0, RST_SOIL); /* a terra fica no grupo que muda: escurece quando é regada */
     for (let j = 0; j < 5; j++) { const pl = new THREE.Group(); pl.position.set(-2 + j, 0.32, 0); plants.add(pl); const leaf = matC(id === 'alface' ? 0x7ad85a : 0x3a8a3a);
@@ -13768,19 +13790,19 @@ const RST_CROPS = [['tomate', 0xe8402a], ['cenoura', 0xff8a2a], ['batata', 0xc8a
   for (const b of beds) { const q = gq(b.lx, b.lz), m = invis(A, gBox(5.4, 1.4, 1.8), q.x, terrainH(q.x, q.z) + 0.6, q.z); m.rotation.y = RST.rot; m.userData.keep = true;
     addInteract([m], () => { if (mode !== 'walk') return; markInteracted(); rstBed(b); }, { at: q, near: 2.6 }); }
   // barril do regador perto do portão, espantalho, galinheiro e colmeia
-  { const q = gq(-5.0, -7.6), g = vlGrp(S, q, RST.rot); cyl(g, 0.4, 0.42, 0.9, 0, 0.45, 0, wood, 12); cyl(g, 0.38, 0.38, 0.02, 0, 0.88, 0, matC(0x4a7aa8), 12); const can = new THREE.Group(); can.position.set(0.55, 0, 0.1); g.add(can); cyl(can, 0.14, 0.16, 0.3, 0, 0.15, 0, matC(0x6a9a7a), 10); const sp = cyl(can, 0.02, 0.03, 0.35, 0.18, 0.28, 0, matC(0x6a9a7a), 6); sp.rotation.z = -0.9;
+  { const q = gq(-3.9, RKB - 2.7), g = vlGrp(S, q, RST.rot); cyl(g, 0.4, 0.42, 0.9, 0, 0.45, 0, wood, 12); cyl(g, 0.38, 0.38, 0.02, 0, 0.88, 0, matC(0x4a7aa8), 12); const can = new THREE.Group(); can.position.set(0.55, 0, 0.1); g.add(can); cyl(can, 0.14, 0.16, 0.3, 0, 0.15, 0, matC(0x6a9a7a), 10); const sp = cyl(can, 0.02, 0.03, 0.35, 0.18, 0.28, 0, matC(0x6a9a7a), 6); sp.rotation.z = -0.9;
     colliders.push({ ...q, r: 0.5 }); RK.canG = can; addInteract([invis(A, gBox(1.4, 1.2, 1.2), q.x, terrainH(q.x, q.z) + 0.6, q.z)], () => { if (mode !== 'walk') return; markInteracted(); RK.can = !RK.can; can.visible = !RK.can; sfx.splash(0.12, 0.35); whisper(RK.can ? '💧 a senhora enche o regador no barril: agora é só tocar nos canteiros' : '🪣 regador de volta no lugar', 2.6); }, { at: q, near: 2.0 }); }
-  { const q = gq(7.6, -10.5), g = vlGrp(S, q, RST.rot); cyl(g, 0.05, 0.06, 2.2, 0, 1.1, 0, woodD, 5); pb(g, 1.5, 0.06, 0.06, 0, 1.6, 0, woodD); pb(g, 0.6, 0.8, 0.25, 0, 1.4, 0, matC(0x7a5a8a)); ps(g, 0.2, 0, 2.05, 0, matC(0xd8b860)); cone(g, 0.32, 0.35, 0, 2.3, 0, matC(0xc8a050), 8); for (const sx of [-0.75, 0.75]) cone(g, 0.06, 0.2, sx, 1.55, 0, matC(0xd8b860), 4); colliders.push({ ...q, r: 0.25 }); }
-  { const q = gq(7.0, -16.5), g = vlGrp(S, q, RST.rot + Math.PI); pb(g, 2.2, 1.3, 1.4, 0, 0.75, 0, matC(0xb05a3a)); const rf = pb(g, 2.5, 0.08, 1.0, 0, 1.6, 0.35, matC(0x5a3a22)); rf.rotation.x = -0.5; const rf2 = pb(g, 2.5, 0.08, 1.0, 0, 1.6, -0.35, matC(0x5a3a22)); rf2.rotation.x = 0.5; pb(g, 0.5, 0.6, 0.05, 0.5, 0.5, 0.72, matC(0x2a1a10)); pb(g, 0.6, 0.4, 0.5, -0.6, 0.35, 0.95, wood);
+  { const q = gq(6.9, RKB - 3.4), g = vlGrp(S, q, RST.rot); cyl(g, 0.05, 0.06, 2.2, 0, 1.1, 0, woodD, 5); pb(g, 1.5, 0.06, 0.06, 0, 1.6, 0, woodD); pb(g, 0.6, 0.8, 0.25, 0, 1.4, 0, matC(0x7a5a8a)); ps(g, 0.2, 0, 2.05, 0, matC(0xd8b860)); cone(g, 0.32, 0.35, 0, 2.3, 0, matC(0xc8a050), 8); for (const sx of [-0.75, 0.75]) cone(g, 0.06, 0.2, sx, 1.55, 0, matC(0xd8b860), 4); colliders.push({ ...q, r: 0.25 }); }
+  { const q = gq(6.9, RKB - 11.6), g = vlGrp(S, q, RST.rot + Math.PI); pb(g, 2.2, 1.3, 1.4, 0, 0.75, 0, matC(0xb05a3a)); const rf = pb(g, 2.5, 0.08, 1.0, 0, 1.6, 0.35, matC(0x5a3a22)); rf.rotation.x = -0.5; const rf2 = pb(g, 2.5, 0.08, 1.0, 0, 1.6, -0.35, matC(0x5a3a22)); rf2.rotation.x = 0.5; pb(g, 0.5, 0.6, 0.05, 0.5, 0.5, 0.72, matC(0x2a1a10)); pb(g, 0.6, 0.4, 0.5, -0.6, 0.35, 0.95, wood);
     for (let k = 0; k < 3; k++) ps(g, 0.07, -0.75 + k * 0.15, 0.6, 0.95, matC(0xf4ecd8), 1, 1.25, 1);
-    colliders.push({ ...q, r: 1.2 }); const nq = gq(7.0, -15.4); RK.nestEggs = g;
+    colliders.push({ ...q, r: 1.2 }); const nq = gq(6.9, RKB - 10.4); RK.nestEggs = g;
     addInteract([invis(A, gBox(2.4, 1.6, 2.4), q.x, terrainH(q.x, q.z) + 0.8, q.z)], () => { if (mode !== 'walk') return; markInteracted(); if (RK.nest.t > 0) { whisper('🐔 as galinhas ainda estão chocando… volte daqui a pouco', 2.2, true); return; } RK.nest.t = 90; addItem('ovo', 2); rpgEvent('ovos'); sfx.chime([659, 523], 0.04); whisper('🥚 dois ovinhos quentinhos! A galinha cacareja reclamando', 2.6); }, { at: nq, near: 2.4 });
-    for (let k = 0; k < 4; k++) { const ck = new THREE.Group(); const cq = gq(5.4 + (k % 2) * 1.6, -14.2 - Math.floor(k / 2) * 1.2); ck.position.set(cq.x, terrainH(cq.x, cq.z), cq.z); A.add(ck); ps(ck, 0.18, 0, 0.22, 0, matC(k === 3 ? 0x8a5a2a : 0xf4f0e8), 1.2, 1, 1); ps(ck, 0.1, 0.16, 0.36, 0, matC(k === 3 ? 0x8a5a2a : 0xf4f0e8)); ps(ck, 0.04, 0.16, 0.47, 0, matC(0xd82a2a), 1, 1, 0.5); cone(ck, 0.03, 0.07, 0.27, 0.35, 0, matC(0xffa82a), 4).rotation.z = -Math.PI / 2; RK.chick.push({ g: ck, ph: k * 1.7, hx: cq.x, hz: cq.z }); } }
-  { const q = gq(-7.0, -16.8), g = vlGrp(S, q, RST.rot); pb(g, 1.6, 0.5, 0.8, 0, 0.25, 0, wood); for (const sx of [-0.4, 0.4]) { cone(g, 0.36, 0.7, sx, 0.85, 0, matC(0xd8b050), 10); pb(g, 0.12, 0.1, 0.05, sx, 0.62, 0.32, matC(0x2a1a10)); }
+    for (let k = 0; k < 4; k++) { const ck = new THREE.Group(); const cq = gq(6.2 + (k % 2) * 1.5, RKB - 8.8 - Math.floor(k / 2) * 1.0); ck.position.set(cq.x, terrainH(cq.x, cq.z), cq.z); A.add(ck); ps(ck, 0.18, 0, 0.22, 0, matC(k === 3 ? 0x8a5a2a : 0xf4f0e8), 1.2, 1, 1); ps(ck, 0.1, 0.16, 0.36, 0, matC(k === 3 ? 0x8a5a2a : 0xf4f0e8)); ps(ck, 0.04, 0.16, 0.47, 0, matC(0xd82a2a), 1, 1, 0.5); cone(ck, 0.03, 0.07, 0.27, 0.35, 0, matC(0xffa82a), 4).rotation.z = -Math.PI / 2; RK.chick.push({ g: ck, ph: k * 1.7, hx: cq.x, hz: cq.z }); } }
+  { const q = gq(6.9, RKB - 6.2), g = vlGrp(S, q, RST.rot); pb(g, 1.6, 0.5, 0.8, 0, 0.25, 0, wood); for (const sx of [-0.4, 0.4]) { cone(g, 0.36, 0.7, sx, 0.85, 0, matC(0xd8b050), 10); pb(g, 0.12, 0.1, 0.05, sx, 0.62, 0.32, matC(0x2a1a10)); }
     colliders.push({ ...q, r: 0.9 }); const bees = new THREE.Group(); bees.position.set(q.x, terrainH(q.x, q.z) + 1, q.z); A.add(bees); for (let k = 0; k < 8; k++) ps(bees, 0.035, 0, 0, 0, matC(0xffd23a)); RK.bees = bees;
     addInteract([invis(A, gBox(2, 1.4, 1.4), q.x, terrainH(q.x, q.z) + 0.7, q.z)], () => { if (mode !== 'walk') return; markInteracted(); if (RK.hive.t > 0) { whisper('🐝 bzzz… as abelhas ainda estão fazendo mel', 2.2, true); return; } RK.hive.t = 120; addItem('mel'); rpgEvent('mel'); const st = rkS(); if (!st.bee) { st.bee = 1; whisper('🐝 ai! uma abelhinha deu um beijinho na sua mão… mas o mel valeu a pena 🍯', 3.4); } else whisper('🍯 um favo inteiro de mel dourado', 2.4); sfx.chime([880, 988], 0.04); }, { at: q, near: 2.4 }); }
   // um banquinho e uma carriola na horta
-  { const q = gq(-0.2, -16.5), g = vlGrp(S, q, RST.rot); pb(g, 1.4, 0.1, 0.4, 0, 0.45, 0, wood); for (const sx of [-0.55, 0.55]) pb(g, 0.08, 0.45, 0.35, sx, 0.22, 0, woodD); colliders.push({ ...q, r: 0.5 }); }
+  { const q = gq(-1.3, RKB - 12.6), g = vlGrp(S, q, RST.rot); pb(g, 1.4, 0.1, 0.4, 0, 0.45, 0, wood); for (const sx of [-0.55, 0.55]) pb(g, 0.08, 0.45, 0.35, sx, 0.22, 0, woodD); colliders.push({ ...q, r: 0.5 }); }
 }
 
 /* ---- cozinhar, livro de receitas, comer à mesa, balcão, brinde, bardo, dardos e horta ---- */
@@ -13831,7 +13853,7 @@ async function rstEat(tab, id) {
   const it = ITEMS[id], pp = rstW(ch.lx + (tab.tx - ch.lx) * 0.42, 0.88, ch.lz + (tab.tz - ch.lz) * 0.42), plate = new THREE.Group(); plate.position.copy(pp); scene.add(plate);
   cyl(plate, 0.2, 0.17, 0.03, 0, 0, 0, matC(0xf4f0e8), 16); const em = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(it.i), transparent: true, depthWrite: false })); em.position.y = 0.13; em.scale.setScalar(0.32); plate.add(em); RK.plates.push({ o: plate, t: 30, em });
   setTimeout(() => {
-    if (!RPG.inv[id]) return; takeItem(id); const u = it.use; if (u.hp) DGM.hp = Math.min(DGM.max, DGM.hp + u.hp + 1 + talR('gourmet')); if (u.mp) RPG.mp = Math.min(ST.maxMp, RPG.mp + u.mp); if (u.buff) RPG_BUFF.t = Math.max(RPG_BUFF.t, u.buff); hudUpdate();
+    if (!RPG.inv[id]) return; takeItem(id); const u = it.use; eatEffects({ ...u, food: (u.food || 0) + (u.food ? 10 : 0) }, 1 + talR('gourmet')); // na mesa a refeição rende mais
     em.scale.setScalar(0.18); whisper(`😋 ${RST_EAT[id] || 'que delícia'}…`, 4); spawnHearts(pp.clone().add(V3(0, 0.3, 0)), 5); sfx.chime([784, 988, 1175], 0.05); rpgEvent('comer_taverna'); rpgSave();
   }, 1800);
 }
@@ -13880,8 +13902,8 @@ SHOPS.delyzias.allNight = true;
   RK.delyza = xNPC(RSTR, { id: 'delyza', name: 'Delyza', title: 'dona da taverna e cozinheira-chefe', shop: 'delyzias', quest: 'aprendiz', x: dq.x, z: dq.z, yaw: face(-1, 0), r: 0.3,
     lines: ['— Seja bem-vinda à Delyzias, Majestade! Aqui ninguém sai com fome 💛', '— Tempero bom é tempero com carinho… e um pouquinho de manjericão 🌱', '— O Biscoito? Fica deitado perto da lareira o dia inteiro, aquele preguiçoso 🐕', '— O segredo do meu ensopado? Cozinhar devagarinho e cantar pra panela!', '— Se a cozinha estiver livre, pode usar à vontade: o livro de receitas fica do lado da bancada 📖'],
     look: { body: 0x7a1f2a, sleeve: 0x8a2a34, skirt: 0x5a1a24, legs: 0x3a2a24, apron: 0xffffff, skin: 0xd8a882, hair: 0x2a1a14, long: true, hat: 'chef', belt: 0xc8a050 } });
-  const tq = RW(-0.2, -9);
-  xNPC(RSTR, { id: 'tobias', name: 'Seu Tobias', title: 'hortelão da Delyzias', quest: 'horta', x: tq.x, z: tq.z, yaw: face(0, -1), r: 0.3, walk: [RW(-0.2, -7.8), RW(-0.2, -17.0)],
+  const tq = RW(-1.3, RKB - 3.2);
+  xNPC(RSTR, { id: 'tobias', name: 'Seu Tobias', title: 'hortelão da Delyzias', quest: 'horta', x: tq.x, z: tq.z, yaw: face(0, -1), r: 0.3, walk: [RW(-1.3, RKB - 2.6), RW(-1.3, RKB - 11.8)],
     lines: ['— Essa horta é minha menina dos olhos, Majestade 🌱', '— Tomate bom é tomate que tomou sol e ouviu modinha', '— As galinhas? Botam mais quando a senhora passa, juro!', '— As abelhas não picam quem tem coração bom… quase nunca 🐝'],
     look: { body: 0x6a8a4a, sleeve: 0x6a8a4a, legs: 0x5a4a32, skin: 0xc89a72, hair: 0xd8d8d0, hat: 'cap', hatC: 0xc8a050, belt: 0x6a4428 } });
   // a garçonete Mila: anda entre o passa-pratos e as mesas com a bandeja
@@ -13938,7 +13960,7 @@ function updateRestaurant(dt) {
   RST.k += ((RST.in ? 1 : 0) - RST.k) * Math.min(1, dt * 3);
   if (RST.k > 0.01) { // dentro da taverna: luz quente de velas, o céu some
     hemiLight.intensity *= 1 - 0.5 * RST.k; hemiLight.color.lerp(RST_WARM, 0.6 * RST.k); hemiLight.groundColor.lerp(RST_WARM_G, 0.6 * RST.k); moonLight.intensity *= 1 - 0.85 * RST.k;
-    const fl = 0.9 + 0.06 * Math.sin(t * 9) + 0.04 * Math.sin(t * 23); dunLight.color.setHex(0xffb070); dunLight.position.copy(camera.position).add(V3(-Math.sin(player.yaw) * 0.8, 0.5, -Math.cos(player.yaw) * 0.8)); dunLight.intensity = 8 * fl * RST.k; dunLight.distance = 14; RST.lit = true;
+    const fl = 0.9 + 0.06 * Math.sin(t * 9) + 0.04 * Math.sin(t * 23), cl = rstLocal(camera.position.x, camera.position.z), kit = cl.z < 0; dunLight.color.setHex(0xffb878); dunLight.position.copy(kit ? rstW(2.0, 3.6, RKB / 2) : rstW(-1.5, 3.7, 4.5)); dunLight.intensity = (kit ? 5.5 : 7) * fl * RST.k; dunLight.distance = 16; RST.lit = true; // luz presa no teto do cômodo: colada na câmera estourava as paredes
   } else if (RST.lit) { RST.lit = false; if (TWR.cur < 0 && !DGM.inside) dunLight.intensity = 0; }
   if (!near) return;
   if (RST.smoke && Math.random() < dt * 3) spawnFX(TEX.smoke, V3(RST.smoke.x + rv(0.3), RST.y0 + RST.H + 4.9, RST.smoke.z + rv(0.3)), { vel: V3(rv(0.2) + 0.15, 0.9, rv(0.2)), life: 4, size: 0.6, grow: 1.6, color: 0xa8a0a0 });
@@ -13969,7 +13991,7 @@ function updateRestaurant(dt) {
         if (P.st === 'in' && P.i >= P.path.length) { P.st = 'sit'; P.x = P.seat.lx; P.z = P.seat.lz; sitPose(p); p.root.position.y = -0.3; P.waitT = 0; P.want = Math.random() < 0.75 ? RST_ORDERS[Math.floor(Math.random() * RST_ORDERS.length)] : null; if (P.want) { P.bub.material.map = emojiTex(ITEMS[P.want].i); P.bub.material.needsUpdate = true; P.bub.visible = P.bubBg.visible = true; } else { P.st = 'eat'; P.eatT = 25; } }
         else if (P.st === 'out' && P.i < 0) { P.st = 'off'; p.g.visible = false; } }
       else { const sp = Math.min(d, dt * 1.4); P.x += dx / d * sp; P.z += dz / d * sp; P.yaw = Math.atan2(dx, dz); P.ph += dt * 6.5; animPerson(p, P.ph, 1); }
-      const q = RW(P.x, P.z); p.g.position.set(q.x, floorY(q.x, q.z), q.z); // o piso, a varanda e a escada são chãos elevados: floorY já sabe a altura p.g.rotation.y = RST.rot + (P.yaw || 0);
+      const q = RW(P.x, P.z); p.g.position.set(q.x, floorY(q.x, q.z), q.z); p.g.rotation.y = RST.rot + (P.yaw || 0); /* o piso, a varanda e a escada são chãos elevados: floorY já sabe a altura */
     } else {
       const s = P.seat, q = RW(s.lx, s.lz), tq = s.bar ? RW(s.lx + 1, s.lz) : RW(s.tab.tx, s.tab.tz); p.g.position.set(q.x, RST.y0, q.z); p.g.rotation.y = Math.atan2(tq.x - q.x, tq.z - q.z);
       p.arms[0].rotation.set(P.toast > 0 ? -2.7 : P.st === 'eat' ? -1.0 + Math.max(0, Math.sin(t * 2 + P.ph)) * 0.6 : -0.3, 0, 0); p.arms[1].rotation.set(P.toast > 0 ? -2.7 : -0.5 + Math.sin(t * 0.7 + P.ph) * 0.1, 0, 0); p.head.rotation.y = Math.sin(t * 0.4 + P.ph) * 0.4;
@@ -13983,10 +14005,11 @@ if (RPG.made) rkS();
 bakeStatic(RSTR.s); xLights(RSTR);
 // árvores, pedras e flores que já estavam no terreno da taverna e da horta somem (sem mexer no sorteio do mundo)
 scene.traverse(o => { if (!o.isInstancedMesh || o.count > 200000) return; const m = new THREE.Matrix4(), p = new THREE.Vector3(), z0 = new THREE.Matrix4().makeScale(0, 0, 0); let ch = false;
-  for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m); p.setFromMatrixPosition(m).applyMatrix4(o.matrixWorld); const l = rstLocal(p.x, p.z); if (Math.abs(l.x) < 10.5 && l.z > -19 && l.z < 16.5 && Math.abs(p.y - RST.y0) < 10) { o.setMatrixAt(i, z0); ch = true; } }
+  for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m); p.setFromMatrixPosition(m).applyMatrix4(o.matrixWorld); const l = rstLocal(p.x, p.z); if (Math.abs(l.x) < 10.5 && l.z > RKB - 14.5 && l.z < 16.5 && Math.abs(p.y - RST.y0) < 10) { o.setMatrixAt(i, z0); ch = true; } }
   if (ch) o.instanceMatrix.needsUpdate = true; });
 
 
+for (const c of colliders) if (!c.u && c.r > 0 && c.r < 3 && !c.rk) { const l = rstLocal(c.x, c.z); if (Math.abs(l.x) < 9.5 && l.z > RKB - 13.8 && l.z < RKB - 0.4 && c.r > 1.2) c.r = 0; } // árvores que estavam onde a horta cresceu
 /* ------------------------------------------------------------------ *
  * 🚣 Barco no lago: embarca no píer, rema (W/S), vira (A/D), pesca (F) e desembarca (E) na margem ou num píer
  * ------------------------------------------------------------------ */
@@ -14051,6 +14074,38 @@ function boatPose(m, t) { // sentada no banco, puxando os remos
 }
 
 
+/* ------------------------------------------------------------------ *
+ * 🍗 Fome e bebidas: comida enche a barriga (só chás e coisas mágicas dão mana)
+ * e bebida com álcool demais deixa a rainha tonta
+ * ------------------------------------------------------------------ */
+const FOOD = { // food = quanto enche a barriga (0 a 100) · alc = tem álcool
+  pao: { food: 20 }, maca: { food: 10, hp: 1 }, torta: { food: 30, hp: 1 }, sopa: { food: 30, hp: 2 }, cha: { mp: 3 }, suco: { food: 6, hp: 1 }, ensopado: { food: 45, hp: 3 },
+  cha_elfico: { mp: 5 }, pao_elfico: { food: 50, hp: 3 }, mel_fadas: { food: 10, mp: 2 }, mel: { food: 8, hp: 1 },
+  sopa_legumes: { food: 35, hp: 2 }, ensopado_delyza: { food: 60, hp: 4, buff: 30 }, caldo_elfico: { food: 30, hp: 2, mp: 3 }, cha_ervas: { mp: 4 }, omelete: { food: 35, hp: 2 },
+  pao_caseiro: { food: 25, hp: 1 }, torta_morango: { food: 30, hp: 1 }, peixe_assado: { food: 45, hp: 3 }, abobora_mel: { food: 35, hp: 2 }, bolo_fadas: { food: 30, hp: 1, buff: 45 }, torta_maca: { food: 30, hp: 1 },
+  salada_horta: { food: 25, hp: 1 }, suco_morango: { food: 8 }, sanduiche: { food: 40, hp: 2 }, chocolate: { food: 10, mp: 1 },
+  hidromel: { food: 5, alc: 1 }, sidra: { food: 5, alc: 1 }, tomate: { food: 6 }, cenoura: { food: 6 }, alface: { food: 5 }, morango: { food: 6 },
+};
+for (const [id, u] of Object.entries(FOOD)) if (ITEMS[id]) { ITEMS[id].use = { ...u }; const t = [u.food ? `enche ${u.food >= 50 ? 'muito' : u.food >= 25 ? 'bem' : 'um pouco'} a barriga` : '', u.alc ? 'tem álcool: com moderação! 🍺' : ''].filter(Boolean).join(' · '); if (t && !(ITEMS[id].d || '').includes('barriga')) ITEMS[id].d = (ITEMS[id].d || '') + ' (' + t + ')'; }
+const FOME = { t: 0, said: 0, drunkT: 0, sway: 0 };
+const fome = () => RPG.fome ?? (RPG.fome = 80);
+function eatEffects(u, bonus = 0) { // vale para a mochila e para a mesa da taverna
+  if (u.food) RPG.fome = clamp(fome() + u.food, 0, 100);
+  if (u.hp) DGM.hp = Math.min(DGM.max, DGM.hp + u.hp + bonus); if (u.mp) RPG.mp = Math.min(ST.maxMp, RPG.mp + u.mp); if (u.buff) { RPG_BUFF.t = Math.max(RPG_BUFF.t, u.buff); }
+  if (u.alc) { RPG.drunk = (RPG.drunk || 0) + 1; FOME.drunkT = 0; const d = RPG.drunk; if (d === 2) whisper('🍺 hmm… as bochechas ficaram quentinhas', 2.6); else if (d === 3) whisper('🥴 a taverna começou a girar um pouquinho…', 3); else if (d >= 4) whisper('🥴 hic! o chão está balançando… melhor parar e tomar uma água, Majestade', 3.4); }
+  hudUpdate();
+}
+const isFull = u => (!u.food || fome() >= 98) && (!u.hp || DGM.hp >= DGM.max) && (!u.mp || RPG.mp >= ST.maxMp) && !u.buff && !u.alc;
+function fomeFrame(dt) {
+  if (!RPG.made) return; const f = fome();
+  RPG.fome = Math.max(0, f - dt * (FW.calm < 4 ? 0.07 : 0.04)); // ~40 min para esvaziar (lutando, mais rápido)
+  if ((FOME.t -= dt) < 0) { FOME.t = 1; setW('rpgFome', RPG.fome); $r('rpgFomeB').classList.toggle('low', RPG.fome < 20); }
+  if (RPG.fome < 20 && (FOME.said -= dt) < 0 && mode === 'walk') { FOME.said = 150; whisper(RPG.fome <= 0 ? '😩 a senhora está faminta: a vida não volta e as pernas pesam… coma alguma coisa!' : '🍽 a barriga ronca… hora de comer alguma coisa', 3.4); }
+  if (RPG.drunk > 0 && (FOME.drunkT += dt) > 50) { FOME.drunkT = 0; RPG.drunk--; if (!RPG.drunk) whisper('😌 a cabeça parou de girar', 2.2); }
+  const k = clamp(((RPG.drunk || 0) - 2) / 3, 0, 1); FOME.sway += (k - FOME.sway) * Math.min(1, dt); document.body.style.filter = FOME.sway > 0.02 ? `blur(${(FOME.sway * 1.6).toFixed(2)}px) saturate(${1 + FOME.sway * 0.4})` : '';
+}
+{ const css = document.createElement('style'); css.textContent = `.bar.fome i{background:linear-gradient(90deg,#a8682a,#ffc06a)} .bar.fome{height:6px} .bar.fome.low i{background:linear-gradient(90deg,#8a2a1a,#e8582a);animation:fomeP 1s infinite alternate} @keyframes fomeP{to{opacity:.4}}`; document.head.appendChild(css);
+  const mp = $r('rpgMp').parentElement, b = document.createElement('div'); b.className = 'bar fome'; b.id = 'rpgFomeB'; b.title = 'barriga (coma para encher)'; b.innerHTML = '<i id="rpgFome"></i>'; mp.after(b); }
 /* ------------------------------------------------------------------ *
  * 🌟 Progressão: árvore de talentos, raridade dos itens (atributos sorteados),
  * ferreiro que melhora equipamentos (+1 a +5) com troféus e conquistas com recompensa
@@ -14232,7 +14287,7 @@ function frame() {
   else if (scopeCam) camera.position.copy(scopeCam);
   else placeCamera();
   rpgFrame(gdt);
-  camera.rotation.set(player.pitch, player.yaw, 0);
+  camera.rotation.set(player.pitch, player.yaw, typeof FOME !== 'undefined' ? Math.sin(uTime.value * 1.3) * 0.06 * FOME.sway : 0);
   cutFrame(dt);
   if (SHAKE.t > 0) { SHAKE.t -= dt; const a = SHAKE.a * Math.min(1, SHAKE.t / 0.12); camera.position.x += rv(a); camera.position.y += rv(a); camera.position.z += rv(a); camera.rotation.z += rv(a * 0.15); } // tremor de tela
   uCam.value.copy(camera.position);
