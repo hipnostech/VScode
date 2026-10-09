@@ -2962,7 +2962,7 @@ const DAWN_FOG = V3(0.94, 0.56, 0.72), DAWN_Z = V3(0.3, 0.18, 0.5), DAWN_ML = ne
 function updateWeather(dt) {
   if ((WX.t -= dt) <= 0) { const prev = WX.want; WX.want = wxPick(); WX.t = 180 + Math.random() * 240; if (WX.want !== prev) WX.said = false; }
   const tg = WX_TYPES[WX.want]; for (const k in WX.k) WX.k[k] += clamp((tg[k] || 0) - WX.k[k], -dt / 25, dt / 25);
-  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || TWR.cur >= 0 || magic.indoor > 0.5 || (typeof RST !== 'undefined' && RST.in) || (typeof BEF !== 'undefined' && BEF.cds && Math.hypot(camera.position.x - BEF.cds.x, camera.position.z - BEF.cds.z) < BEF.cds.R - 0.3) ? 1 : 0;
+  WX.under = UNDER.dw || UNDER.dg || BE.inside || DW.inside || DGM.inside || TWR.cur >= 0 || magic.indoor > 0.5 || (typeof RST !== 'undefined' && RST.in) || (typeof HOME !== 'undefined' && HOME.in) || (typeof BEF !== 'undefined' && BEF.cds && Math.hypot(camera.position.x - BEF.cds.x, camera.position.z - BEF.cds.z) < BEF.cds.R - 0.3) ? 1 : 0;
   WX.snow += clamp((inSnowLand(camera.position.x, camera.position.z) ? 1 : 0) - WX.snow, -dt / 3, dt / 3);
   if (!WX.said && RPG.made && mode === 'walk' && !WX.under) { WX.said = true; const sn = WX.snow > 0.5 && WX_SNOW_SAY[WX.want]; if (WX.want !== 'clear' || WX.k.cloud > 0.3) toast(sn || WX_SAY[WX.want], 3600); }
   // raios na tempestade: clarão agora, trovão um pouquinho depois
@@ -4105,7 +4105,7 @@ function updateAutumn(dt) {
       L.x += (0.35 + Math.cos(t * L.sw + L.ph) * L.amp) * dt; L.z += (0.15 + Math.sin(t * L.sw * 0.8 + L.ph) * L.amp * 0.6) * dt;
       const gy = terrainH(L.x, L.z) + 0.04;
       if (L.y <= gy) { L.y = gy; L.rest = 4 + Math.random() * 6; }
-      if (Math.hypot(L.x - cx, L.z - cz) > 70 || (typeof RST !== 'undefined' && RST.G && rstIn(L.x, L.z) && L.y < RST.y0 + 9) || (BEF.cds && Math.hypot(L.x - BEF.cds.x, L.z - BEF.cds.z) < BEF.cds.R + 1 && L.y < terrainH(BEF.cds.x, BEF.cds.z) + 13)) respawnLeaf(L, false); // embaixo do telhado da taverna não cai folha
+      if (Math.hypot(L.x - cx, L.z - cz) > 70 || (typeof RST !== 'undefined' && RST.G && rstIn(L.x, L.z) && L.y < RST.y0 + 9) || (typeof HOME !== 'undefined' && homeIn(L.x, L.z) && L.y < HOME.y0 + 7) || (BEF.cds && Math.hypot(L.x - BEF.cds.x, L.z - BEF.cds.z) < BEF.cds.R + 1 && L.y < terrainH(BEF.cds.x, BEF.cds.z) + 13)) respawnLeaf(L, false); // embaixo do telhado da taverna não cai folha
     }
     dummy.position.set(L.x, L.y, L.z);
     if (flat) dummy.rotation.set(-Math.PI / 2, 0, L.ph);
@@ -14289,6 +14289,200 @@ function openAch() {
 .slot.r1{box-shadow:inset 0 0 0 2px #5aa8ff} .slot.r2{box-shadow:inset 0 0 0 2px #c87aff} .slot.r3{box-shadow:inset 0 0 0 2px #ffb83a,0 0 10px rgba(255,184,58,.5)}`; document.head.appendChild(css); }
 rpgApply(); if (HERO.model) heroRebuild(); hudUpdate();
 
+
+/* ------------------------------------------------------------------ *
+ * 🏡 Casinha da Rainha: lar aconchegante para decorar — lareira, foto de vocês, cama de dormir,
+ * parede de troféus dos chefes, baú, mesinha de chá, cadeira de balanço, decoração escolhida
+ * pela rainha (tapete, cortinas, colcha, flores, luzinhas, quadro) e caixa de cartas do Rei
+ * ------------------------------------------------------------------ */
+const HR = mulberry32(9393);
+const HOME = (() => { const c = { x: -65, z: 100 }; let best = null, bd = 1e9; for (const r of ROADS) for (let i = 0; i < r.pts.length - 1; i++) { const a = r.pts[i], b = r.pts[i + 1], vx = b.x - a.x, vz = b.z - a.z, t = clamp(((c.x - a.x) * vx + (c.z - a.z) * vz) / (vx * vx + vz * vz), 0, 1), q = { x: a.x + vx * t, z: a.z + vz * t }, d = Math.hypot(q.x - c.x, q.z - c.z); if (d < bd) { bd = d; best = q; } }
+  return { c, rot: Math.atan2(best.x - c.x, best.z - c.z), road: best, in: false, k: 0, H: 3.4 }; })();
+const HF = xFrame(HOME.c, HOME.rot), HW = (lx, lz) => HF.w(lx, lz);
+const homeLocal = (x, z) => { const dx = x - HOME.c.x, dz = z - HOME.c.z, cs = Math.cos(HOME.rot), sn = Math.sin(HOME.rot); return { x: dx * cs - dz * sn, z: dx * sn + dz * cs }; };
+const homeIn = (x, z) => { const l = homeLocal(x, z); return Math.abs(l.x) < 6 && Math.abs(l.z) < 4; };
+{ let h = -1e9; for (let lx = -7; lx <= 7; lx++) for (let lz = -5; lz <= 6; lz++) { const q = HW(lx, lz); h = Math.max(h, terrainH(q.x, q.z)); } HOME.y0 = h + 0.15; }
+const HOMER = xRegion('casa', 'Casinha da Rainha', HW(0, 1), 16, 360, 70);
+const homeS = () => (RPG.casa = RPG.casa || { d: {}, bau: {}, carta: -1, trofeus: {} });
+PLACES.push({ id: 'casa', n: 'Casinha da Rainha', i: '🏡', ...HW(0, 2), r: 14 }); PLACE_SUB.casa = 'o seu lar';
+TRAVEL.push({ id: 'casa', icon: '🏡', name: 'Casinha da Rainha', to: 'rumo à sua casinha', h: () => HW(0, 12), d: () => HW(0, 14) });
+MAP_PLACES.push({ i: '🏡', n: 'Casinha da Rainha', ...HW(0, 0) });
+QUESTS.lar = { t: 'Lar Doce Lar', main: true, d: 'O Rei mandou preparar uma casinha só sua, perto da Trilha dos Viajantes.', obj: [['visit:casa', 1, 'Visite a Casinha da Rainha 🏡'], ['ev:casa_dormir', 1, 'Durma uma noite na sua cama'], ['ev:casa_decorar', 3, 'Decore a casa do seu jeito (3 vezes)']], r: { xp: 200, gold: 60, items: { torta_morango: 2 } } };
+const HOME_DECO = {
+  tapete: { n: 'Tapete', opts: [[0x7a2418, 0xc8a050, 'vinho e ouro'], [0x2a3a6a, 0xe8dcc0, 'azul real'], [0x3a6a4a, 0xf0d890, 'verde floresta'], [0xd87a9a, 0xfff0f4, 'rosinha'], [0x5a3a7a, 0xd8b8ff, 'lavanda']] },
+  cortina: { n: 'Cortinas', opts: [[0x7a1f2a, 'veludo vinho'], [0xe8dcc0, 'linho creme'], [0x2a3a6a, 'azul da noite'], [0xffb8d0, 'rosa'], [0x4a7a5a, 'verde musgo']] },
+  colcha: { n: 'Colcha', opts: [[0xf4ecd8, 0xd86a8a, 'creme com corações'], [0x2a3a6a, 0xfff2c0, 'azul de estrelas'], [0x7a1f2a, 0xc8a050, 'real vinho e ouro'], [0x9fd8c0, 0xffffff, 'menta'], [0xe8b0e0, 0x8a4a8a, 'lilás']] },
+  flores: { n: 'Flores', opts: [[0xff7aa8, 'rosas'], [0xffffff, 'margaridas'], [0xb07aff, 'lavandas'], [0xffd23a, 'girassóis'], [0xe82a3a, 'tulipas vermelhas']] },
+  luzes: { n: 'Luzinhas', opts: [[0xffd890, 'douradas'], [0xffb0c8, 'rosadas'], [0x9fd8ff, 'azuis'], [null, 'apagadas']] },
+  quadro: { n: 'Quadro da lareira', opts: [] },
+};
+const HOME_LETTERS = ['💌 "Minha rainha: acordei pensando em você antes mesmo de abrir os olhos. O reino inteiro é bonito, mas nada se compara ao seu sorriso. — o Rei"',
+  '💌 "Deixei um pedacinho do céu na sua lareira: é só olhar o fogo e lembrar que eu também estou queimando de saudade. — o Rei"',
+  '💌 "Os vaga-lumes do campo perguntaram por você. Eu disse que você é a luz mais bonita do reino. Eles ficaram com ciúmes. — o Rei"',
+  '💌 "Se um dia você se perder, siga as estrelas: todas elas apontam para mim, porque eu passei a vida inteira olhando para você. — o Rei"',
+  '💌 "Mandei fazer esta casinha para que você tivesse um lugar só seu. Mas o meu lugar favorito continua sendo do seu lado. — o Rei"',
+  '💌 "Hoje o dragão voou baixinho sobre a sua casa. Pedi que ele cuidasse de você enquanto eu não estou. — o Rei"',
+  '💌 "Dizem que o amor verdadeiro é raro como um item lendário. Eu achei o meu sem nem precisar procurar. — o Rei"'];
+const HK = { mats: {}, trophies: [], lights: [], fire: null, photos: [], qi: 0 };
+{
+  const S = HOMER.s, A = HOMER.a, H = HOME.H, y0 = HOME.y0;
+  const G = new THREE.Group(); G.position.set(HOME.c.x, y0, HOME.c.z); G.rotation.y = HOME.rot; S.add(G); HOME.G = G;
+  const GA = new THREE.Group(); GA.position.copy(G.position); GA.rotation.y = HOME.rot; A.add(GA);
+  const stone = matC(0x9a9082), plaster = matC(0xf2e6cc), timber = matC(0x5a3a22), wood = matC(0x7a5030), woodD = matC(0x4a2e1a), roofM = new THREE.MeshLambertMaterial({ color: 0x5a6a8a, side: THREE.DoubleSide, flatShading: true });
+  const M = HK.mats; M.rug1 = new THREE.MeshLambertMaterial({ color: 0x7a2418 }); M.rug2 = new THREE.MeshLambertMaterial({ color: 0xc8a050 }); M.cur = new THREE.MeshLambertMaterial({ color: 0x7a1f2a }); M.q1 = new THREE.MeshLambertMaterial({ color: 0xf4ecd8 }); M.q2 = new THREE.MeshLambertMaterial({ color: 0xd86a8a }); M.fl = new THREE.MeshLambertMaterial({ color: 0xff7aa8, emissive: 0x220a10 });
+  const seg = (x0, z0, x1, z1, r = 0.22) => { const a = HW(x0, z0), b = HW(x1, z1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r }); };
+  const col = (lx, lz, r) => { const q = HW(lx, lz); colliders.push({ x: q.x, z: q.z, r }); };
+  const hit = (w, h, d, lx, ly, lz, fn, near = 2.2) => { const m = invis(GA, gBox(w, h, d), lx, ly, lz); m.userData.keep = true; return addInteract([m], (...a) => { if (mode !== 'walk') return; markInteracted(); fn(...a); }, { at: HW(lx, lz), near }); };
+  HOME.hit = hit; HOME.col = col;
+  // piso, alicerce e o caminho até a estrada
+  addPad({ ...HW(0, 0), W: 12, D: 8, yaw: HOME.rot, y: y0 }); addPad({ ...HW(0, 5), W: 4.6, D: 2.2, yaw: HOME.rot, y: y0 - 0.02 }); OCC.fill.push({ ...HW(0, 1), W: 14, D: 12, yaw: HOME.rot });
+  pb(G, 12.6, 1.6, 8.6, 0, -0.87, 0, stone); pb(G, 4.8, 1.6, 2.4, 0, -0.87, 5.1, stone);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(11.7, 7.7), (typeof TW_PLANK !== 'undefined' && TW_PLANK) || matC(0x8a6038)); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.012; G.add(fl);
+  pb(G, 4.6, 0.1, 2.2, 0, -0.05, 5.1, wood); // varandinha
+  { const q0 = HW(0, 6.6), g0 = terrainH(q0.x, q0.z); let y = y0, i = 0; while (i < 8) { const lz = 6.45 + i * 0.5, q = HW(0, lz), g = terrainH(q.x, q.z); if (y - 0.26 <= g + 0.06) break; y -= 0.26; i++; addPad({ ...q, W: 2.0, D: 0.52, yaw: HOME.rot, y }); pb(G, 2.0, 0.1, 0.52, 0, y - y0 - 0.05, lz, stone); const hh = Math.max(0.12, y - g + 0.3); pb(G, 1.96, hh, 0.48, 0, (y - y0) - 0.1 - hh / 2, lz, stone); } }
+  for (let k = 0; k < 9; k++) { const q = HW((HR() - 0.5) * 0.6, 8 + k * 1.3); if (Math.hypot(q.x - HOME.road.x, q.z - HOME.road.z) < 2.5) break; const s = pb(S, 0.8, 0.06, 0.6, q.x, terrainH(q.x, q.z) + 0.02, q.z, matC(0xb8b0a0)); s.rotation.y = HOME.rot + HR(); } // caminho de pedrinhas
+  // paredes (pedra embaixo, reboco em cima), porta na frente e janelas
+  const wall = (ax, az, bx, bz, gaps = []) => { const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L, yaw = Math.atan2(ux, uz) - Math.PI / 2; let s = 0; const pcs = [];
+    for (const [g0, g1, gh] of gaps) { if (g0 > s) pcs.push([s, g0, 0]); pcs.push([g0, g1, gh]); s = g1; } if (s < L) pcs.push([s, L, 0]);
+    for (const [p0, p1, yb] of pcs) { const m = (p0 + p1) / 2, w = p1 - p0, cx = ax + ux * m, cz = az + uz * m;
+      if (!yb) { const a = pb(G, w, 1.0, 0.36, cx, 0.5, cz, stone); a.rotation.y = yaw; const b = pb(G, w, H - 1.0, 0.3, cx, 1.0 + (H - 1.0) / 2, cz, plaster); b.rotation.y = yaw; seg(ax + ux * p0, az + uz * p0, ax + ux * p1, az + uz * p1); }
+      else { const b = pb(G, w, H - yb - 0.04, 0.3, cx, yb + 0.04 + (H - yb - 0.04) / 2, cz, plaster); b.rotation.y = yaw; const lt = pb(G, w + 0.3, 0.24, 0.4, cx, yb + 0.1, cz, timber); lt.rotation.y = yaw; } }
+    for (const off of [-0.2, 0.2]) { const b2 = pb(G, L + 0.4, 0.2, 0.06, (ax + bx) / 2 - uz * off, H - 0.1, (az + bz) / 2 + ux * off, timber); b2.rotation.y = yaw; } };
+  wall(-6, 4, 6, 4, [[5.0, 7.0, 2.3]]); wall(6, -4, -6, -4); wall(-6, -4, -6, 4); wall(6, 4, 6, -4);
+  for (const [x, z] of [[-6, -4], [6, -4], [-6, 4], [6, 4]]) pb(G, 0.42, H, 0.42, x, H / 2, z, timber); // cantos de madeira
+  for (const sx of [-1, 1]) cyl(G, 0.11, 0.13, 2.4, sx * 1.05, 1.2, 4.0, timber, 8);
+  { const dr = new THREE.Group(); dr.position.set(-0.95, 0, 4.0); dr.rotation.y = -1.9; G.add(dr); pb(dr, 0.06, 2.2, 1.85, 0, 1.1, 0.93, wood); for (let k = 0; k < 4; k++) pb(dr, 0.07, 2.1, 0.05, 0, 1.1, 0.2 + k * 0.45, woodD); ps(dr, 0.05, 0.06, 1.1, 1.65, M.gold || matC(0xc8a050)); } // porta aberta
+  const win = (x, z, yaw) => { const g = new THREE.Group(); g.position.set(x, 1.9, z); g.rotation.y = yaw; G.add(g); pb(g, 1.34, 1.24, 0.42, 0, 0, 0, timber); pb(g, 1.1, 1.0, 0.44, 0, 0, 0, matC(0xffe0a0, true)); pb(g, 0.06, 1.0, 0.46, 0, 0, 0, timber); pb(g, 1.1, 0.06, 0.46, 0, 0, 0, timber);
+    pb(g, 1.6, 0.1, 0.3, 0, -0.65, 0.3, wood); const box = pb(g, 1.3, 0.25, 0.3, 0, -0.85, 0.42, wood); for (let k = 0; k < 6; k++) ps(g, 0.08, -0.5 + k * 0.2, -0.66, 0.42, HK.mats.fl); // floreira por fora
+    for (const sd of [-1, 1]) { const c = pb(g, 0.34, 1.6, 0.06, sd * 0.78, -0.05, -0.26, HK.mats.cur); } pb(g, 1.9, 0.05, 0.05, 0, 0.8, -0.27, matC(0xc8a050)); };
+  win(-3.4, 4, 0); win(3.4, 4, 0); win(-6, 1.6, -Math.PI / 2); win(6, 1.6, Math.PI / 2); win(2.0, -4, Math.PI);
+  // telhado de duas águas, cumeeira, vigas por dentro e chaminé
+  const rise = 2.4, half = 4.6, sl = Math.hypot(half, rise), ang = Math.atan2(rise, half);
+  for (const sz of [1, -1]) { const r = pb(G, 13.2, 0.2, sl + 0.4, 0, H + rise / 2, sz * half / 2, roofM); r.rotation.x = sz * ang; for (let k = 0; k < 9; k++) { const t = pb(G, 13.2, 0.05, 0.08, 0, H + rise - (k + 0.5) / 9 * rise + 0.13, sz * (k + 0.5) / 9 * half, matC(0x3a4a6a)); t.rotation.x = sz * ang; } }
+  { const sh = new THREE.Shape(); sh.moveTo(-half, 0); sh.lineTo(half, 0); sh.lineTo(0, rise); sh.closePath(); const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: false }); for (const sx of [-1, 1]) { const m = new THREE.Mesh(geo, plaster); m.rotation.y = Math.PI / 2; m.position.set(sx * 6 - 0.15, H, 0); G.add(m); } }
+  pb(G, 13.4, 0.26, 0.26, 0, H + rise + 0.08, 0, timber); for (let k = 0; k < 6; k++) pb(G, 0.2, 0.22, 8.2, -5 + k * 2, H + 0.05, 0, timber);
+  { pb(G, 1.3, H + rise + 1.2, 1.1, -6.35, (H + rise + 1.2) / 2, 0, stone); pb(G, 1.5, 0.22, 1.3, -6.35, H + rise + 1.25, 0, matC(0x6a6058)); HOME.smoke = HW(-6.4, 0); }
+  // jardim: canteiros de flores, banco, lampiões, caixa de correio e um varal de luzinhas na varanda
+  for (const sx of [-1, 1]) { const q = HW(sx * 4.6, 5.6), g = vlGrp(S, q, HOME.rot); pb(g, 2.6, 0.35, 1.0, 0, 0.17, 0, wood); for (let k = 0; k < 9; k++) ps(g, 0.11, -1.1 + k * 0.27, 0.45, (k % 2) * 0.3 - 0.15, matC([0xff7aa8, 0xffd84a, 0xffffff, 0xb07aff][k % 4])); colliders.push({ ...q, r: 1.2 }); }
+  for (const sx of [-1.8, 1.8]) { const q = HW(sx, 9.5), g = vlGrp(S, q, HOME.rot); cyl(g, 0.05, 0.06, 2.4, 0, 1.2, 0, woodD, 6); pb(g, 0.26, 0.34, 0.26, 0, 2.5, 0, matC(0xffd890, true)); addFlame(g, 0, 2.55, 0, 0.18); colliders.push({ ...q, r: 0.2 }); }
+  { const q = HW(2.6, 10.2), g = vlGrp(S, q, HOME.rot + Math.PI); cyl(g, 0.05, 0.05, 1.1, 0, 0.55, 0, woodD, 6); pb(g, 0.45, 0.32, 0.6, 0, 1.25, 0, matC(0xd86a8a)); const fl2 = pb(g, 0.04, 0.22, 0.12, 0.25, 1.4, -0.15, matC(0xe82a3a)); HK.flag = fl2; colliders.push({ ...q, r: 0.3 });
+    addInteract([invis(A, gBox(0.8, 1.6, 0.9), q.x, terrainH(q.x, q.z) + 0.8, q.z)], () => { if (mode !== 'walk') return; markInteracted(); homeMail(); }, { at: q, near: 2.2 }); }
+  { const q = HW(-4.2, 9.0), g = vlGrp(S, q, HOME.rot + 0.4); pb(g, 1.6, 0.08, 0.5, 0, 0.45, 0, wood); pb(g, 1.6, 0.5, 0.08, 0, 0.75, -0.22, wood); for (const sx of [-0.7, 0.7]) pb(g, 0.08, 0.45, 0.45, sx, 0.22, 0, woodD); colliders.push({ ...q, r: 0.6 });
+    const seat = vlSeat(q, HOME.rot + 0.4 + Math.PI, terrainH(q.x, q.z) + 1.0); addInteract([invis(A, gBox(1.6, 1, 0.8), q.x, terrainH(q.x, q.z) + 0.5, q.z)], () => sitOn(seat, '🌷 sentada no banquinho do jardim, a senhora olha a sua casinha… é tudo seu'), { at: q, near: 1.8 }); }
+  for (let k = 0; k < 12; k++) { const x = -2.2 + k * 0.4, sag = Math.sin(k / 11 * Math.PI) * 0.25; const b = ps(GA, 0.05, x, 2.4 - sag, 6.15, matC(0xffd890, true)); HK.lights.push(b); }
+  signBox(G, boardTex('🏡 Casinha da Rainha', '#5a2a3a', 640, 110, 52), 2.4, 0.42, 0, 2.75, 4.25);
+  // por dentro: lareira com a foto, poltronas, tapete, mesinha de chá, cama, troféus, baú, estante, cadeira de balanço e plantas
+  { const g = new THREE.Group(); g.position.set(-5.65, 0, 0); g.rotation.y = Math.PI / 2; G.add(g); pb(g, 2.6, 2.0, 0.5, 0, 1.0, 0, stone); pb(g, 1.4, 1.0, 0.12, 0, 0.62, 0.22, matC(0x1a120e)); pb(g, 2.9, 0.14, 0.45, 0, 2.08, 0.06, woodD); pb(g, 3.0, 0.12, 1.2, 0, 0.06, 0.55, matC(0x6a6058));
+    for (const sx of [-0.3, 0.1, 0.4]) { const l = cyl(g, 0.07, 0.07, 0.6, sx * 0.6, 0.24, 0.15, matC(0x5a3a22), 7); l.rotation.set(0, 0.3 * sx, Math.PI / 2); }
+    for (const sx of [-1.15, 1.15]) cyl(g, 0.035, 0.035, 0.2, sx, 2.25, 0.06, matC(0xf4ecd8), 6); twVase(g, 0.75, 2.15, 0.06, 0xff7aa8);
+    const fr = pb(g, 1.5, 1.15, 0.06, 0, 2.95, 0.04, matC(0xc8a050)); const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 0.97), new THREE.MeshBasicMaterial({ color: 0xe8e8e8 })); pic.position.set(-5.65 + 0.08, 2.95, 0); pic.rotation.y = Math.PI / 2; pic.userData.keep = true; GA.add(pic); HK.pic = pic; /* no grupo que muda: o quadro troca de foto */
+    const gf = new THREE.Group(); gf.position.copy(g.position); gf.rotation.copy(g.rotation); GA.add(gf); HK.fire = new THREE.Group(); gf.add(HK.fire); addFlame(HK.fire, -0.2, 0.45, 0.12, 0.45); addFlame(HK.fire, 0.2, 0.42, 0.12, 0.5); addFlame(HK.fire, 0, 0.55, 0.1, 0.6); vlGlow(HK.fire, 0xff8a3a, 3.6, 0, 0.7, 0.7, 0.5);
+    for (const sx of [-1.15, 1.15]) addFlame(gf, sx, 2.42, 0.06, 0.12);
+    col(-5.7, 0, 1.3); hit(1.4, 2, 2.6, -5.3, 1, 0, () => { HK.fire.visible = !HK.fire.visible; sfx.crackle(); whisper(HK.fire.visible ? '🔥 a senhora acende a lareira: a casinha inteira fica quentinha e cheirando a lenha' : '💨 o fogo virou brasinha…', 3); if (HK.fire.visible) { DGM.hp = Math.min(DGM.max, DGM.hp + 1); hudUpdate(); } }, 2.2);
+    hit(0.4, 1.3, 1.6, -5.6, 2.95, 0, () => homeDeco('quadro'), 2.6); }
+  { const r = cyl(G, 1.7, 1.7, 0.025, -3.4, 0.03, 0, HK.mats.rug1, 24); r.scale.set(1.2, 1, 1); const r2 = cyl(G, 1.45, 1.45, 0.03, -3.4, 0.035, 0, HK.mats.rug2, 24); r2.scale.set(1.2, 1, 1); const r3 = cyl(G, 1.32, 1.32, 0.035, -3.4, 0.04, 0, HK.mats.rug1, 24); r3.scale.set(1.2, 1, 1);
+    hit(2.2, 0.2, 2.2, -3.4, 0.1, 0, () => homeDeco('tapete'), 1.4); }
+  for (const lz of [-1.5, 1.5]) { const c = new THREE.Group(); c.position.set(-3.4, 0, lz); c.rotation.y = Math.atan2(-5.6 + 3.4, -lz); G.add(c); const v = matC(0x7a3a4a);
+    pb(c, 0.95, 0.42, 0.85, 0, 0.3, 0, v); pb(c, 0.95, 0.8, 0.2, 0, 0.8, -0.35, v); for (const sx of [-1, 1]) pb(c, 0.16, 0.55, 0.85, sx * 0.48, 0.45, 0, matC(0x5a2a34)); ps(c, 0.15, 0, 0.6, -0.15, matC(0xffd0e0), 1, 0.7, 0.45);
+    col(-3.4, lz, 0.55); const q = HW(-3.4, lz), fy = HOME.rot + c.rotation.y; const seat = { yaw: fy + Math.PI, pitch: -0.05, exit: HW(-2.4, lz * 0.6), eye: () => V3(q.x, y0 + 1.05, q.z) };
+    hit(1, 1.1, 1, -3.4, 0.55, lz, () => sitOn(seat, '🛋 na sua poltrona, de frente pro fogo… lar doce lar 💛'), 1.8); }
+  { const t = new THREE.Group(); t.position.set(-2.6, 0, 0); G.add(t); cyl(t, 0.45, 0.45, 0.05, 0, 0.5, 0, wood, 14); cyl(t, 0.05, 0.07, 0.48, 0, 0.25, 0, woodD, 8); ps(t, 0.1, -0.1, 0.62, 0, matC(0xf4f0e8), 1, 0.85, 1); cone(t, 0.025, 0.1, 0.02, 0.62, 0, matC(0xf4f0e8), 6).rotation.z = -1.0; for (const sz of [-0.2, 0.2]) cyl(t, 0.045, 0.04, 0.06, 0.15, 0.56, sz, matC(0xffffff), 10); col(-2.6, 0, 0.45); }
+  // cama de casal com dossel, criados-mudos e baú
+  { const g = new THREE.Group(); g.position.set(3.9, 0, -2.6); G.add(g); pb(g, 2.2, 0.45, 2.5, 0, 0.3, 0, woodD); pb(g, 2.1, 0.22, 2.4, 0, 0.62, 0, matC(0xffffff)); pb(g, 2.3, 1.3, 0.12, 0, 0.9, -1.25, woodD);
+    const q1 = pb(g, 2.2, 0.08, 1.7, 0, 0.77, 0.35, HK.mats.q1); for (let k = 0; k < 4; k++) pb(g, 2.21, 0.085, 0.12, 0, 0.775, -0.3 + k * 0.4, HK.mats.q2); for (const sx of [-0.5, 0.5]) ps(g, 0.32, sx, 0.88, -0.85, matC(0xfff8f0), 1.3, 0.45, 0.8);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.05, 0.05, 2.6, sx * 1.05, 1.3, sz * 1.2, woodD, 6); for (const sz of [-1.2, 1.2]) pb(g, 2.2, 0.06, 0.06, 0, 2.6, sz, woodD); for (const sx of [-1.05, 1.05]) pb(g, 0.06, 0.06, 2.4, sx, 2.6, 0, woodD);
+    for (const sx of [-1, 1]) { const cu = pb(g, 0.05, 2.1, 0.7, sx * 1.07, 1.55, 0.85, HK.mats.cur); } pb(g, 2.2, 0.04, 2.4, 0, 2.63, 0, HK.mats.cur);
+    for (const sx of [-1.55, 1.55]) { pb(g, 0.6, 0.6, 0.5, sx, 0.3, -1.0, wood); cyl(g, 0.04, 0.04, 0.16, sx, 0.68, -1.0, matC(0xf4ecd8), 6); } addFlame(GA, 3.9 - 1.55, 0.86, -3.6, 0.12); addFlame(GA, 3.9 + 1.55, 0.86, -3.6, 0.12);
+    col(3.3, -2.6, 0.9); col(4.5, -2.6, 0.9); col(3.9, -3.5, 0.9);
+    const bq = HW(3.9, -2.4); const bed = { yaw: HOME.rot + Math.PI, pitch: 1.3, lie: true, exit: HW(3.9, -0.4), eye: () => V3(bq.x, y0 + 1.0, bq.z) };
+    hit(2.2, 1, 2.4, 3.9, 0.7, -2.4, () => homeBed(bed), 2.0); hit(2.3, 0.4, 2.6, 3.9, 0.85, -2.4, () => homeDeco('colcha'), 0.01); }
+  { const g = new THREE.Group(); g.position.set(3.9, 0, -0.65); G.add(g); pb(g, 1.3, 0.6, 0.7, 0, 0.3, 0, matC(0x8a5a3a)); const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.3, 12, 1, false, 0, Math.PI), matC(0x8a5a3a)); lid.rotation.z = Math.PI / 2; lid.position.set(0, 0.6, 0); g.add(lid); for (const sx of [-0.45, 0.45]) pb(g, 0.08, 0.95, 0.72, sx, 0.47, 0, matC(0xc8a050)); ps(g, 0.06, 0, 0.45, 0.36, matC(0xc8a050));
+    col(3.9, -0.65, 0.7); hit(1.4, 1, 1, 3.9, 0.5, -0.65, () => homeBau(), 2.0); }
+  // parede de troféus (fundo, à esquerda): 6 pedestais
+  const TROF = [['javali_rei', '🐗', 'Presa do Javali Ancião', 'Derrote o Javali Ancião nos Campos Selvagens'], ['grum', '🪓', 'Machado do Chefe Grum', 'Derrote o Chefe Grum no Acampamento Goblin'], ['cavaleiro', '⚔', 'Lâmina do Cavaleiro Esquecido', 'Derrote o Cavaleiro Esquecido no cemitério'],
+    ['rei_sombras', '👑', 'Coroa do Rei das Sombras', 'Derrote o Rei das Sombras na dungeon'], ['dragao', '🐉', 'Escama do Dragão Sombrio', 'Derrote o Dragão Sombrio'], ['lendario', '🌠', 'Estrela Lendária', 'Encontre um item lendário']];
+  pb(G, 5.0, 0.1, 0.5, -3.0, 1.0, -3.6, woodD); pb(G, 5.0, 0.1, 0.5, -3.0, 2.2, -3.6, woodD); for (const sx of [-5.4, -0.6]) pb(G, 0.1, 2.3, 0.5, sx, 1.15, -3.6, woodD); signBox(G, boardTex('🏆 Troféus da Rainha', '#5a2a3a', 512, 90, 42), 2.0, 0.34, -3.0, 2.95, -3.7);
+  TROF.forEach(([id, ic, n, how], k) => { const x = -4.6 + (k % 3) * 1.6, y = k < 3 ? 1.05 : 2.25, g = new THREE.Group(); g.position.set(x, y, -3.6); GA.add(g); pb(g, 0.5, 0.12, 0.4, 0, 0.06, 0, matC(0xc8a050));
+    const it = new THREE.Group(); it.position.y = 0.45; g.add(it); const em = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(ic), transparent: true, depthWrite: false })); em.scale.setScalar(0.6); it.add(em); const gl = vlGlow(it, 0xffe8a0, 1.2, 0, 0, -0.1, 0.4);
+    const lock = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex('🔒'), transparent: true, depthWrite: false, opacity: 0.55 })); lock.scale.setScalar(0.35); lock.position.y = 0.35; g.add(lock);
+    HK.trophies.push({ id, it, lock, n, how, ic });
+    hit(1.2, 1.0, 0.8, x, y + 0.4, -3.4, () => { const T = HK.trophies[k], got = homeTrophy(T.id); showDialog(`${T.ic} ${T.n}`, got ? 'troféu conquistado ✦' : 'ainda vazio', got ? 'Ele brilha orgulhoso no pedestal. Visitas ficam de boca aberta quando veem!' : `🔒 ${T.how} para trazer este troféu para casa.`, [['ok', null, true]]); }, 2.0); });
+  // estante de livros, cadeira de balanço, mesa com flores, plantas, quadros e o tapete da porta
+  { const g = new THREE.Group(); g.position.set(5.6, 0, 2.6); g.rotation.y = -Math.PI / 2; G.add(g); twShelf(g, 1.8, 2.6, 0.45, woodD); const bc = [0x7a1f2a, 0x2a3a6a, 0x2f5a2a, 0x6a3a8a, 0xc8a050, 0xd86a8a]; for (let r = 0; r < 3; r++) { pb(g, 1.7, 0.05, 0.4, 0, 0.35 + r * 0.75, 0.02, wood); let bx = -0.78; while (bx < 0.75) { const w = 0.07 + HR() * 0.07, h = 0.4 + HR() * 0.22; pb(g, w, h, 0.3, bx + w / 2, 0.38 + r * 0.75 + h / 2, 0.05, matC(bc[Math.floor(HR() * bc.length)])); bx += w + 0.005; } } col(5.6, 2.6, 0.7);
+    const BK = ['📖 "Diário da Rainha": a primeira página diz só "hoje eu ganhei um reino inteiro de presente… e o melhor de tudo é quem me deu". O resto ainda está em branco, esperando as suas aventuras.', '📖 "Receitas da Vovó": entre uma receita e outra, uma margarida seca guardada.', '📖 "Atlas do Reino": um mapa desenhado à mão, com um coraçãozinho em cima do campo de margaridas.'];
+    hit(0.8, 2.6, 1.8, 5.4, 1.3, 2.6, () => { whisper(BK[HK.qi++ % BK.length], 6); sfx.chime([659, 880], 0.03); }, 2.0); }
+  { const g = new THREE.Group(); g.position.set(4.3, 0, 2.9); g.rotation.y = -2.3; G.add(g); for (const sx of [-0.3, 0.3]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.035, 5, 16, Math.PI * 0.7), woodD); r.rotation.set(0, Math.PI / 2, Math.PI * 1.15); r.position.set(sx, 0.55, 0); g.add(r); }
+    pb(g, 0.65, 0.06, 0.55, 0, 0.5, 0, wood); pb(g, 0.65, 0.8, 0.06, 0, 0.95, -0.28, wood); ps(g, 0.2, 0, 0.58, 0, matC(0xd86a8a), 1.3, 0.35, 1.2); HK.rock = g; col(4.3, 2.9, 0.45);
+    const q = HW(4.3, 2.9), seat = { yaw: HOME.rot - 2.3 + Math.PI, pitch: -0.05, exit: HW(3.2, 2.2), eye: () => V3(q.x, y0 + 1.0, q.z), onStand: () => { HK.rocking = false; } };
+    hit(0.9, 1.1, 0.9, 4.3, 0.55, 2.9, async () => { await sitOn(seat, '🪑 a cadeira de balanço range baixinho… nhec… nhec… que paz'); HK.rocking = true; }, 1.8); }
+  { const t = new THREE.Group(); t.position.set(1.2, 0, 1.4); G.add(t); pb(t, 1.4, 0.06, 0.9, 0, 0.78, 0, wood); for (const sx of [-0.6, 0.6]) for (const sz of [-0.35, 0.35]) pb(t, 0.06, 0.76, 0.06, sx, 0.38, sz, woodD); pb(t, 1.42, 0.02, 0.6, 0, 0.82, 0, matC(0xf4ecd8));
+    cyl(t, 0.09, 0.07, 0.24, 0, 0.93, 0, matC(0x2a6a8a), 10); for (let k = 0; k < 6; k++) { const an = k / 6 * Math.PI * 2; cyl(t, 0.008, 0.008, 0.3, Math.cos(an) * 0.03, 1.17, Math.sin(an) * 0.03, matC(0x3a8a3a), 4); ps(t, 0.06, Math.cos(an) * 0.07, 1.33, Math.sin(an) * 0.07, HK.mats.fl); }
+    for (const sx of [-0.85, 0.85]) { const c = twChair(G, 1.2 + sx, 1.4, sx < 0 ? Math.PI / 2 : -Math.PI / 2, 0xd86a8a); } col(1.2, 1.4, 0.75);
+    cyl(t, 0.04, 0.04, 0.16, 0.45, 0.89, 0.2, matC(0xf4ecd8), 6); addFlame(GA, 1.65, 1.04, 1.6, 0.13);
+    hit(1.4, 1.2, 1.0, 1.2, 1.1, 1.4, () => homeDeco('flores'), 1.8); }
+  for (const [lx, lz] of [[5.4, 3.5], [-5.4, 3.5], [-5.4, -3.5], [1.6, -3.5]]) { cyl(G, 0.26, 0.2, 0.48, lx, 0.24, lz, matC(0xb8603a), 10); ps(G, 0.38, lx, 0.8, lz, matC(0x3a7a3a), 1, 1.3, 1); col(lx, lz, 0.3); }
+  pb(G, 1.4, 0.02, 0.8, 0, 0.02, 3.4, matC(0xd86a8a)); // capacho
+  for (let k = 0; k < 4; k++) { const x = -3.0 + k * 2.0; const b = new THREE.Group(); b.position.set(x, H - 0.25, 0); GA.add(b); const l = []; for (let j = 0; j < 9; j++) { const z = -3.2 + j * 0.8, sag = Math.sin(j / 8 * Math.PI) * 0.18; l.push(ps(b, 0.05, 0, -sag, z, matC(0xffd890, true))); } HK.lights.push(...l); }
+  hit(8, 0.6, 7, 0, HOME.H - 0.3, 0, () => homeDeco('luzes'), 3.0);
+  { const lm = new THREE.Group(); lm.position.set(-0.4, H - 0.6, -0.8); GA.add(lm); const r = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 20), matC(0xc8a050)); r.rotation.x = Math.PI / 2; lm.add(r); cyl(lm, 0.01, 0.01, 0.6, 0, 0.3, 0, matC(0x2a2a2a), 3); for (let k = 0; k < 5; k++) { const an = k / 5 * Math.PI * 2; cyl(lm, 0.03, 0.03, 0.12, Math.cos(an) * 0.6, 0.08, Math.sin(an) * 0.6, matC(0xf4ecd8), 6); addFlame(lm, Math.cos(an) * 0.6, 0.2, Math.sin(an) * 0.6, 0.13); } }
+  for (const [x, z, yaw, art] of [[0.5, -3.83, 0, 'margaridas'], [-5.83, 2.6, Math.PI / 2, 'lua']]) { const g = new THREE.Group(); g.position.set(x, 2.1, z); g.rotation.y = yaw; G.add(g); pb(g, 1.0, 0.8, 0.05, 0, 0, 0, matC(0xc8a050)); const p = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.66), new THREE.MeshBasicMaterial({ color: 0xd8d8d8, map: canvasTex(256, 192, TW_ART[art]) })); p.position.z = 0.03; g.add(p); }
+  bakeStatic(S); xLights(HOMER);
+}
+// fotos de vocês para o quadro da lareira (as mesmas do céu) + quadros desenhados
+{ const L = new THREE.TextureLoader(); PHOTOS.forEach((src, i) => { HK.photos.push({ n: `foto ${i + 1} 💛`, tex: L.load(src, t => { t.colorSpace = THREE.SRGBColorSpace; }) }); });
+  for (const art of ['rainha', 'noite', 'castelo']) HK.photos.push({ n: { rainha: 'retrato da rainha', noite: 'noite estrelada', castelo: 'o castelo' }[art], tex: canvasTex(art === 'rainha' ? 192 : 256, art === 'rainha' ? 256 : 192, TW_ART[art]) });
+  HOME_DECO.quadro.opts = HK.photos.map(p => [p.tex, p.n]); }
+function homeApply() {
+  const d = homeS().d, M = HK.mats, o = k => HOME_DECO[k].opts[(d[k] || 0) % HOME_DECO[k].opts.length];
+  M.rug1.color.setHex(o('tapete')[0]); M.rug2.color.setHex(o('tapete')[1]); M.cur.color.setHex(o('cortina')[0]); M.q1.color.setHex(o('colcha')[0]); M.q2.color.setHex(o('colcha')[1]); M.fl.color.setHex(o('flores')[0]);
+  const lc = o('luzes')[0]; for (const b of HK.lights) { b.visible = lc != null; if (lc != null) b.material.color.setHex(lc); }
+  if (HOME_DECO.quadro.opts.length) { HK.pic.material.map = o('quadro')[0]; HK.pic.material.needsUpdate = true; }
+}
+function homeDeco(k) {
+  const d = homeS().d, D = HOME_DECO[k], cur = (d[k] || 0) % D.opts.length;
+  const btns = D.opts.map((op, i) => [(i === cur ? '✓ ' : '') + op[op.length - 1], () => { d[k] = i; homeApply(); rpgEvent('casa_decorar'); sfx.chime([659, 880, 1047], 0.05); rpgSave(); }, i === cur]);
+  if (k === 'tapete' || k === 'flores' || k === 'colcha' || k === 'luzes' || k === 'quadro') { const order = ['tapete', 'cortina', 'colcha', 'flores', 'luzes', 'quadro']; btns.push(['🎨 decorar outra coisa', () => { const nx = order[(order.indexOf(k) + 1) % order.length]; homeDeco(nx); }]); }
+  btns.push(['pronto', null]); showDialog(`🎨 ${D.n}`, 'decore a sua casinha', 'Escolha do seu jeito — fica salvo para sempre:', btns);
+}
+const homeTrophy = id => id === 'rei_sombras' ? (RPG.ev?.boss || 0) > 0 : id === 'lendario' ? Object.values(RPG.gen || {}).some(g => g.rar === 3) : !!RPG.bosses?.[id];
+async function homeBed(bed) {
+  await sitOn(bed, '🛏 a senhora se aconchega debaixo da colcha… os olhos vão pesando…');
+  if (player.seat !== bed) return; const night = isNight() || TIME.h < 8 || TIME.h >= 17;
+  setTimeout(() => { if (player.seat !== bed) return; document.body.style.transition = 'opacity 1.4s'; document.body.style.opacity = 0.05;
+    setTimeout(() => { TIME.h = night ? 7 : (TIME.h + 3) % 24; DGM.hp = DGM.max; RPG.mp = ST.maxMp; RPG.drunk = 0; RPG.fome = Math.max(10, (RPG.fome ?? 80) - 15); hudUpdate(); rpgEvent('casa_dormir'); rpgSave(); document.body.style.opacity = 1;
+      setTimeout(() => { document.body.style.transition = ''; }, 1500); whisper(night ? '🌅 bom dia, Majestade! A senhora dormiu como uma rainha: vida e mana cheias ✨' : '😴 um cochilo gostoso: vida e mana cheias', 4.5); sfx.chime([523, 659, 784, 1047], 0.08); }, 1600); }, 1500);
+}
+function homeMail() {
+  const st = homeS(), day = Math.floor((RPG.t || 0) / 1440) + (RPG.ev?.casa_dormir || 0), fresh = st.carta !== day;
+  if (fresh) { st.carta = day; const L = HOME_LETTERS[(RPG.ev?.carta_lida || 0) % HOME_LETTERS.length]; rpgEvent('carta_lida'); showDialog('📬 Caixa de Correio', 'uma carta com selo de cera vermelho', L, [['💛 guardar a carta no coração', null, true]]); sfx.chime([784, 988, 1175], 0.06); if (Math.random() < 0.6) setTimeout(() => addItem(['torta_morango', 'mel', 'po_fada', 'chocolate'][Math.floor(Math.random() * 4)]), 900); rpgSave(); }
+  else showDialog('📬 Caixa de Correio', 'vazia por enquanto', 'Nenhuma carta nova… o Rei escreve uma por dia. (Dormir na sua cama também faz o dia passar!)', [['ok', null, true]]);
+}
+function homeBau() {
+  const st = homeS();
+  openPanel('bau', pn => {
+    closeX(pn); h$('h2', null, '🧰 Baú da Casinha', pn); h$('div', 'sub', 'Guarde aqui o que não quer carregar. Fica seguro em casa.', pn);
+    const cols = h$('div', 'cols', null, pn), L = h$('div', null, null, cols), R = h$('div', null, null, cols); h$('h3', null, '🎒 Mochila', L); h$('h3', null, '🧰 No baú', R);
+    const draw = () => { for (const [box, src, dst, verb] of [[L, RPG.inv, st.bau, 'guardar'], [R, st.bau, RPG.inv, 'pegar']]) { while (box.children.length > 1) box.lastChild.remove(); const ids = Object.keys(src).filter(k => src[k] > 0 && ITEMS[k] && !Object.values(RPG.eq).includes(k)); if (!ids.length) h$('div', 'sub', 'vazio', box);
+      for (const id of ids) { const r = h$('div', 'row', null, box); r.style.margin = '4px 0'; const lb = h$('span', null, `${ITEMS[id].i} ${ITEMS[id].n} ×${src[id]}`, r); lb.style.flex = '1'; if (ITEMS[id].rar) lb.style.color = RAR[ITEMS[id].rar].c;
+        hBtn(verb, 'rbtn', () => { src[id]--; if (!src[id]) delete src[id]; dst[id] = (dst[id] || 0) + 1; sfx.chime([523], 0.02); rpgSave(); draw(); }, r); } } };
+    draw();
+  });
+}
+homeApply();
+function updateHome(dt) {
+  const t = uTime.value, camIn = homeIn(camera.position.x, camera.position.z) && Math.abs(camera.position.y - HOME.y0 - 1.7) < 3; HOME.in = camIn;
+  HOME.k += ((camIn ? 1 : 0) - HOME.k) * Math.min(1, dt * 3);
+  if (HOME.k > 0.01) { hemiLight.intensity *= 1 - 0.5 * HOME.k; hemiLight.color.lerp(RST_WARM, 0.6 * HOME.k); hemiLight.groundColor.lerp(RST_WARM_G, 0.6 * HOME.k); moonLight.intensity *= 1 - 0.85 * HOME.k;
+    const fl = 0.9 + 0.06 * Math.sin(t * 9); dunLight.color.setHex(0xffb878); dunLight.position.copy(V3(HW(-1, 0).x, HOME.y0 + 3.0, HW(-1, 0).z)); dunLight.intensity = 6 * fl * HOME.k; dunLight.distance = 13; HOME.lit = true; }
+  else if (HOME.lit) { HOME.lit = false; if (TWR.cur < 0 && !DGM.inside && !(RST.lit)) dunLight.intensity = 0; }
+  if (!HOMER.near) return;
+  if (HK.fire.visible && Math.random() < dt * 2.5) spawnFX(TEX.smoke, V3(HOME.smoke.x + rv(0.3), HOME.y0 + HOME.H + 3.6, HOME.smoke.z + rv(0.3)), { vel: V3(rv(0.2) + 0.1, 0.8, rv(0.2)), life: 4, size: 0.5, grow: 1.6, color: 0xa8a0a0 });
+  for (const T of HK.trophies) { const got = homeTrophy(T.id); T.it.visible = got; T.lock.visible = !got; if (got) { T.it.rotation.y += dt; T.it.position.y = 0.45 + Math.sin(t * 2 + T.ic.length) * 0.04; } }
+  if (HK.rock) HK.rock.rotation.x = HK.rocking ? Math.sin(t * 1.6) * 0.12 : HK.rock.rotation.x * 0.9;
+  if (HK.flag) HK.flag.rotation.z = homeS().carta !== Math.floor((RPG.t || 0) / 1440) + (RPG.ev?.casa_dormir || 0) ? 0 : -1.4; /* bandeirinha levantada = carta nova */
+}
+if (RPG.made && !RPG.q.lar) setTimeout(() => { if (RPG.made && !RPG.q.lar) qStart('lar', true); }, 8000);
+
 /* desenha o mapa do chão ocupado: tudo o que é sólido (pedras, troncos, muros, casas) e os chãos elevados */
 {
   const { R, N } = OCC, k = N / (2 * R), cv = document.createElement('canvas'); cv.width = cv.height = N;
@@ -14342,7 +14536,7 @@ function frame() {
   sparkle.material.rotation = uTime.value * 0.3;
   windmillBlades.rotation.z -= dt * 0.35;
   updateWorld2(dt);
-  updateTower(dt); updateVilas(dt); updateRestaurant(dt); boatUpdate(dt);
+  updateTower(dt); updateVilas(dt); updateRestaurant(dt); boatUpdate(dt); updateHome(dt);
   for (const f of flags) {
     const pa = f.mesh.geometry.attributes.position, b = f.base;
     for (let i = 0; i < pa.count; i++) {
