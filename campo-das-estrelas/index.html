@@ -588,7 +588,7 @@ const SHADOW_ACTORS = []; // { o: objeto, r: raio da sombra }
 const BE = { x: 300, z: 40, y: DUN.y, k: 0, inside: false, busy: false }; // interior do Bolsão (longe, debaixo da terra)
 const TWR = { x: 76, z: 8, cur: -1, fy: [], gy: 0, yaw: 0, busy: false }; // Torre de Pesquisas (cur: andar onde você está lá em cima, -1 = fora)
 const UNDER = { dw: false, dg: false }; // você está mesmo lá embaixo? (as áreas debaixo da terra ficam sob o campo, a floresta e a Vila Trigo Dourado)
-const inDun = (x, z) => (UNDER.dw && Math.abs(x - DUN.x) < 70 && Math.abs(z - DUN.z) < 70) || (BE.inside && Math.abs(x - BE.x) < 16 && z > BE.z - 4 && z < BE.z + 30) || (UNDER.dg && x > DGP.x - 6 && x < DGP.x + 81 && z > DGP.z0 - 6 && z < DGP.z0 + 3 * DGP.dz + 81);
+const inDun = (x, z) => (UNDER.dw && Math.abs(x - DUN.x) < 70 && Math.abs(z - DUN.z) < 70) || (BE.inside && Math.abs(x - BE.x) < 16 && z > BE.z - 4 && z < BE.z + 30) || (UNDER.dg && x > DGP.x - 6 && x < DGP.x + 81 && z > DGP.z0 - 6 && z < DGP.z0 + 12 * DGP.dz + 81);
 const DGE = { x: -95, z: 40 }; { const l = Math.hypot(DGE.x, DGE.z); DGE.fx = -DGE.x / l; DGE.fz = -DGE.z / l; } // entrada no campo
 let bridgeY = () => -1e9;
 const FV = { x: 125, z: 262 }; // Vila das Fadas: clareira no coração da Floresta Encantada (sudeste)
@@ -5408,6 +5408,7 @@ function dgCollide(o, rad) { // colisão com as paredes do mapa em grade
 }
 function dgSight(fl, a, b) { const d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(d / 0.8); for (let i = 1; i < n; i++) { const t = i / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t; if (dgWall(fl, Math.floor((x - fl.o.x) / DGT), Math.floor((z - fl.o.z) / DGT))) return false; } return true; }
 const dgFloorT = canvasTex(256, 256, g => { g.fillStyle = '#1e1b18'; g.fillRect(0, 0, 256, 256); const r = mulberry32(8); for (let y = 0; y < 256; y += 64) for (let x = 0; x < 256; x += 64) { const s = 0.7 + r() * 0.35; g.fillStyle = `rgb(${70 * s | 0},${64 * s | 0},${58 * s | 0})`; g.fillRect(x + 3, y + 3, 58, 58); } }, [DGN / 2, DGN / 2]);
+let DG_BOSSLOOK = null; // visual do chefe da masmorra que está sendo montada
 function makeEnemy(type) {
   const g = new THREE.Group(); let parts = {};
   if (type === 'slime') {
@@ -5423,7 +5424,9 @@ function makeEnemy(type) {
       goblin: { body: 0x6a4a2a, legs: 0x4a3a2c, skin: 0x6abf4a, hat: 'hood', hatC: 0x4a3a2a, elf: true, scale: 0.75, acc: { axe: true } },
       mage: { body: 0x2a1a3a, skirt: 0x1a1028, skin: 0x9a9ab0, hat: 'wizard', hatC: 0x1a1028, acc: { staff: 0xc040ff } },
       boss: { body: 0x2a2a34, sleeve: 0x1a1a22, legs: 0x1a1a22, skin: 0xd8d0c0, hat: 'helm', scale: 2.3, acc: { sword: true, cape: 0x5a0a1a } },
-    }[type];
+      lich: { body: 0x1e2a24, sleeve: 0x16201a, skirt: 0x101a14, legs: 0x101a14, skin: 0xb8d8c0, hat: 'wizard', hatC: 0x101a14, scale: 2.2, long: true, acc: { staff: 0x5aff9a, cape: 0x0a1a10 } },
+      trollrei: { body: 0x5a4a2a, sleeve: 0x4a3a20, legs: 0x3a2a18, skin: 0x6a9a4a, hat: 'horns', scale: 2.6, acc: { axe: true, cape: 0x3a2a1a } },
+    }[type === 'boss' && DG_BOSSLOOK ? DG_BOSSLOOK : type];
     const p = makePerson(look); g.add(p.g); parts.p = p;
     if (type === 'skeleton' || type === 'boss') for (const sx of [-1, 1]) { const e = ps(p.head, 0.025, sx * 0.05, 0.165, 0.135, matC(0xff3030, true)); e.userData.keep = true; }
     if (type === 'boss') { for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; cone(p.head, 0.035, 0.12, Math.sin(a) * 0.13, 0.42, Math.cos(a) * 0.13, M.gold, 5); } const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff3040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35 })); gl.scale.setScalar(5); gl.position.y = 2.6; g.add(gl); }
@@ -5436,8 +5439,10 @@ function spawnEnemy(fl, type, x, z) {
   const e = { type, g, parts, x, z, hx: x, hz: z, hp: st.hp, max: st.hp, st, cd: 1 + Math.random(), wind: 0, hitT: 0, dead: false, ph: Math.random() * 9, hd: Math.random() * 6, aggro: false, cast: 2 + Math.random() * 2 };
   fl.enemies.push(e); return e;
 }
-function buildFloor(i) {
-  const def = FLOORS[i], fl = { def, i, o: dgOrigin(i), grid: new Uint8Array(DGN * DGN), enemies: [], chests: [], g: new THREE.Group(), cleared: false, sArmed: false };
+let DG_GI = 0; // índice global do andar (cada masmorra fica numa faixa diferente debaixo da terra)
+function buildFloor(li, def = FLOORS[li]) {
+  const gi = DG_GI++, i = def.th ?? li; DG_BOSSLOOK = def.bossLook || null;
+  const fl = { def, i: li, o: dgOrigin(gi), grid: new Uint8Array(DGN * DGN), enemies: [], chests: [], g: new THREE.Group(), cleared: false, sArmed: false };
   for (const [x, z, w, h] of def.rooms) for (let r = z; r < z + h; r++) for (let c = x; c < x + w; c++) fl.grid[r * DGN + c] = 1;
   for (const [c, r] of def.gate || []) fl.grid[r * DGN + c] = 2;
   for (const [c, r] of def.pillars || []) fl.grid[r * DGN + c] = 0;
@@ -5460,7 +5465,7 @@ function buildFloor(i) {
   const W = DGN * DGT, flo = new THREE.Mesh(new THREE.PlaneGeometry(W, W), new THREE.MeshLambertMaterial({ map: dgFloorT, color: def.tint })); flo.rotation.x = -Math.PI / 2; flo.position.set(W / 2, 0, W / 2); st.add(flo);
   const ce = new THREE.Mesh(new THREE.PlaneGeometry(W, W), matC(0x15120f)); ce.rotation.x = Math.PI / 2; ce.position.set(W / 2, DGH, W / 2); st.add(ce);
   const L = (c, r) => ({ x: (c + 0.5) * DGT, z: (r + 0.5) * DGT });
-  const rr = mulberry32(100 + i);
+  const rr = mulberry32(100 + gi);
   for (let k = 0; k < 40; k++) { // decoração do andar
     const c = Math.floor(rr() * DGN), r = Math.floor(rr() * DGN); if (!isF(c, r) || fl.grid[r * DGN + c] === 2) continue;
     const q = L(c, r), x = q.x + (rr() - 0.5) * 1.6, z = q.z + (rr() - 0.5) * 1.6;
@@ -5511,11 +5516,13 @@ function buildFloor(i) {
     const ch = { g, lid, gl, kind, open: 0, done: false, w: dgTileW(fl, c, r) }; fl.chests.push(ch);
     addInteract([invis(g, gBox(1.8, 1.4, 1.4), 0, 0.7, 0)], () => openDGChest(fl, ch), { at: ch.w, near: 2.3 });
   }
-  for (const [type, c, r] of def.ents) { const q = dgTileW(fl, c, r); spawnEnemy(fl, type, q.x, q.z); }
-  bakeStatic(st);
+  for (const [type, c, r] of def.ents) { const q = dgTileW(fl, c, r), e = spawnEnemy(fl, type, q.x, q.z); if (type === 'boss' && def.bossHp) { e.hp = e.max = def.bossHp; } }
+  DG_BOSSLOOK = null; bakeStatic(st);
   return fl;
 }
 FLOORS.forEach((_, i) => DGM.floors.push(buildFloor(i)));
+const DG_SETS = { sombras: { n: 'Dungeon das Sombras', fl: DGM.floors, win: DG_WIN_MSG, enter: DG_ENTER_MSG, exit: () => ({ x: DGE.x + DGE.fx * 3.2, z: DGE.z + DGE.fz * 3.2, yaw: Math.atan2(-DGE.fx, -DGE.fz) }) } };
+DGM.set = 'sombras'; DGM.wonM = {};
 const dgSword = new THREE.Group(); camera.add(dgSword); dgSword.visible = false;
 {
   const bladeM = new THREE.MeshLambertMaterial({ color: 0x8a909c }); dgSword.scale.setScalar(0.72);
@@ -5580,9 +5587,10 @@ async function dgTravel(fn) {
   if (DGM.busy) return; DGM.busy = true; mode = 'busy'; fadeEl.style.opacity = 1; await waitMs(650);
   fn(); await waitMs(150); mode = 'walk'; fadeEl.style.opacity = 0; DGM.busy = false;
 }
-function enterDG() {
-  if (mode !== 'walk' || DGM.busy) return; markInteracted(); sfx.creak();
+function enterDG(set = 'sombras') {
+  if (mode !== 'walk' || DGM.busy || !DG_SETS[set]) return; markInteracted(); sfx.creak();
   dgTravel(() => {
+    DGM.set = set; DGM.floors = DG_SETS[set].fl; DGM.won = !!DGM.wonM[set]; if (set !== 'sombras') setTimeout(() => banner(DG_SETS[set].n, DGM.floors[0].def.name, 3.2), 400);
     DGM.inside = UNDER.dg = true; DGM.hp = DGM.max;
     const fl = DGM.floors[0], s = fl.sW; dgPlace(fl, { x: s.x, z: s.z + DGT * 0.9 }, fl.def.face);
     dgVMHide(); dgVM(dgHold()).visible = true; ['dgHud', 'dgExit'].forEach(id => document.getElementById(id).classList.remove('hidden'));
@@ -5592,9 +5600,9 @@ function enterDG() {
 function leaveDG() {
   if (!DGM.inside) return;
   dgTravel(() => {
-    DGM.inside = UNDER.dg = false; DGM.floors.forEach(f => { f.g.visible = false; }); DGM.cur = -1; dgVMHide(); DGM.projs.forEach(p => scene.remove(p.s)); DGM.projs = [];
+    DGM.inside = UNDER.dg = false; DGM.floors.forEach(f => { f.g.visible = false; }); DGM.cur = -1; dgVMHide(); DGM.projs.forEach(p => scene.remove(p.s)); DGM.projs = []; DGM.drops.forEach(d => scene.remove(d.s)); DGM.drops = [];
     ['dgHud', 'dgExit', 'dgBoss'].forEach(id => document.getElementById(id).classList.add('hidden'));
-    Object.assign(player, { x: DGE.x + DGE.fx * 3.2, z: DGE.z + DGE.fz * 3.2, yaw: Math.atan2(-DGE.fx, -DGE.fz), pitch: 0.05, vx: 0, vz: 0, pose: 'stand', eyeH: EYE_H }); placeCamera();
+    const ex = DG_SETS[DGM.set].exit(); Object.assign(player, { x: ex.x, z: ex.z, yaw: ex.yaw, pitch: 0.05, vx: 0, vz: 0, pose: 'stand', eyeH: EYE_H }); placeCamera();
   });
 }
 function dgNextFloor(dir) {
@@ -5653,7 +5661,7 @@ function dgKill(fl, e) {
   const p = V3(e.x, DGP.y + 0.8, e.z); for (let i = 0; i < 10; i++) spawnFX(TEX.smoke, p.clone().add(V3(rv(0.4), rv(0.3), rv(0.4))), { vel: V3(rv(0.5), 0.6, rv(0.5)), life: 1, size: 0.5, grow: 1, color: 0x9a90b0 });
   spawnSparkles(p, 12, 0.5, 0xffe08a);
   if (Math.random() < 0.35 && e.type !== 'boss') { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.heart, transparent: true, depthWrite: false })); s.scale.setScalar(0.45); s.position.set(e.x, DGP.y + 0.7, e.z); scene.add(s); DGM.drops.push({ s, x: e.x, z: e.z, fl: fl.i }); }
-  if (e.type === 'boss') { DGM.won = true; fl.portal.visible = true; whisper(DG_WIN_MSG, 7); sfx.chime([392, 523, 659, 784, 1047, 1319, 1568], 0.12); for (let i = 0; i < 6; i++) setTimeout(() => spawnSparkles(V3(e.x + rv(3), DGP.y + 1 + Math.random() * 3, e.z + rv(3)), 16, 1, [0xffd36a, 0xff9ad0, 0x9fe8ff][i % 3]), i * 250); }
+  if (e.type === 'boss') { DGM.won = true; DGM.wonM[DGM.set] = 1; fl.portal.visible = true; whisper(DG_SETS[DGM.set].win, 7); sfx.chime([392, 523, 659, 784, 1047, 1319, 1568], 0.12); for (let i = 0; i < 6; i++) setTimeout(() => spawnSparkles(V3(e.x + rv(3), DGP.y + 1 + Math.random() * 3, e.z + rv(3)), 16, 1, [0xffd36a, 0xff9ad0, 0x9fe8ff][i % 3]), i * 250); }
   dgHud();
   if (!fl.cleared && fl.enemies.every(x => x.dead)) { fl.cleared = true; if (fl.def.D) { setTimeout(() => { whisper(DG_STAIRS_MSG, 4); sfx.chime([523, 784, 1047], 0.1); }, 600); } }
 }
@@ -10789,7 +10797,7 @@ function rpgShard(s) {
   sfx.chime([1047, 1319, 1568, 2093], 0.08); spawnSparkles(V3(s.x, s.y, s.z), 30, 0.8, 0xffe6a0); banner(`✦ ${n} / 20`, 'fragmento de estrela', 2.2);
   gainGold(10); gainXP(25); qCheckAll(); rpgSave();
 }
-function rpgKill(type) { const [xp, g] = KILL_XP[type] || [5, 1]; gainXP(xp); if (g) RPG.gold += Math.max(1, Math.round(g * (0.6 + Math.random() * 0.8))); rpgEvent('kill'); if (type === 'boss') rpgEvent('boss'); if (Math.random() < 0.12 && type !== 'boss') { addItem(Math.random() < 0.5 ? 'pocao_vida' : 'pocao_mana'); } hudUpdate(); }
+function rpgKill(type) { const [xp, g] = KILL_XP[type] || [5, 1]; gainXP(xp); if (g) RPG.gold += Math.max(1, Math.round(g * (0.6 + Math.random() * 0.8))); rpgEvent('kill'); if (type === 'boss') rpgEvent(DGM.set && DGM.set !== 'sombras' ? 'boss_' + DGM.set : 'boss'); if (Math.random() < 0.12 && type !== 'boss') { addItem(Math.random() < 0.5 ? 'pocao_vida' : 'pocao_mana'); } hudUpdate(); }
 
 /* câmera atrás de você (3ª pessoa) e pulo */
 const TP = { k: 0, dist: 4.1, back: 0, d: 4.1, near: { c: [], s: [] }, t: 0 };
@@ -13621,7 +13629,7 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
   addPad({ ...RW(0, (9 + RKB) / 2), W: 18, D: 9 - RKB, yaw: RST.rot, y: y0 }); addPad({ ...RW(0, 11), W: 18, D: 4, yaw: RST.rot, y: y0 - 0.02 }); // salão e varanda
   OCC.fill.push({ ...RW(0, (14 + RKB) / 2), W: 20, D: 15 - RKB, yaw: RST.rot });
   pb(G, 18.4, 1.6, 13.4 - RKB, 0, -0.87, (13.2 + RKB - 0.2) / 2, stone); // alicerce (cobre o terreno por baixo; topo abaixo do assoalho para não piscar)
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(17.6, 8.6), TW_PLANK || matC(0x7a5a3a)); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, 4.5); G.add(fl); // salão de tábuas (a cozinha tem piso de pedra)
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(17.6, 8.6 - RKB), TW_PLANK || matC(0x7a5a3a)); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, (8.8 + RKB) / 2); G.add(fl); /* tábuas no salão, na cozinha e na despensa */
   const deck = new THREE.Mesh(new THREE.PlaneGeometry(18, 4), TW_PLANK || matC(0x7a5a3a)); deck.rotation.x = -Math.PI / 2; deck.position.set(0, -0.01, 11); G.add(deck);
   for (const sx of [-1, 1]) { pb(G, 0.1, 1, 4, sx * 9, 0.5, 11, wood); } for (let k = 0; k <= 8; k++) { if (k === 3 || k === 4) continue; cyl(G, 0.05, 0.05, 1.0, -9 + k * 2.25, 0.5, 12.95, wood, 5); } pb(G, 5.6, 0.08, 0.12, -6.2, 1.0, 12.95, wood); pb(G, 9.2, 0.08, 0.12, 4.4, 1.0, 12.95, wood); seg(-9, 12.95, -3.4, 12.95, 0.12); seg(-0.2, 12.95, 9, 12.95, 0.12); seg(-9, 9, -9, 12.95, 0.12); seg(9, 9, 9, 12.95, 0.12); // guarda-corpo da varanda (com abertura na escada)
   // escadas: da estrada para a varanda e da porta dos fundos para a horta
@@ -13753,7 +13761,6 @@ PLACES.push({ id: 'delyzias', n: 'Delyzias da Delyza', i: '🍲', ...RW(0, 2), r
 /* ---- a cozinha (10 m de fundo): forno, fogão e pia na parede do fundo, bancada no meio, despensa organizada no canto e corredor livre até a horta ---- */
 {
   const G = RST.G, GA = RST.GA, hit = RST.hit, wood = matC(0x6a4428), woodD = matC(0x3a2618), woodL = matC(0x8a6038), iron = M.iron, brick = matC(0xa8583a), K = RKB;
-  pb(G, 17.6, 0.02, -K - 0.3, 0, 0.012, K / 2, matC(0xb8b0a0)); for (let k = 0; k < 9; k++) pb(G, 0.03, 0.025, -K - 0.3, -8 + k * 2, 0.014, K / 2, matC(0x9a9282)); // piso de pedra com rejunte
   pb(G, 1.9, 0.026, -K - 0.6, -1.6, 0.016, K / 2, matC(0x8a5a3a)); // passadeira no corredor até a porta da horta
   { const g = new THREE.Group(); g.position.set(2.2, 0, K + 0.95); G.add(g); // forno a lenha de tijolos
     pb(g, 2.6, 1.0, 1.6, 0, 0.5, 0, brick); mmesh(g, gHemi, brick, 0, 1.0, 0, 1.25, 1.1, 0.8); pb(g, 0.9, 0.7, 0.2, 0, 1.25, 0.72, matC(0x1a120e)); cyl(g, 0.25, 0.3, 2.6, 0, 3.0, -0.3, brick, 8);
@@ -14311,7 +14318,7 @@ QUESTS.lar = { t: 'Lar Doce Lar', main: true, d: 'O Rei mandou preparar uma casi
 const HOME_DECO = {
   tapete: { n: 'Tapete', opts: [[0x7a2418, 0xc8a050, 'vinho e ouro'], [0x2a3a6a, 0xe8dcc0, 'azul real'], [0x3a6a4a, 0xf0d890, 'verde floresta'], [0xd87a9a, 0xfff0f4, 'rosinha'], [0x5a3a7a, 0xd8b8ff, 'lavanda']] },
   cortina: { n: 'Cortinas', opts: [[0x7a1f2a, 'veludo vinho'], [0xe8dcc0, 'linho creme'], [0x2a3a6a, 'azul da noite'], [0xffb8d0, 'rosa'], [0x4a7a5a, 'verde musgo']] },
-  colcha: { n: 'Colcha', opts: [[0xf4ecd8, 0xd86a8a, 'creme com corações'], [0x2a3a6a, 0xfff2c0, 'azul de estrelas'], [0x7a1f2a, 0xc8a050, 'real vinho e ouro'], [0x9fd8c0, 0xffffff, 'menta'], [0xe8b0e0, 0x8a4a8a, 'lilás']] },
+  colcha: { n: 'Colcha', opts: [[0xffffff, 0x6aaa6a, 'branca com verde'], [0xf4ecd8, 0xd86a8a, 'creme com corações'], [0x2a3a6a, 0xfff2c0, 'azul de estrelas'], [0x7a1f2a, 0xc8a050, 'real vinho e ouro'], [0x9fd8c0, 0xffffff, 'menta'], [0xe8b0e0, 0x8a4a8a, 'lilás']] },
   flores: { n: 'Flores', opts: [[0xff7aa8, 'rosas'], [0xffffff, 'margaridas'], [0xb07aff, 'lavandas'], [0xffd23a, 'girassóis'], [0xe82a3a, 'tulipas vermelhas']] },
   luzes: { n: 'Luzinhas', opts: [[0xffd890, 'douradas'], [0xffb0c8, 'rosadas'], [0x9fd8ff, 'azuis'], [null, 'apagadas']] },
   quadro: { n: 'Quadro da lareira', opts: [] },
@@ -14329,7 +14336,7 @@ const HK = { mats: {}, trophies: [], lights: [], fire: null, photos: [], qi: 0 }
   const G = new THREE.Group(); G.position.set(HOME.c.x, y0, HOME.c.z); G.rotation.y = HOME.rot; S.add(G); HOME.G = G;
   const GA = new THREE.Group(); GA.position.copy(G.position); GA.rotation.y = HOME.rot; A.add(GA);
   const stone = matC(0x9a9082), plaster = matC(0xf2e6cc), timber = matC(0x5a3a22), wood = matC(0x7a5030), woodD = matC(0x4a2e1a), roofM = new THREE.MeshLambertMaterial({ color: 0x5a6a8a, side: THREE.DoubleSide, flatShading: true });
-  const M = HK.mats; M.rug1 = new THREE.MeshLambertMaterial({ color: 0x7a2418 }); M.rug2 = new THREE.MeshLambertMaterial({ color: 0xc8a050 }); M.cur = new THREE.MeshLambertMaterial({ color: 0x7a1f2a }); M.q1 = new THREE.MeshLambertMaterial({ color: 0xf4ecd8 }); M.q2 = new THREE.MeshLambertMaterial({ color: 0xd86a8a }); M.fl = new THREE.MeshLambertMaterial({ color: 0xff7aa8, emissive: 0x220a10 });
+  const M = HK.mats; M.rug1 = new THREE.MeshLambertMaterial({ color: 0x7a2418 }); M.rug2 = new THREE.MeshLambertMaterial({ color: 0xc8a050 }); M.cur = new THREE.MeshLambertMaterial({ color: 0x7a1f2a }); M.q1 = new THREE.MeshLambertMaterial({ color: 0xffffff }); M.q2 = new THREE.MeshLambertMaterial({ color: 0x6aaa6a }); M.fl = new THREE.MeshLambertMaterial({ color: 0xff7aa8, emissive: 0x220a10 });
   const seg = (x0, z0, x1, z1, r = 0.22) => { const a = HW(x0, z0), b = HW(x1, z1); segColliders.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r }); };
   const col = (lx, lz, r) => { const q = HW(lx, lz); colliders.push({ x: q.x, z: q.z, r }); };
   const hit = (w, h, d, lx, ly, lz, fn, near = 2.2) => { const m = invis(GA, gBox(w, h, d), lx, ly, lz); m.userData.keep = true; return addInteract([m], (...a) => { if (mode !== 'walk') return; markInteracted(); fn(...a); }, { at: HW(lx, lz), near }); };
@@ -14369,7 +14376,6 @@ const HK = { mats: {}, trophies: [], lights: [], fire: null, photos: [], qi: 0 }
     addInteract([invis(A, gBox(0.8, 1.6, 0.9), q.x, terrainH(q.x, q.z) + 0.8, q.z)], () => { if (mode !== 'walk') return; markInteracted(); homeMail(); }, { at: q, near: 2.2 }); }
   { const q = HW(-4.2, 9.0), g = vlGrp(S, q, HOME.rot + 0.4); pb(g, 1.6, 0.08, 0.5, 0, 0.45, 0, wood); pb(g, 1.6, 0.5, 0.08, 0, 0.75, -0.22, wood); for (const sx of [-0.7, 0.7]) pb(g, 0.08, 0.45, 0.45, sx, 0.22, 0, woodD); colliders.push({ ...q, r: 0.6 });
     const seat = vlSeat(q, HOME.rot + 0.4 + Math.PI, terrainH(q.x, q.z) + 1.0); addInteract([invis(A, gBox(1.6, 1, 0.8), q.x, terrainH(q.x, q.z) + 0.5, q.z)], () => sitOn(seat, '🌷 sentada no banquinho do jardim, a senhora olha a sua casinha… é tudo seu'), { at: q, near: 1.8 }); }
-  for (let k = 0; k < 12; k++) { const x = -2.2 + k * 0.4, sag = Math.sin(k / 11 * Math.PI) * 0.25; const b = ps(GA, 0.05, x, 2.4 - sag, 6.15, matC(0xffd890, true)); HK.lights.push(b); }
   signBox(G, boardTex('🏡 Casinha da Rainha', '#5a2a3a', 640, 110, 52), 2.4, 0.42, 0, 2.75, 4.25);
   // por dentro: lareira com a foto, poltronas, tapete, mesinha de chá, cama, troféus, baú, estante, cadeira de balanço e plantas
   { const g = new THREE.Group(); g.position.set(-5.65, 0, 0); g.rotation.y = Math.PI / 2; G.add(g); pb(g, 2.6, 2.0, 0.5, 0, 1.0, 0, stone); pb(g, 1.4, 1.0, 0.12, 0, 0.62, 0.22, matC(0x1a120e)); pb(g, 2.9, 0.14, 0.45, 0, 2.08, 0.06, woodD); pb(g, 3.0, 0.12, 1.2, 0, 0.06, 0.55, matC(0x6a6058));
@@ -14382,17 +14388,17 @@ const HK = { mats: {}, trophies: [], lights: [], fire: null, photos: [], qi: 0 }
     hit(0.4, 1.3, 1.6, -5.6, 2.95, 0, () => homeDeco('quadro'), 2.6); }
   { const r = cyl(G, 1.7, 1.7, 0.025, -3.4, 0.03, 0, HK.mats.rug1, 24); r.scale.set(1.2, 1, 1); const r2 = cyl(G, 1.45, 1.45, 0.03, -3.4, 0.035, 0, HK.mats.rug2, 24); r2.scale.set(1.2, 1, 1); const r3 = cyl(G, 1.32, 1.32, 0.035, -3.4, 0.04, 0, HK.mats.rug1, 24); r3.scale.set(1.2, 1, 1);
     hit(2.2, 0.2, 2.2, -3.4, 0.1, 0, () => homeDeco('tapete'), 1.4); }
-  for (const lz of [-1.5, 1.5]) { const c = new THREE.Group(); c.position.set(-3.4, 0, lz); c.rotation.y = Math.atan2(-5.6 + 3.4, -lz); G.add(c); const v = matC(0x7a3a4a);
-    pb(c, 0.95, 0.42, 0.85, 0, 0.3, 0, v); pb(c, 0.95, 0.8, 0.2, 0, 0.8, -0.35, v); for (const sx of [-1, 1]) pb(c, 0.16, 0.55, 0.85, sx * 0.48, 0.45, 0, matC(0x5a2a34)); ps(c, 0.15, 0, 0.6, -0.15, matC(0xffd0e0), 1, 0.7, 0.45);
+  for (const lz of [-1.5, 1.5]) { const c = new THREE.Group(); c.position.set(-3.4, 0, lz); c.rotation.y = Math.atan2(-5.6 + 3.4, -lz); G.add(c); const v = matC(0x4a7a4a);
+    pb(c, 0.95, 0.42, 0.85, 0, 0.3, 0, v); pb(c, 0.95, 0.8, 0.2, 0, 0.8, -0.35, v); for (const sx of [-1, 1]) pb(c, 0.16, 0.55, 0.85, sx * 0.48, 0.45, 0, matC(0x3a6a3a)); ps(c, 0.15, 0, 0.6, -0.15, matC(0xf4f0e0), 1, 0.7, 0.45);
     col(-3.4, lz, 0.55); const q = HW(-3.4, lz), fy = HOME.rot + c.rotation.y; const seat = { yaw: fy + Math.PI, pitch: -0.05, exit: HW(-2.4, lz * 0.6), eye: () => V3(q.x, y0 + 1.05, q.z) };
     hit(1, 1.1, 1, -3.4, 0.55, lz, () => sitOn(seat, '🛋 na sua poltrona, de frente pro fogo… lar doce lar 💛'), 1.8); }
   { const t = new THREE.Group(); t.position.set(-2.6, 0, 0); G.add(t); cyl(t, 0.45, 0.45, 0.05, 0, 0.5, 0, wood, 14); cyl(t, 0.05, 0.07, 0.48, 0, 0.25, 0, woodD, 8); ps(t, 0.1, -0.1, 0.62, 0, matC(0xf4f0e8), 1, 0.85, 1); cone(t, 0.025, 0.1, 0.02, 0.62, 0, matC(0xf4f0e8), 6).rotation.z = -1.0; for (const sz of [-0.2, 0.2]) cyl(t, 0.045, 0.04, 0.06, 0.15, 0.56, sz, matC(0xffffff), 10); col(-2.6, 0, 0.45); }
   // cama de casal com dossel, criados-mudos e baú
-  { const g = new THREE.Group(); g.position.set(3.9, 0, -2.6); G.add(g); pb(g, 2.2, 0.45, 2.5, 0, 0.3, 0, woodD); pb(g, 2.1, 0.22, 2.4, 0, 0.62, 0, matC(0xffffff)); pb(g, 2.3, 1.3, 0.12, 0, 0.9, -1.25, woodD);
+  { const g = new THREE.Group(); g.position.set(3.9, 0, -2.6); G.add(g); const bw = matC(0xf6f4ee); pb(g, 2.2, 0.45, 2.5, 0, 0.3, 0, bw); pb(g, 2.1, 0.22, 2.4, 0, 0.62, 0, matC(0xffffff)); pb(g, 2.3, 1.3, 0.12, 0, 0.9, -1.25, bw); pb(g, 1.9, 0.9, 0.04, 0, 1.0, -1.18, matC(0x6aaa6a));
     const q1 = pb(g, 2.2, 0.08, 1.7, 0, 0.77, 0.35, HK.mats.q1); for (let k = 0; k < 4; k++) pb(g, 2.21, 0.085, 0.12, 0, 0.775, -0.3 + k * 0.4, HK.mats.q2); for (const sx of [-0.5, 0.5]) ps(g, 0.32, sx, 0.88, -0.85, matC(0xfff8f0), 1.3, 0.45, 0.8);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.05, 0.05, 2.6, sx * 1.05, 1.3, sz * 1.2, woodD, 6); for (const sz of [-1.2, 1.2]) pb(g, 2.2, 0.06, 0.06, 0, 2.6, sz, woodD); for (const sx of [-1.05, 1.05]) pb(g, 0.06, 0.06, 2.4, sx, 2.6, 0, woodD);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.05, 0.05, 2.6, sx * 1.05, 1.3, sz * 1.2, bw, 6); for (const sz of [-1.2, 1.2]) pb(g, 2.2, 0.06, 0.06, 0, 2.6, sz, bw); for (const sx of [-1.05, 1.05]) pb(g, 0.06, 0.06, 2.4, sx, 2.6, 0, bw);
     for (const sx of [-1, 1]) { const cu = pb(g, 0.05, 2.1, 0.7, sx * 1.07, 1.55, 0.85, HK.mats.cur); } pb(g, 2.2, 0.04, 2.4, 0, 2.63, 0, HK.mats.cur);
-    for (const sx of [-1.55, 1.55]) { pb(g, 0.6, 0.6, 0.5, sx, 0.3, -1.0, wood); cyl(g, 0.04, 0.04, 0.16, sx, 0.68, -1.0, matC(0xf4ecd8), 6); } addFlame(GA, 3.9 - 1.55, 0.86, -3.6, 0.12); addFlame(GA, 3.9 + 1.55, 0.86, -3.6, 0.12);
+    for (const sx of [-1.55, 1.55]) { pb(g, 0.6, 0.6, 0.5, sx, 0.3, -1.0, matC(0x5a9a5a)); cyl(g, 0.04, 0.04, 0.16, sx, 0.68, -1.0, matC(0xf4ecd8), 6); } addFlame(GA, 3.9 - 1.55, 0.86, -3.6, 0.12); addFlame(GA, 3.9 + 1.55, 0.86, -3.6, 0.12);
     col(3.3, -2.6, 0.9); col(4.5, -2.6, 0.9); col(3.9, -3.5, 0.9);
     const bq = HW(3.9, -2.4); const bed = { yaw: HOME.rot + Math.PI, pitch: 1.3, lie: true, exit: HW(3.9, -0.4), eye: () => V3(bq.x, y0 + 1.0, bq.z) };
     hit(2.2, 1, 2.4, 3.9, 0.7, -2.4, () => homeBed(bed), 2.0); hit(2.3, 0.4, 2.6, 3.9, 0.85, -2.4, () => homeDeco('colcha'), 0.01); }
@@ -14412,20 +14418,49 @@ const HK = { mats: {}, trophies: [], lights: [], fire: null, photos: [], qi: 0 }
     const BK = ['📖 "Diário da Rainha": a primeira página diz só "hoje eu ganhei um reino inteiro de presente… e o melhor de tudo é quem me deu". O resto ainda está em branco, esperando as suas aventuras.', '📖 "Receitas da Vovó": entre uma receita e outra, uma margarida seca guardada.', '📖 "Atlas do Reino": um mapa desenhado à mão, com um coraçãozinho em cima do campo de margaridas.'];
     hit(0.8, 2.6, 1.8, 5.4, 1.3, 2.6, () => { whisper(BK[HK.qi++ % BK.length], 6); sfx.chime([659, 880], 0.03); }, 2.0); }
   { const g = new THREE.Group(); g.position.set(4.3, 0, 2.9); g.rotation.y = -2.3; G.add(g); for (const sx of [-0.3, 0.3]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.035, 5, 16, Math.PI * 0.7), woodD); r.rotation.set(0, Math.PI / 2, Math.PI * 1.15); r.position.set(sx, 0.55, 0); g.add(r); }
-    pb(g, 0.65, 0.06, 0.55, 0, 0.5, 0, wood); pb(g, 0.65, 0.8, 0.06, 0, 0.95, -0.28, wood); ps(g, 0.2, 0, 0.58, 0, matC(0xd86a8a), 1.3, 0.35, 1.2); HK.rock = g; col(4.3, 2.9, 0.45);
+    pb(g, 0.65, 0.06, 0.55, 0, 0.5, 0, wood); pb(g, 0.65, 0.8, 0.06, 0, 0.95, -0.28, wood); ps(g, 0.2, 0, 0.58, 0, matC(0x6aaa6a), 1.3, 0.35, 1.2); HK.rock = g; col(4.3, 2.9, 0.45);
     const q = HW(4.3, 2.9), seat = { yaw: HOME.rot - 2.3 + Math.PI, pitch: -0.05, exit: HW(3.2, 2.2), eye: () => V3(q.x, y0 + 1.0, q.z), onStand: () => { HK.rocking = false; } };
     hit(0.9, 1.1, 0.9, 4.3, 0.55, 2.9, async () => { await sitOn(seat, '🪑 a cadeira de balanço range baixinho… nhec… nhec… que paz'); HK.rocking = true; }, 1.8); }
   { const t = new THREE.Group(); t.position.set(1.2, 0, 1.4); G.add(t); pb(t, 1.4, 0.06, 0.9, 0, 0.78, 0, wood); for (const sx of [-0.6, 0.6]) for (const sz of [-0.35, 0.35]) pb(t, 0.06, 0.76, 0.06, sx, 0.38, sz, woodD); pb(t, 1.42, 0.02, 0.6, 0, 0.82, 0, matC(0xf4ecd8));
     cyl(t, 0.09, 0.07, 0.24, 0, 0.93, 0, matC(0x2a6a8a), 10); for (let k = 0; k < 6; k++) { const an = k / 6 * Math.PI * 2; cyl(t, 0.008, 0.008, 0.3, Math.cos(an) * 0.03, 1.17, Math.sin(an) * 0.03, matC(0x3a8a3a), 4); ps(t, 0.06, Math.cos(an) * 0.07, 1.33, Math.sin(an) * 0.07, HK.mats.fl); }
-    for (const sx of [-0.85, 0.85]) { const c = twChair(G, 1.2 + sx, 1.4, sx < 0 ? Math.PI / 2 : -Math.PI / 2, 0xd86a8a); } col(1.2, 1.4, 0.75);
+    for (const sx of [-0.85, 0.85]) { const c = twChair(G, 1.2 + sx, 1.4, sx < 0 ? Math.PI / 2 : -Math.PI / 2, 0x5a9a5a); } col(1.2, 1.4, 0.75);
     cyl(t, 0.04, 0.04, 0.16, 0.45, 0.89, 0.2, matC(0xf4ecd8), 6); addFlame(GA, 1.65, 1.04, 1.6, 0.13);
     hit(1.4, 1.2, 1.0, 1.2, 1.1, 1.4, () => homeDeco('flores'), 1.8); }
   for (const [lx, lz] of [[5.4, 3.5], [-5.4, 3.5], [-5.4, -3.5], [1.6, -3.5]]) { cyl(G, 0.26, 0.2, 0.48, lx, 0.24, lz, matC(0xb8603a), 10); ps(G, 0.38, lx, 0.8, lz, matC(0x3a7a3a), 1, 1.3, 1); col(lx, lz, 0.3); }
-  pb(G, 1.4, 0.02, 0.8, 0, 0.02, 3.4, matC(0xd86a8a)); // capacho
+  pb(G, 1.4, 0.02, 0.8, 0, 0.02, 3.4, matC(0x4a8a4a)); // capacho
   for (let k = 0; k < 4; k++) { const x = -3.0 + k * 2.0; const b = new THREE.Group(); b.position.set(x, H - 0.25, 0); GA.add(b); const l = []; for (let j = 0; j < 9; j++) { const z = -3.2 + j * 0.8, sag = Math.sin(j / 8 * Math.PI) * 0.18; l.push(ps(b, 0.05, 0, -sag, z, matC(0xffd890, true))); } HK.lights.push(...l); }
   hit(8, 0.6, 7, 0, HOME.H - 0.3, 0, () => homeDeco('luzes'), 3.0);
   { const lm = new THREE.Group(); lm.position.set(-0.4, H - 0.6, -0.8); GA.add(lm); const r = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 20), matC(0xc8a050)); r.rotation.x = Math.PI / 2; lm.add(r); cyl(lm, 0.01, 0.01, 0.6, 0, 0.3, 0, matC(0x2a2a2a), 3); for (let k = 0; k < 5; k++) { const an = k / 5 * Math.PI * 2; cyl(lm, 0.03, 0.03, 0.12, Math.cos(an) * 0.6, 0.08, Math.sin(an) * 0.6, matC(0xf4ecd8), 6); addFlame(lm, Math.cos(an) * 0.6, 0.2, Math.sin(an) * 0.6, 0.13); } }
   for (const [x, z, yaw, art] of [[0.5, -3.83, 0, 'margaridas'], [-5.83, 2.6, Math.PI / 2, 'lua']]) { const g = new THREE.Group(); g.position.set(x, 2.1, z); g.rotation.y = yaw; G.add(g); pb(g, 1.0, 0.8, 0.05, 0, 0, 0, matC(0xc8a050)); const p = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.66), new THREE.MeshBasicMaterial({ color: 0xd8d8d8, map: canvasTex(256, 192, TW_ART[art]) })); p.position.z = 0.03; g.add(p); }
+
+  // 🌿 natureza: hera nas paredes (dentro e fora), trepadeiras no teto, plantas penduradas, vasos e o jardim cheio
+  { const LG = new THREE.IcosahedronGeometry(1, 0), LM = new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX = 2600, IM = new THREE.InstancedMesh(LG, LM, MAX); IM.count = 0; GA.add(IM); const dm = new THREE.Object3D(), cc = new THREE.Color(), gr = mulberry32(5150);
+    const greens = [0x3a7a3a, 0x4a8a3a, 0x2f6a35, 0x5a9a4a, 0x6aaa5a, 0x3a6a2a];
+    const leaf = (x, y, z, s = 0.11, c) => { if (IM.count >= MAX) return; dm.position.set(x, y, z); dm.rotation.set(gr() * 3, gr() * 3, gr() * 3); dm.scale.set(s, s * 0.45, s * 0.8); dm.updateMatrix(); IM.setMatrixAt(IM.count, dm.matrix); IM.setColorAt(IM.count, cc.setHex(c ?? greens[Math.floor(gr() * greens.length)])); IM.count++; };
+    const flower = (x, y, z) => leaf(x, y, z, 0.06, [0xff7aa8, 0xffffff, 0xffd84a, 0xb07aff][Math.floor(gr() * 4)]);
+    const holes = [[-3.4, 4, 0.9], [3.4, 4, 0.9], [2.0, -4, 0.9], [0, 4, 1.3], [-6, 1.6, 0.9], [6, 1.6, 0.9]]; // janelas e porta (x ou z da parede, meia largura)
+    const strand = (wx, wz, nx, nz, top, len, along) => { // um fio de hera descendo pela parede
+      for (let y = top; y > top - len; y -= 0.09) { const sw = Math.sin(y * 3 + wx * 2 + wz) * 0.12, px = wx + (along === 'x' ? sw : 0), pz = wz + (along === 'z' ? sw : 0);
+        if (holes.some(([hx, hz, hw]) => (along === 'x' ? Math.abs(hz - wz) < 0.2 && Math.abs(px - hx) < hw : Math.abs(hx - wx) < 0.2 && Math.abs(pz - hz) < hw) && y > 1.1 && y < 2.7)) continue;
+        leaf(px + nx * 0.05, y, pz + nz * 0.05, 0.09 + gr() * 0.05); if (gr() < 0.5) leaf(px + nx * 0.08 + (gr() - 0.5) * 0.2, y + (gr() - 0.5) * 0.1, pz + nz * 0.08 + (gr() - 0.5) * 0.2, 0.08); if (gr() < 0.06) flower(px + nx * 0.12, y, pz + nz * 0.12); } };
+    const H = HOME.H;
+    for (let k = 0; k < 6; k++) { const bx = -5 + k * 2; for (let z = -3.9; z <= 3.9; z += 0.12) { leaf(bx + Math.sin(z * 4 + k) * 0.14, H - 0.12 + Math.sin(z * 7) * 0.05, z, 0.1); if (gr() < 0.25) for (let d = 0; d < 1 + gr() * 6; d++) leaf(bx + (gr() - 0.5) * 0.25, H - 0.2 - d * 0.1, z, 0.08); if (gr() < 0.05) flower(bx, H - 0.2, z); } } // trepadeiras pelas vigas do teto (com fiozinhos caindo)
+    for (let z = -3.9; z <= 3.9; z += 0.13) leaf(Math.sin(z * 3) * 0.15, H - 0.1, z, 0.1);
+    for (const [hx, hz] of [[-4, -2.2], [-2, 2.4], [0, -2.0], [2, 2.6], [4, 0.6], [-4, 2.6], [0, 1.0], [2, -1.2]]) { // vasos pendurados nas vigas com plantas que caem
+      const x = hx, y = H - 1.0; cyl(GA, 0.005, 0.005, 0.9, x, H - 0.55, hz, matC(0x8a6a4a), 3); cyl(GA, 0.2, 0.14, 0.24, x, y, hz, matC(0xb8603a), 10);
+      for (let k = 0; k < 14; k++) leaf(x + (gr() - 0.5) * 0.4, y + 0.15 + gr() * 0.15, hz + (gr() - 0.5) * 0.4, 0.12); for (let v = 0; v < 6; v++) { const a = v / 6 * Math.PI * 2; for (let d = 0; d < 6 + gr() * 8; d++) leaf(x + Math.cos(a) * (0.2 + d * 0.01), y - d * 0.09, hz + Math.sin(a) * (0.2 + d * 0.01), 0.085); } }
+    const pot = (x, z, big) => { const hh = big ? 0.6 : 0.4; cyl(GA, big ? 0.3 : 0.22, big ? 0.24 : 0.17, hh, x, hh / 2, z, matC([0xb8603a, 0xd8d0c0, 0x8a5a3a][Math.floor(gr() * 3)]), 10); const n = big ? 60 : 30; for (let k = 0; k < n; k++) { const a = gr() * 6.28, r = gr() * (big ? 0.5 : 0.3), y = hh + gr() * (big ? 1.4 : 0.6); leaf(x + Math.cos(a) * r * (1 - (y - hh) / 2), y, z + Math.sin(a) * r * (1 - (y - hh) / 2), big ? 0.16 : 0.11); } };
+    for (const [x, z, b] of [[-5.3, -1.9, 1], [-5.3, 1.9, 1], [-0.2, -3.4, 0], [3.0, 3.5, 0], [-2.0, 3.5, 1], [5.3, -0.9, 0], [2.6, -3.5, 0], [-4.6, 3.4, 0]]) { pot(x, z, b); HOME.col(x, z, b ? 0.35 : 0.25); }
+    for (let k = 0; k < 10; k++) { const x = -5.0 + k * 0.5; leaf(x, 2.34, -3.6, 0.13); leaf(x, 1.14, -3.6, 0.12); for (let d = 0; d < 3 + gr() * 4; d++) leaf(x + (gr() - 0.5) * 0.1, 2.25 - d * 0.1, -3.42, 0.08); } // folhagem na estante de troféus
+    // fora: arco de flores na porta, arbustos na base das paredes e duas arvorezinhas
+    for (let k = 0; k <= 30; k++) { const a = k / 30 * Math.PI, x = Math.cos(a) * 1.45, y = 2.4 + Math.sin(a) * 1.0; leaf(x, y, 4.4, 0.16); leaf(x, y, 4.55, 0.13); if (k % 3 === 0) flower(x, y + 0.05, 4.62); }
+    for (let x = -6.2; x <= 6.2; x += 0.35) { if (Math.abs(x) < 2.6) continue; for (let k = 0; k < 4; k++) leaf(x + (gr() - 0.5) * 0.3, 0.2 + gr() * 0.55, 4.55 + gr() * 0.35, 0.22); if (gr() < 0.3) flower(x, 0.75, 4.8); }
+    for (let z = -4.3; z <= 4.3; z += 0.35) for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) leaf(sx * (6.55 + gr() * 0.35), 0.2 + gr() * 0.5, z + (gr() - 0.5) * 0.3, 0.22);
+    for (const [tx, tz] of [[-7.6, 8.5], [7.8, 7.0]]) { cyl(GA, 0.1, 0.16, 2.0, tx, 1.0 - 0.1, tz, matC(0x5a3a22), 7); for (let k = 0; k < 120; k++) { const a = gr() * 6.28, b = Math.acos(2 * gr() - 1), r = 1.1 * Math.cbrt(gr()); leaf(tx + Math.sin(b) * Math.cos(a) * r, 2.4 + Math.cos(b) * r * 0.9, tz + Math.sin(b) * Math.sin(a) * r, 0.2); } const q = HW(tx, tz); colliders.push({ ...q, r: 0.3 }); }
+    IM.instanceMatrix.needsUpdate = true; if (IM.instanceColor) IM.instanceColor.needsUpdate = true; IM.frustumCulled = false; HK.leaves = IM;
+  }
+  // a decoração que muda de cor sai do grupo parado (o parado vira uma malha só e não muda mais de cor)
+  { const dyn = new Set([HK.mats.rug1, HK.mats.rug2, HK.mats.cur, HK.mats.q1, HK.mats.q2, HK.mats.fl]), mv = []; G.traverse(o => { if (o.isMesh && dyn.has(o.material)) mv.push(o); }); G.updateMatrixWorld(true); GA.updateMatrixWorld(true); for (const o of mv) GA.attach(o); }
   bakeStatic(S); xLights(HOMER);
 }
 // fotos de vocês para o quadro da lareira (as mesmas do céu) + quadros desenhados
@@ -14482,6 +14517,47 @@ function updateHome(dt) {
   if (HK.flag) HK.flag.rotation.z = homeS().carta !== Math.floor((RPG.t || 0) / 1440) + (RPG.ev?.casa_dormir || 0) ? 0 : -1.4; /* bandeirinha levantada = carta nova */
 }
 if (RPG.made && !RPG.q.lar) setTimeout(() => { if (RPG.made && !RPG.q.lar) qStart('lar', true); }, 8000);
+
+/* ------------------------------------------------------------------ *
+ * ⚰ Cripta Esquecida (debaixo do mausoléu) e ⛏ Mina Goblin Abandonada: masmorras novas no mesmo motor da Dungeon das Sombras
+ * ------------------------------------------------------------------ */
+{
+  const F0 = FLOORS[0], F1 = FLOORS[1], F2 = FLOORS[2], F3 = FLOORS[3];
+  const swap = (ents, map) => ents.map(([t, c, r]) => [map[t] || t, c, r]);
+  const CRIPTA = [
+    { name: 'Cripta · Ossuário', th: 0, tint: 0x8a8aa0, face: F0.face, rooms: F0.rooms, S: F0.S, M: F0.M, D: F0.D, ents: swap(F0.ents, { slime: 'skeleton' }), chests: [[4, 20, 'heal']] },
+    { name: 'Cripta · Capela das Velas Negras', th: 2, tint: 0x7a8ab0, face: F2.face, rooms: F2.rooms, S: F2.S, M: F2.M, D: F2.D, ents: swap(F2.ents, { bat: 'skeleton' }), chests: F2.chests },
+    { name: 'Cripta · Trono do Lich', th: 3, tint: 0x5a7a8a, face: F3.face, rooms: F3.rooms, gate: F3.gate, pillars: F3.pillars, S: F3.S, M: F3.M, ents: [['boss', 15, 11], ['skeleton', 9, 9], ['skeleton', 20, 9]], chests: F3.chests, portal: F3.portal, bossLook: 'lich', bossHp: 45 },
+  ];
+  const MINA = [
+    { name: 'Mina · Galerias Escuras', th: 1, tint: 0xb89060, face: F1.face, rooms: F1.rooms, S: F1.S, M: F1.M, D: F1.D, ents: swap(F1.ents, { skeleton: 'goblin' }), chests: F1.chests },
+    { name: 'Mina · Poço dos Cristais', th: 1, tint: 0x8aa0b8, face: F0.face, rooms: F0.rooms, S: F0.S, M: F0.M, D: F0.D, ents: swap(F0.ents, { slime: 'goblin' }), chests: [[4, 20, 'heart']] },
+    { name: 'Mina · Caverna do Rei Troll', th: 3, tint: 0x9a7a5a, face: F3.face, rooms: F3.rooms, gate: F3.gate, pillars: F3.pillars, S: F3.S, M: F3.M, ents: [['boss', 15, 11], ['goblin', 9, 9], ['goblin', 20, 9], ['goblin', 9, 17]], chests: F3.chests, portal: F3.portal, bossLook: 'trollrei', bossHp: 55 },
+  ];
+  // entrada da cripta: a porta escura do mausoléu
+  const CF = xFrame(XZ.CE, Math.atan2(-17, -30)), cd = CF.w(0, -9.4), cdOut = CF.w(0, -7.2);
+  DG_SETS.cripta = { n: 'Cripta Esquecida', fl: CRIPTA.map((d, k) => buildFloor(k, d)), win: '✦ o Lich virou pó! a grade do tesouro da cripta se abriu', exit: () => ({ x: cdOut.x, z: cdOut.z, yaw: Math.atan2(-(cdOut.x - cd.x), -(cdOut.z - cd.z)) }) };
+  addInteract([invis(CE.a, gBox(2.2, 3, 1.2), cd.x, terrainH(cd.x, cd.z) + 1.5, cd.z)], () => dgAsk('cripta', 6, '⚰ Cripta Esquecida', 'Atrás da porta do mausoléu, uma escada desce para o escuro. Um frio sobe lá de baixo… e um sussurro chama o seu nome.'), { at: cd, near: 3, priority: 2 });
+  // entrada da mina: boca de túnel escorada com madeira, numa pedreira ao lado do acampamento goblin
+  const mq = vlFree({ x: XZ.AG.x + 38, z: XZ.AG.z + 14 }, 4), myaw = Math.atan2(XZ.AG.x - mq.x, XZ.AG.z - mq.z) + 0.6, g = new THREE.Group(), gy = terrainH(mq.x, mq.z); g.position.set(mq.x, gy, mq.z); g.rotation.y = myaw; scene.add(g);
+  const rock = matC(0x6a6058), woodM = matC(0x5a3a22);
+  for (let k = 0; k < 7; k++) { const a = -1.2 + k * 0.4, r = 3.2 + (k % 2) * 0.6; mmesh(g, new THREE.IcosahedronGeometry(1, 0), rock, Math.sin(a) * r * 0.8, 1.2 + (k % 3) * 0.5, -1.4 - Math.cos(a) * 1.2, 1.6 + (k % 2) * 0.6, 1.4, 1.4); }
+  pb(g, 2.8, 2.8, 0.2, 0, 1.4, -0.6, matC(0x050403)); for (const sx of [-1.45, 1.45]) pb(g, 0.3, 3.0, 0.3, sx, 1.5, -0.3, woodM); pb(g, 3.4, 0.32, 0.36, 0, 3.0, -0.3, woodM);
+  for (let k = 0; k < 6; k++) { const t = pb(g, 0.2, 0.08, 0.5, -1.0 + k * 0.4, 0.04, 1.0 + k * 0.05, woodM); } for (const sx of [-0.35, 0.35]) pb(g, 0.06, 0.06, 3.5, sx, 0.08, 1.2, M.iron); // trilhos
+  { const cart = new THREE.Group(); cart.position.set(0.9, 0, 2.2); g.add(cart); pb(cart, 1.0, 0.55, 0.7, 0, 0.5, 0, matC(0x6a6a72)); for (const sx of [-0.35, 0.35]) for (const sz of [-0.25, 0.25]) cyl(cart, 0.14, 0.14, 0.08, sx, 0.18, sz, M.iron, 10).rotation.z = Math.PI / 2; for (let k = 0; k < 4; k++) ps(cart, 0.15, -0.25 + k * 0.17, 0.82, (k % 2) * 0.15 - 0.07, matC(k % 2 ? 0x8ad8ff : 0x6a6058)); }
+  signBox(g, boardTex('⛏ Mina Abandonada · PERIGO', '#3a2418', 640, 90, 38), 2.6, 0.38, 0, 3.55, -0.1); addFlame(g, -1.45, 2.6, 0.0, 0.3); addFlame(g, 1.45, 2.6, 0.0, 0.3);
+  colliders.push({ x: mq.x - Math.sin(myaw) * 1.6, z: mq.z - Math.cos(myaw) * 1.6, r: 2.6 }); OCC.fill.push({ x: mq.x, z: mq.z, r: 4.2 });
+  const md = { x: mq.x + Math.sin(myaw) * 0.6, z: mq.z + Math.cos(myaw) * 0.6 }, mOut = { x: mq.x + Math.sin(myaw) * 3.6, z: mq.z + Math.cos(myaw) * 3.6 };
+  DG_SETS.mina = { n: 'Mina Goblin Abandonada', fl: MINA.map((d, k) => buildFloor(k, d)), win: '✦ o Rei Troll caiu com um estrondo! o tesouro da mina está livre', exit: () => ({ x: mOut.x, z: mOut.z, yaw: myaw + Math.PI }) };
+  addInteract([invis(g, gBox(3, 3, 1.5), 0, 1.5, 0)], () => dgAsk('mina', 5, '⛏ Mina Goblin Abandonada', 'Os goblins cavaram fundo demais e acordaram alguma coisa enorme lá embaixo. Cheira a troll… e a cristais.'), { at: md, near: 3.2, priority: 2 });
+  PLACES.push({ id: 'cripta', n: 'Cripta Esquecida', i: '⚰', ...cd, r: 6 }, { id: 'mina', n: 'Mina Goblin Abandonada', i: '⛏', ...mq, r: 8 }); MAP_PLACES.push({ i: '⛏', n: 'Mina Abandonada', ...mq, small: true });
+  ACH.push({ id: 'cripta', i: '⚰', n: 'Descanso da Cripta', d: 'Derrote o Lich na Cripta Esquecida', f: () => [RPG.ev?.boss_cripta ? 1 : 0, 1], r: { gold: 150 } }, { id: 'mina', i: '⛏', n: 'Caçadora de Trolls', d: 'Derrote o Rei Troll na Mina Abandonada', f: () => [RPG.ev?.boss_mina ? 1 : 0, 1], r: { gold: 150 } });
+}
+function dgAsk(set, lv, title, txt) {
+  if (mode !== 'walk') return; markInteracted();
+  const won = DGM.wonM[set], warn = RPG.lvl < lv ? `\n\n⚠ recomendado nível ${lv} ou mais (a senhora está no ${RPG.lvl})` : '';
+  showDialog(title, won ? 'já conquistada · os monstros voltaram' : 'masmorra', txt + warn, [['⚔ descer', () => enterDG(set), true], ['agora não', null]]);
+}
 
 /* desenha o mapa do chão ocupado: tudo o que é sólido (pedras, troncos, muros, casas) e os chãos elevados */
 {
