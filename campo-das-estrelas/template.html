@@ -9547,7 +9547,7 @@ const KILL_XP = { slime: [8, 2], bat: [6, 1], skeleton: [14, 4], goblin: [12, 3]
 const RPG_KEY = 'campo-das-estrelas-rpg-v1';
 const rpgNew = () => ({ v: 1, name: 'Majestade', race: 'humana', cls: 'maga', look: { skin: 0xf0c8a8, hair: 0x5a3a22, hairStyle: 'cachos', outfit: 0x7a1f2a, style: 'vestido', cape: 0x2a3a6a, head: 'coroa' }, lvl: 1, xp: 0, gold: 20, mp: 12, hp: 0, inv: {}, eq: {}, q: {}, ev: {}, found: {}, shards: {}, used: [], flies: {}, sheep: {}, chests: {}, track: 'inicio', opt: { tp: true, tracker: true }, pos: null, made: false, t: 0, hunt: null, bosses: {} });
 let RPG = rpgNew();
-function rpgLoad() { try { const s = JSON.parse(localStorage.getItem(RPG_KEY) || 'null'); if (s && s.v === 1 && s.made) { RPG = Object.assign(rpgNew(), s); RPG.opt = Object.assign(rpgNew().opt, s.opt || {}); if (typeof RPG.clock === 'number' && RPG.clock >= 0 && RPG.clock < 24) TIME.h = RPG.clock; return true; } } catch (e) {} return false; }
+function rpgLoad() { try { const s = JSON.parse(localStorage.getItem(RPG_KEY) || 'null'); if (s && s.v === 1 && s.made) { RPG = Object.assign(rpgNew(), s); for (const [id, m] of Object.entries(RPG.lab?.items || {})) ITEMS[id] = { p: 2, ...m, lab: true }; RPG.opt = Object.assign(rpgNew().opt, s.opt || {}); if (typeof RPG.clock === 'number' && RPG.clock >= 0 && RPG.clock < 24) TIME.h = RPG.clock; return true; } } catch (e) {} return false; }
 let saveT = 0;
 function rpgSave() { if (!RPG.made) return; try { if (mode === 'walk' && !BE.inside && !DW.inside && !DGM.inside && TWR.cur < 0 && player.pose === 'stand') RPG.pos = { x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(3) }; RPG.hp = DGM.hp; RPG.clock = +TIME.h.toFixed(3); localStorage.setItem(RPG_KEY, JSON.stringify(RPG)); } catch (e) {} }
 const usedSet = new Set();
@@ -9574,13 +9574,15 @@ const RPG_BUFF = { t: 0 };
 const fmt = s => String(s).replaceAll('{nome}', RPG.name);
 
 /* sua personagem em 3D (a mesma peça serve para o mundo e para a tela de criação) */
-function makeHero(L, eq = {}, race = RPG.race, cls = RPG.cls) {
+const LABCOAT = { on: false, tip: false }; // jaleco + óculos do laboratório: só no andar de experimentos
+function makeHero(L, eq = {}, race = RPG.race, cls = RPG.cls, coat = false) {
   const rc = RACES[race], ar = ITEMS[eq.a], wp = ITEMS[eq.w] || ITEMS[CLASSES[cls].w], tk = ITEMS[eq.t];
   const body = ar?.body ?? L.outfit, dark = new THREE.Color(body).multiplyScalar(0.6).getHex(), dress = L.style === 'vestido';
   const head = tk?.head || ar?.head || L.head, cape = ar?.cape ?? L.cape;
   const o = { body, sleeve: body, legs: dress ? 0x3a2a24 : dark, skirt: dress ? (ar?.skirt ?? new THREE.Color(body).multiplyScalar(0.82).getHex()) : undefined, skin: L.skin, hair: L.hair, long: ['longo', 'cachos', 'tranca'].includes(L.hairStyle), elf: !!rc.elf, scale: rc.scale || 1, headS: rc.headS, belt: dress ? undefined : 0x3a2618, acc: {} };
   if (head === 'capuz') { o.hat = 'hood'; o.hatC = cape ?? dark; } else if (head === 'chapeu') { o.hat = 'wizard'; o.hatC = dark; } else if (head === 'elmo') o.hat = 'helm'; else if (head === 'tiara') o.hat = 'crown';
-  if (cape != null) o.acc.cape = cape;
+  if (cape != null && !coat) o.acc.cape = cape;
+  if (coat) { o.body = o.sleeve = 0xf6f6f2; if (o.skirt != null) o.skirt = 0xecece6; o.belt = undefined; } // jaleco branco por cima da roupa
   if (wp?.hold === 'sword') o.acc.swordHand = wp.c || 0xd0d4dc; else if (wp?.hold === 'staff') o.acc.staff = wp.c || 0x9ad0ff; else if (wp?.hold === 'bow') { o.acc.bowHand = wp.c || 0x6a4428; o.acc.quiver = true; }
   const p = makePerson(o); SHADOW_ACTORS.pop();
   const hm = matC(L.hair);
@@ -9589,13 +9591,15 @@ function makeHero(L, eq = {}, race = RPG.race, cls = RPG.cls) {
   else if (L.hairStyle === 'tranca') { for (let k = 0; k < 6; k++) ps(p.head, 0.055 - k * 0.004, 0, 0.08 - k * 0.09, -0.16 - k * 0.012, hm); }
   if (head === 'coroa') { cyl(p.head, 0.15, 0.15, 0.06, 0, 0.29, 0, M.gold, 14); for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; cone(p.head, 0.03, 0.09, Math.sin(a) * 0.145, 0.36, Math.cos(a) * 0.145, M.gold, 4); } ps(p.head, 0.025, 0, 0.3, 0.15, matC(0xd8263e, true)); }
   if (wp?.hold === 'lute') { const l = new THREE.Group(); l.position.set(0.05, 0.25, -0.2); l.rotation.set(0, 0, 0.7); p.torso.add(l); ps(l, 0.15, 0, -0.08, 0, matC(0xb07a3a), 1, 1.2, 0.45); cyl(l, 0.02, 0.025, 0.4, 0, 0.22, 0, M.woodDark, 5); ps(l, 0.04, 0, -0.08, 0.06, M.dark, 1, 1, 0.3); p.lute = l; }
+  if (coat) { const lens = matC(0x9ad8ff), rim = matC(0x2a2a30); for (const sx of [-1, 1]) { const g = cyl(p.head, 0.05, 0.05, 0.04, sx * 0.065, 0.03, 0.15, rim, 10); g.rotation.x = Math.PI / 2; const l = cyl(p.head, 0.042, 0.042, 0.045, sx * 0.065, 0.03, 0.152, lens, 10); l.rotation.x = Math.PI / 2; } pb(p.head, 0.05, 0.02, 0.02, 0, 0.03, 0.16, rim); const st = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.012, 4, 20), rim); st.rotation.x = Math.PI / 2; st.position.y = 0.03; p.head.add(st); // óculos de proteção
+    pb(p.torso, 0.08, 0.1, 0.02, 0.09, 0.12, 0.13, matC(0xe0e0da)); cyl(p.torso, 0.008, 0.008, 0.1, 0.1, 0.17, 0.14, matC(0x2a5ad8), 5); } // bolso com caneta
   mergeTreeVC(p.g);
   if (rc.wings) { p.wings = addWings(p.torso, 0.42, 0.4, -0.16); }
   return p;
 }
 function heroRebuild() {
   if (HERO.model) { HERO.root.remove(HERO.model.g); }
-  HERO.model = makeHero(RPG.look, RPG.eq); HERO.root.add(HERO.model.g); HERO.ph = 0; HERO.yaw = player.yaw + Math.PI;
+  HERO.model = makeHero(RPG.look, RPG.eq, RPG.race, RPG.cls, LABCOAT.on); HERO.root.add(HERO.model.g); HERO.ph = 0; HERO.yaw = player.yaw + Math.PI;
 }
 
 /* tela de criação: uma cena pequenininha só com a personagem girando */
@@ -11562,6 +11566,7 @@ const LAB_R = { // ordem = ordem nas prateleiras (7 em cada)
   m_ti: { n: 'Rutilo', s: 'Ti', c: 0xa04a2a, ore: 22 }, m_al: { n: 'Bauxita', s: 'Al', c: 0xc87a5a, ore: 13 }, m_pb: { n: 'Galena', s: 'Pb', c: 0x6a6e78, ore: 82 }, m_hg: { n: 'Cinábrio', s: 'Hg', c: 0xc8202a, ore: 80 },
 };
 const isOre = id => !!(LAB_R[id] && LAB_R[id].ore);
+const ORE_OF = { Fe: 'm_fe', Cu: 'm_cu', Sn: 'm_sn', Zn: 'm_zn', Ag: 'm_ag', Au: 'm_au', Pt: 'm_pt', C: 'm_c', Ti: 'm_ti', Al: 'm_al', Pb: 'm_pb', Hg: 'm_hg' }; // metal puro do armário vale como o minério nas receitas da fundição
 const LAB_RX = [
   { k: ['H', 'H', 'O'], id: 'agua', n: 'Água (H₂O)', i: '💧', fx: 'splash', t: 'Dois hidrogênios e um oxigênio: água pura! A molécula mais importante da vida.' },
   { k: ['Cl', 'Na'], id: 'sal', n: 'Sal de cozinha (NaCl)', i: '🧂', fx: 'crystal', t: 'Um metal que explode na água + um gás venenoso = o sal da sua comida. A química é mágica!' },
@@ -11636,10 +11641,10 @@ const ORE_RX = [ // Caldeirão de Fundição: um minério vira metal; dois viram
   { k: ['m_ag', 'm_cu', 'm_zn'], id: 'f_alaude', n: 'Alaúde de Latão', i: '🪕', item: 'alaude_latao', t: 'Latão com cordas de prata: o som sai dourado como um pôr do sol.' },
 ];
 Object.assign(ITEMS, {
-  lingote_ferro: { n: 'Lingote de Ferro', i: '🔩', p: 16, d: 'Fundido na Torre de Pesquisas.' }, lingote_cobre: { n: 'Lingote de Cobre', i: '🟠', p: 16, d: 'Avermelhado e brilhante.' },
-  lingote_prata: { n: 'Lingote de Prata', i: '🥈', p: 40, d: 'Prata pura da fundição da torre.' }, lingote_ouro: { n: 'Lingote de Ouro', i: '🥇', p: 80, d: 'Pesado, dourado e nunca enferruja.' },
-  lingote_titanio: { n: 'Lingote de Titânio', i: '🚀', p: 50, d: 'O metal dos foguetes.' }, lingote_bronze: { n: 'Lingote de Bronze', i: '🔔', p: 36, d: 'Cobre e estanho, a liga de uma era inteira.' },
-  lingote_aco: { n: 'Lingote de Aço', i: '⛓', p: 40, d: 'Ferro com carbono: duríssimo.' }, lingote_latao: { n: 'Lingote de Latão', i: '🎺', p: 30, d: 'Dourado, mas não é ouro.' }, electro: { n: 'Moeda de Electro', i: '🪙', p: 70, d: 'Ouro com prata, como as primeiras moedas da história.' },
+  lingote_ferro: { n: 'Lingote de Ferro', i: '🔩', p: 6, d: 'Fundido na Torre de Pesquisas.' }, lingote_cobre: { n: 'Lingote de Cobre', i: '🟠', p: 6, d: 'Avermelhado e brilhante.' },
+  lingote_prata: { n: 'Lingote de Prata', i: '🥈', p: 6, d: 'Prata pura da fundição da torre.' }, lingote_ouro: { n: 'Lingote de Ouro', i: '🥇', p: 6, d: 'Pesado, dourado e nunca enferruja.' },
+  lingote_titanio: { n: 'Lingote de Titânio', i: '🚀', p: 6, d: 'O metal dos foguetes.' }, lingote_bronze: { n: 'Lingote de Bronze', i: '🔔', p: 6, d: 'Cobre e estanho, a liga de uma era inteira.' },
+  lingote_aco: { n: 'Lingote de Aço', i: '⛓', p: 6, d: 'Ferro com carbono: duríssimo.' }, lingote_latao: { n: 'Lingote de Latão', i: '🎺', p: 6, d: 'Dourado, mas não é ouro.' }, electro: { n: 'Moeda de Electro', i: '🪙', p: 8, d: 'Ouro com prata, como as primeiras moedas da história.' },
   espada_aco: { n: 'Espada de Aço', i: '⚔', slot: 'w', p: 140, b: { dmg: 2, for: 1 }, hold: 'sword', c: 0xd8e0e8, d: 'Forjada por você no Caldeirão de Fundição.' },
   cajado_platina: { n: 'Cajado de Platina', i: '🪄', slot: 'w', p: 140, b: { mag: 3, mp: 1 }, hold: 'staff', c: 0xe8ecff, d: 'Platina, titânio e um fio de ouro.' },
   arco_titanio: { n: 'Arco de Titânio', i: '🏹', slot: 'w', p: 140, b: { agi: 2, dmg: 2 }, hold: 'bow', c: 0xb8c0cc, d: 'Leve e firme: a flecha voa reta.' },
@@ -11669,6 +11674,129 @@ const PT_COL = ['#e8746a', '#f0a35a', '#d8c25a', '#8fc2a0', '#6ac2b8', '#7aa8ff'
 const ptCat = Z => [3, 11, 19, 37, 55, 87].includes(Z) ? 0 : [4, 12, 20, 38, 56, 88].includes(Z) ? 1 : Z >= 57 && Z <= 71 ? 8 : Z >= 89 && Z <= 103 ? 9 : [2, 10, 18, 36, 54, 86, 118].includes(Z) ? 7 : [9, 17, 35, 53, 85, 117].includes(Z) ? 6 : [1, 6, 7, 8, 15, 16, 34].includes(Z) ? 5 : [5, 14, 32, 33, 51, 52].includes(Z) ? 4 : (Z >= 21 && Z <= 30) || (Z >= 39 && Z <= 48) || (Z >= 72 && Z <= 80) || (Z >= 104 && Z <= 112) ? 2 : 3;
 const ptPos = Z => Z === 1 ? [1, 1] : Z === 2 ? [1, 18] : Z <= 4 ? [2, Z - 2] : Z <= 10 ? [2, Z + 8] : Z <= 12 ? [3, Z - 10] : Z <= 18 ? [3, Z] : Z <= 36 ? [4, Z - 18] : Z <= 54 ? [5, Z - 36] : Z <= 56 ? [6, Z - 54] : Z <= 71 ? [9, Z - 54] : Z <= 86 ? [6, Z - 68] : Z <= 88 ? [7, Z - 86] : Z <= 103 ? [10, Z - 86] : [7, Z - 100];
 const PT_FACT = { 1: 'O elemento mais leve e mais abundante do universo: as estrelas são feitas dele.', 2: 'Mais leve que o ar: é o gás que faz os balões subirem (e a voz ficar fininha).', 6: 'A base de toda a vida. Diamante e grafite são carbono puro!', 7: 'Quase 80% do ar que a senhora respira é nitrogênio.', 8: 'Sem ele não há fogo nem respiração. Ele forma 21% do ar.', 10: 'Brilha em vermelho-alaranjado nos letreiros luminosos.', 11: 'Um metal tão mole que se corta com faca, e que explode na água.', 13: 'O metal das latinhas: leve e reciclável.', 14: 'A areia é feita dele, e os computadores também.', 17: 'Um gás verde e venenoso que, junto com o sódio, vira sal.', 20: 'O que deixa os ossos e os dentes fortes.', 26: 'O núcleo da Terra é quase todo de ferro. E o sangue é vermelho por causa dele!', 29: 'Ótimo condutor de eletricidade. Deixa a chama verde.', 47: 'O metal que melhor conduz eletricidade de todos.', 50: 'Misturado ao cobre vira bronze, o metal de uma era inteira.', 78: 'Mais raro que o ouro, e quase não enferruja.', 79: 'Nunca enferruja, por isso as coroas das rainhas duram para sempre 👑', 80: 'O único metal líquido na temperatura ambiente.', 82: 'Pesado e macio. Os romanos faziam canos com ele.', 92: 'Radioativo: um pedacinho guarda energia para iluminar uma cidade.', 118: 'O elemento mais pesado já criado: existiu só por milissegundos.' };
+/* ---- ⚛ química livre: os 118 elementos das estantes se misturam de verdade (fórmulas calculadas pelas cargas) ---- */
+const CH_GAS = [1, 2, 7, 8, 9, 10, 17, 18, 36, 54, 86], CH_LIQ = [35, 80];
+const chState = Z => CH_GAS.includes(Z) ? 'gás' : CH_LIQ.includes(Z) ? 'líquido' : 'sólido';
+const chMetal = Z => [0, 1, 2, 3, 8, 9].includes(ptCat(Z));
+const chRadio = Z => Z === 43 || Z === 61 || Z >= 84;
+const chNoble = Z => ptCat(Z) === 7;
+const CH_TOX = [4, 9, 33, 48, 80, 81, 82, 84]; // berílio, flúor, arsênio, cádmio, mercúrio, tálio, chumbo, polônio
+const CH_COL = { 1: 0xdff0ff, 2: 0xffe8f8, 7: 0xe8ecff, 8: 0xcfe6ff, 9: 0xf8f4a8, 10: 0xffb08a, 17: 0xc8f07a, 18: 0xe8d8ff, 36: 0xf0f0ff, 54: 0xc8d8ff, 86: 0xc8ffd8, 35: 0x9a2a1a, 80: 0xd8dce4, 6: 0x26262a, 16: 0xffd23a, 15: 0xd84a3a, 53: 0x6a2a8a, 5: 0x7a5a3a, 14: 0x8a8a9a, 34: 0x8a4a4a, 29: 0xd8804a, 79: 0xffc83a, 55: 0xf0d890, 31: 0xd0d4dc, 92: 0x7a9a5a, 88: 0xa8ffb0, 94: 0xa8ffb0 };
+const chCol = Z => CH_COL[Z] ?? (chMetal(Z) || ptCat(Z) === 4 ? 0xb8bcc8 : parseInt(PT_COL[ptCat(Z)].slice(1), 16));
+const chZ = id => { const R = LAB_R[id]; if (!R || R.magic) return 0; return R.ore || R.Z || (R.Z = PT_S.indexOf(R.s) + 1); };
+function chKey(Z) { // a chave do elemento no laboratório (reaproveita H, O, Na… das prateleiras)
+  const s = PT_S[Z - 1]; if (LAB_R[s] && !LAB_R[s].ore) return s;
+  LAB_R[s] = { n: PT_N[Z - 1], s, c: chCol(Z), Z }; return s;
+}
+const CH_SUB = '₀₁₂₃₄₅₆₇₈₉', chSub = n => n === 1 ? '' : String(n).split('').map(d => CH_SUB[+d]).join('');
+const chGcd = (a, b) => b ? chGcd(b, a % b) : a;
+const CH_ION = { 3: 1, 11: 1, 19: 1, 37: 1, 55: 1, 87: 1, 4: 2, 12: 2, 20: 2, 38: 2, 56: 2, 88: 2, 13: 3, 31: 3, 49: 3, 81: 1, 50: 2, 82: 2, 83: 3, 26: 3, 29: 2, 47: 1, 79: 3, 30: 2, 48: 2, 80: 2, 28: 2, 27: 2, 25: 2, 24: 3, 22: 4, 23: 3, 21: 3, 39: 3, 40: 4, 72: 4, 42: 4, 74: 4, 78: 2, 46: 2, 92: 4, 90: 4, 94: 4 };
+const chCharge = Z => CH_ION[Z] || (ptCat(Z) === 8 || ptCat(Z) === 9 ? 3 : 2);
+const CH_AN = { 9: [1, 'Fluoreto'], 17: [1, 'Cloreto'], 35: [1, 'Brometo'], 53: [1, 'Iodeto'], 85: [1, 'Astateto'], 8: [2, 'Óxido'], 16: [2, 'Sulfeto'], 34: [2, 'Seleneto'], 52: [2, 'Telureto'], 7: [3, 'Nitreto'], 15: [3, 'Fosfeto'], 33: [3, 'Arseneto'], 6: [4, 'Carbeto'], 1: [1, 'Hidreto'], 5: [3, 'Boreto'], 14: [4, 'Siliceto'] };
+const CH_MOL = { // não metal com não metal: [fórmula, nome, efeito, curiosidade]
+  'F+H': ['HF', 'Ácido fluorídrico', 'greensmoke', 'Tão forte que corrói vidro! Por isso é guardado em frascos de plástico.'],
+  'Br+H': ['HBr', 'Ácido bromídrico', 'bubbles', 'Um ácido fortíssimo, primo do ácido do estômago.'],
+  'H+I': ['HI', 'Ácido iodídrico', 'purple', 'O mais forte dos ácidos de halogênio.'],
+  'H+S': ['H₂S', 'Gás sulfídrico', 'yellow', 'Cheiro de ovo podre! É ele que fede nos ovos estragados e nos vulcões.'],
+  'H+O': ['H₂O₂', 'Água oxigenada', 'bubbles', 'Um oxigênio a mais que a água: borbulha em machucados e clareia cabelo.'],
+  'H+N': ['NH₃', 'Amônia', 'smoke', 'Cheiro fortíssimo… e vira adubo para metade da comida do mundo.'],
+  'C+H': ['CH₄', 'Metano', 'fire', 'O gás do fogão e… dos puns das vacas!'],
+  'H+P': ['PH₃', 'Fosfina', 'greensmoke', 'Um gás venenoso com cheiro de alho podre.'],
+  'H+Si': ['SiH₄', 'Silano', 'fire', 'Pega fogo sozinho no ar! Usado para fabricar chips.'],
+  'B+H': ['B₂H₆', 'Diborano', 'fire', 'Já foi testado como combustível de foguete.'],
+  'C+O': ['CO', 'Monóxido de carbono', 'smoke', 'Invisível, sem cheiro e perigoso: por isso fogão precisa de janela aberta.'],
+  'C+S': ['CS₂', 'Dissulfeto de carbono', 'yellow', 'Um líquido que dissolve borracha e cheira muito mal.'],
+  'C+N': ['C₂N₂', 'Cianogênio', 'greensmoke', 'Queima com uma chama cor-de-rosa e azul. Venenoso!'],
+  'C+Si': ['SiC', 'Carbeto de silício', 'crystal', 'Quase tão duro quanto diamante: é a areia das lixas.'],
+  'C+Cl': ['CCl₄', 'Tetracloreto de carbono', 'smoke', 'Já foi usado em extintores, até descobrirem que fazia mal.'],
+  'C+F': ['CF₄', 'Tetrafluoreto de carbono', 'bubbles', 'Da mesma família do teflon das panelas.'],
+  'N+O': ['NO₂', 'Dióxido de nitrogênio', 'yellow', 'Um gás marrom-avermelhado: é a cor da poluição das cidades.'],
+  'F+S': ['SF₆', 'Hexafluoreto de enxofre', 'bubbles', 'Tão pesado que, se respirar, a voz fica grossa (o contrário do hélio)!'],
+  'O+Si': ['SiO₂', 'Dióxido de silício', 'crystal', 'É a areia, o quartzo e o vidro das janelas!'],
+  'B+N': ['BN', 'Nitreto de boro', 'crystal', 'Um pó branco que escorrega como grafite, mas aguenta muito mais calor.'],
+  'F+Xe': ['XeF₂', 'Difluoreto de xenônio', 'crystal', 'Um gás nobre reagindo?! Só o flúor, o mais "brigão" de todos, consegue.'],
+  'F+Kr': ['KrF₂', 'Difluoreto de criptônio', 'crystal', 'O criptônio quase nunca reage… mas o flúor convence até ele.'],
+  'F+O': ['OF₂', 'Difluoreto de oxigênio', 'yellow', 'Um dos raros casos em que o oxigênio perde a briga.'],
+  'Cl+O': ['ClO₂', 'Dióxido de cloro', 'yellow', 'Um gás amarelo que limpa a água das cidades.'],
+  'Cl+I': ['ICl', 'Monocloreto de iodo', 'purple', 'Cristais vermelhos que mudam de cor.'],
+  'O+Se': ['SeO₂', 'Dióxido de selênio', 'crystal', 'Cristais que cheiram a rabanete podre.'],
+  'As+O': ['As₂O₃', 'Trióxido de arsênio', 'greensmoke', 'O veneno clássico dos romances de mistério!'],
+  'B+O': ['B₂O₃', 'Óxido de boro', 'crystal', 'Vai no vidro das travessas que aguentam o forno.'],
+  'F+N': ['NF₃', 'Trifluoreto de nitrogênio', 'bubbles', 'Usado para limpar as máquinas que fazem telas de celular.'],
+  'Cl+P': ['PCl₃', 'Tricloreto de fósforo', 'smoke', 'Solta fumaça só de encostar no ar úmido.'],
+  'Cl+Si': ['SiCl₄', 'Tetracloreto de silício', 'smoke', 'O primeiro passo para fazer silício puríssimo de computador.'],
+  'Br+Cl': ['BrCl', 'Cloreto de bromo', 'yellow', 'Um gás dourado que desinfeta piscinas.'],
+  'P+S': ['P₄S₃', 'Sesquissulfeto de fósforo', 'fire', 'Está na cabeça do palito de fósforo que acende em qualquer lugar!'],
+};
+const CH_FACT = { // fatos de sais e óxidos que a fórmula calculada pode dar
+  'Al₂O₃': 'É o rubi e a safira! A cor vem de pitadinhas de outros metais.', 'ZnO': 'O branquinho do protetor solar.', 'TiO₂': 'A tinta branca mais branca que existe, e também protege do sol.',
+  'CaF₂': 'Fluorita: brilha no escuro com luz ultravioleta.', 'AgBr': 'Escurece com a luz: era o "filme" das fotografias antigas.', 'CaCl₂': 'O sal que derrete o gelo das estradas no inverno.',
+  'ZnS': 'Brilha no escuro: pintava os ponteiros dos relógios antigos.', 'PbS': 'Galena: o minério de chumbo mais comum (tem na prateleira!).', 'HgS': 'Cinábrio: vermelho como sangue de dragão, e venenoso.',
+  'UO₂': 'O combustível das usinas nucleares.', 'WC': 'Carbeto de tungstênio: as brocas que furam até aço.', 'TiN': 'Um dourado duríssimo que cobre brocas e joias falsas.',
+  'LiF': 'Deixa a luz ultravioleta passar: vai em lentes de telescópio.', 'NaF': 'O flúor da pasta de dente!', 'KBr': 'Já foi remédio para dormir, há 150 anos.', 'NaI': 'Brilha quando a radiação passa por ele: vira detector.',
+  'MgCl₂': 'Vem da água do mar e vira o tofu das sopas japonesas.', 'SnO₂': 'Cassiterita: o minério de estanho (tem na prateleira!).', 'CsCl': 'Um sal tão pesado que separa o DNA nas centrífugas.',
+  'Fe₂O₃': 'Ferrugem e hematita: a cor vermelha de Marte!', 'CuO': 'Um pó preto que deixa fogos de artifício azuis.', 'Ag₂S': 'É o pretinho que aparece nos talheres de prata.', 'BaO': 'Já foi usado para fazer oxigênio puro.',
+  'LiH': 'Guarda hidrogênio dentro de um sólido.', 'CaC₂': 'Com água solta acetileno: era a luz das lanternas dos mineiros.', 'Li₂O': 'Vai nas cerâmicas que aguentam fogo.', 'GaAs': 'O cristal das luzinhas de LED e dos painéis solares dos satélites.',
+};
+const CH_ALLOY = { // ligas famosas do caldeirão (chave: símbolos em ordem)
+  'Ni+Ti': ['Nitinol', 'O metal com memória: entorta e volta sozinho ao formato quando esquenta!'], 'Cr+Fe': ['Aço inoxidável', 'O cromo protege o ferro: é o aço das panelas e talheres que não enferrujam.'],
+  'Fe+Ni': ['Liga de ferro e níquel', 'É disso que são feitos os meteoritos de metal que caem do céu ✦'], 'Au+Cu': ['Ouro rosé', 'Um pouquinho de cobre deixa o ouro cor-de-rosa.'],
+  'Ag+Cu': ['Prata de lei', 'Prata com 7,5% de cobre: mais dura, ótima para joias e talheres.'], 'Al+Mg': ['Magnálio', 'Leve e forte, faz faíscas lindas em fogos de artifício.'],
+  'Co+Cr': ['Estelite', 'Não gasta nunca: vai em próteses e lâminas de serra.'], 'Nb+Ti': ['Nióbio-titânio', 'O fio supercondutor dos ímãs gigantes das máquinas de ressonância.'],
+  'K+Na': ['NaK', 'Dois metais sólidos que juntos ficam líquidos! Já resfriou reatores.'], 'Ga+In': ['Galinstan', 'Um metal líquido que substitui o mercúrio nos termômetros.'],
+  'C+Fe': ['Aço', 'Ferro com uma pitadinha de carbono: o aço das espadas e das pontes.'], 'Cu+Sn': ['Bronze', 'Cobre + estanho: a liga que deu nome à Idade do Bronze.'], 'Cu+Zn': ['Latão', 'Dourado e barato: trompetes e maçanetas.'], 'Ag+Au': ['Electro', 'As primeiras moedas da história.'], 'Pb+Sn': ['Solda', 'Gruda os fios dos computadores.'],
+};
+const chNice = l => l.map(id => LAB_R[id].s).join(' + ');
+function chemBeaker(list) { // devolve uma reação calculada (ou null) para o béquer
+  const Zs = list.map(chZ); if (Zs.some(z => !z)) return null; // essências mágicas: só nas receitas
+  const uniq = [...new Set(Zs)], sym = Z => PT_S[Z - 1], nm = Z => PT_N[Z - 1];
+  const radio = uniq.some(chRadio), tox = uniq.some(z => CH_TOX.includes(z));
+  const base = { radio, tox };
+  const pair = uniq.length === 2 && CH_MOL[uniq.map(sym).sort().join('+')]; // moléculas famosas, inclusive gás nobre com flúor
+  if (pair) return { ...base, n: `${pair[1]} (${pair[0]})`, i: '⚗', fx: pair[2], f: pair[0], tox: base.tox || pair[2] === 'greensmoke', t: pair[3] };
+  if (uniq.every(chNoble)) return { ...base, n: 'Gases nobres não reagem', i: '😴', fx: 'bubbles', t: `${uniq.map(nm).join(', ')}: gases nobres não se misturam com ninguém. A última camada de elétrons deles já está completinha!` };
+  const hasWater = Zs.filter(z => z === 1).length >= 2 && Zs.includes(8);
+  const metals = uniq.filter(chMetal);
+  if (metals.length === 1 && hasWater && uniq.length === 3) { const M = metals[0], c = ptCat(M);
+    if (c === 0) return { ...base, n: `${nm(M)} na água: EXPLOSÃO!`, i: '💥', fx: 'boom', boom: true, f: `${sym(M)}OH`, t: `Os metais alcalinos explodem na água e viram hidróxido de ${nm(M).toLowerCase()} (${sym(M)}OH) + gás hidrogênio, que pega fogo.` };
+    if (c === 1) return { ...base, n: `Hidróxido de ${nm(M).toLowerCase()}`, i: '🫧', fx: 'bubbles', f: `${sym(M)}(OH)₂`, t: `${nm(M)} borbulha devagar na água, soltando hidrogênio.` };
+    return { ...base, n: `${nm(M)} não reage com água`, i: '💧', fx: 'splash', t: `${nm(M)} é um metal calmo: fica quietinho na água.` }; }
+  if (metals.length === 1 && uniq.length === 3 && uniq.includes(1) && uniq.includes(17)) { const M = metals[0];
+    return [0, 1].includes(ptCat(M)) || [12, 13, 26, 30, 50].includes(M) ? { ...base, n: `${nm(M)} no ácido`, i: '🫧', fx: 'bubbles', f: `${sym(M)}Cl${chSub(chCharge(M))}`, t: `O ácido clorídrico devora o ${nm(M).toLowerCase()} e solta bolhas de hidrogênio.` } : { ...base, n: `${nm(M)} resiste ao ácido`, i: '🛡', fx: 'smoke', t: `${nm(M)} é nobre: o ácido clorídrico nem faz cócegas.` }; }
+  const rest = uniq.filter(z => !chNoble(z));
+  if (rest.length === 1) { const Z = rest[0], n = Zs.filter(z => z === Z).length;
+    if (Z === 8 && n >= 3) return { ...base, n: 'Ozônio (O₃)', i: '🌀', fx: 'bubbles', f: 'O₃', t: 'Três oxigênios juntos: o ozônio, a camada que protege a Terra do sol forte.' };
+    if (CH_GAS.includes(Z) && n >= 2) return { ...base, n: `Gás ${nm(Z).toLowerCase()} (${sym(Z)}₂)`, i: '🫧', fx: 'bubbles', f: `${sym(Z)}₂`, t: `${nm(Z)} gosta de andar em dupla: no ar, ele vive como ${sym(Z)}₂.` };
+    return { ...base, n: `${nm(Z)} puro`, i: radio ? '☢' : '⚗', fx: radio ? 'radio' : 'crystal', t: `${nm(Z)} sozinho não reage com ele mesmo.${radio ? ' Mas brilha… é radioativo!' : ''}` }; }
+  if (rest.length !== 2) return { ...base, n: 'Mistura confusa', i: '🌀', fx: 'smoke', t: `${rest.map(nm).join(', ')}: elementos demais brigando no béquer. Tente só dois de cada vez!` };
+  const [a, b] = rest.sort((x, y) => x - y), ma = chMetal(a), mb = chMetal(b);
+  if (ma && mb) return { ...base, n: 'Metais não se misturam no béquer', i: '🔥', fx: 'smoke', t: `${nm(a)} e ${nm(b)} só se misturam derretidos: leve os dois ao Caldeirão de Fundição!` };
+  if (ma || mb) { const M = ma ? a : b, X = ma ? b : a, an = CH_AN[X];
+    if (!an) return { ...base, n: `${nm(M)} e ${nm(X)} não combinam`, i: '🤷', fx: 'smoke', t: 'Esses dois não formam um composto conhecido.' };
+    const cm = chCharge(M), cx = an[0], g = chGcd(cm, cx), f = sym(M) + chSub(cx / g) + sym(X) + chSub(cm / g);
+    return { ...base, n: `${an[1]} de ${nm(M).toLowerCase()} (${f})`, i: X === 8 ? '🟤' : X === 16 ? '🟡' : '🧂', fx: X === 8 ? 'flash' : 'crystal', f, t: CH_FACT[f] || `${nm(M)} perde ${cm} elétron${cm > 1 ? 's' : ''} e ${nm(X).toLowerCase()} ganha ${cx}: as cargas se equilibram em ${f}.` }; }
+  const m = CH_MOL[[sym(a), sym(b)].sort().join('+')];
+  if (m) return { ...base, n: `${m[1]} (${m[0]})`, i: '⚗', fx: m[2], f: m[0], tox: base.tox || m[2] === 'greensmoke', t: m[3] };
+  return { ...base, n: `${nm(a)} e ${nm(b)} não reagem`, i: '🤷', fx: 'smoke', t: 'Esses dois não formam um composto conhecido… a química também tem seus mistérios.' };
+}
+function chemForge(list) { // caldeirão: qualquer metal derrete; dois ou mais viram liga
+  const Zs = list.map(id => chZ(id)); if (Zs.some(z => !z)) return null;
+  const uniq = [...new Set(Zs)], nm = Z => PT_N[Z - 1];
+  if (uniq.some(z => !chMetal(z) && z !== 6)) return { n: 'Isso não derrete aqui', i: '⚗', fx: 'smoke', t: `${uniq.filter(z => !chMetal(z) && z !== 6).map(nm).join(', ')} não é metal: o lugar dele é o béquer.` };
+  const radio = uniq.some(chRadio), tox = uniq.some(z => CH_TOX.includes(z));
+  if (uniq.length === 1) { const Z = uniq[0]; return { radio, tox, n: `${nm(Z)} derretido`, i: radio ? '☢' : '🔥', fx: radio ? 'radio' : null, t: Z === 31 ? 'O gálio derrete até na palma da mão (29 °C)!' : Z === 80 ? 'O mercúrio já é líquido… só esquentou e soltou vapor venenoso!' : `${nm(Z)} puro derreteu e virou um lingotinho brilhante.` }; }
+  const k = uniq.map(z => PT_S[z - 1]).sort().join('+'), A = CH_ALLOY[k];
+  if (A) return { radio, tox, n: A[0], i: '⚙', t: A[1] };
+  return { radio, tox, n: `Liga de ${uniq.map(nm).join(' e ').toLowerCase()}`, i: '⚙', t: 'Metais derretidos juntos viram uma liga: os átomos se misturam como bolinhas de gude de cores diferentes.' };
+}
+function chRecord(r) { // composto calculado: guarda no caderno (XP na primeira vez)
+  const L = LAB(); L.comp = L.comp || {}; const key = r.f || r.n; if (L.comp[key]) return false;
+  L.comp[key] = r.n; gainXP(6); rpgEvent('lab_composto'); setTimeout(() => toast(`📒 composto novo no caderno: ${r.n} · ${Object.keys(L.comp).length} criados`, 4000), 900); rpgSave(); return true;
+}
+function chEffects(r, at) { // radioativo brilha verde e faz o contador Geiger estalar; tóxico arde os olhos
+  if (r.radio) { for (let i = 0; i < 24; i++) spawnFX(TEX.glow, V3(at.x + rv(0.3), at.y + Math.random() * 0.6, at.z + rv(0.3)), { vel: V3(rv(0.4), 0.5 + Math.random(), rv(0.4)), life: 1.6, size: 0.15, grow: 0.5, add: true, color: 0x7aff7a }); for (let i = 0; i < 12; i++) setTimeout(() => sfx.clop(), i * 70 + Math.random() * 60); setTimeout(() => toast('☢ radioativo! O contador Geiger enlouqueceu… ainda bem que aqui é de mentirinha', 4500), 1200); }
+  if (r.tox && Math.hypot(player.x - at.x, player.z - at.z) < 4) eyeSting('vapor tóxico');
+}
 /* ---- 📚 andar de estudos ---- */
 {
   const F = twFloor(0), s = F.s;
@@ -11744,8 +11872,8 @@ const LAB_FLASKS = [];
   const ch = new THREE.Group(); ch.position.set(-5.2, 0, 0.6); d.add(ch); LABC.g = ch;
   cyl(ch, 1.45, 1.55, 0.6, 0, 0.3, 0, matC(0x2a2440), 24); cyl(ch, 1.45, 1.45, 0.5, 0, 4.05, 0, matC(0x2a2440), 24); ps(ch, 0.25, 0, 4.45, 0, matC(0x7affe0, true));
   LABC.liqM = new THREE.MeshLambertMaterial({ color: 0x8affd8, emissive: 0x1a4a3a, transparent: true, opacity: 0.55, depthWrite: false });
-  LABC.liq = cyl(ch, 1.12, 1.12, 3.0, 0, 2.1, 0, LABC.liqM, 24); LABC.liq.scale.y = 0.15; LABC.liq.position.y = 0.6 + 0.15 * 1.5;
-  cyl(ch, 1.2, 1.2, 3.2, 0, 2.2, 0, twGlass, 24);
+  LABC.liq = cyl(ch, 1.12, 1.12, 3.0, 0, 2.1, 0, LABC.liqM, 24); LABC.liq.scale.y = 0.15; LABC.liq.position.y = 0.64 + 0.15 * 1.5; // o fundo do líquido fica um pouco acima da base (na mesma altura as duas superfícies piscavam)
+  cyl(ch, 1.2, 1.2, 3.08, 0, 2.21, 0, twGlass, 24);
   for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2, c = cyl(ch, 0.06, 0.06, 3.4, Math.sin(a) * 1.3, 2.2, Math.cos(a) * 1.3, twBrass, 6); }
   LABC.baby = new THREE.Group(); LABC.baby.position.set(0, 1.6, 0); ch.add(LABC.baby);
   const con = twTable(s, -3.5, 2.6, 1.2, 0.7, 0.95, 0.9, matC(0x2a2a34)); ps(con, 0.12, 0, 1.05, 0, matC(0xff4a4a, true)); pb(con, 0.5, 0.25, 0.04, 0.2, 1.15, -0.3, matC(0x7affe0, true));
@@ -11768,7 +11896,31 @@ const LAB_FLASKS = [];
     FORGE.liqM = new THREE.MeshBasicMaterial({ color: 0xc8461a }); FORGE.liq = new THREE.Mesh(new THREE.CircleGeometry(0.69, 24), FORGE.liqM); FORGE.liq.rotation.x = -Math.PI / 2; FORGE.liq.position.y = 0.82; FORGE.liq.userData.keep = true; cd.add(FORGE.liq);
     cyl(s, 0.035, 0.035, 1.9, 5.43, 0.95, -3.06, M.iron, 6); signBox(s, boardTex('🔥 Caldeirão de Fundição', '#4a1a0a', 512, 90, 40), 1.5, 0.27, 5.4, 1.75, -3.04).rotation.y = Math.PI * 0.66 + Math.PI; // placa num poste atrás do caldeirão
     F.col(4.6, -2.6, 0.95); LABC.cau = twW(4.6, -2.6); FORGE.at = LABC.cau;
+    { const ra = Math.atan2(2.9, -4.5); twTable(s, 2.9, -4.5, 1.6, 0.6, 0.95, ra, matC(0x3a2a22)); const rd = new THREE.Group(); rd.position.set(2.9, 0, -4.5); rd.rotation.y = ra; d.add(rd); // a mesa onde aparece o que sai do caldeirão
+      pb(rd, 0.04, 0.3, 0.04, -0.7, 1.12, 0.25, twWoodD); pb(rd, 0.04, 0.3, 0.04, 0.7, 1.12, 0.25, twWoodD); signBox(rd, boardTex('✨ Resultados da Fundição', '#3a2418', 512, 80, 34), 1.5, 0.22, 0, 1.36, 0.25).rotation.y = Math.PI; FORGE.res = { d: rd, list: [] }; F.col(2.9, -4.5, 0.8); }
     const ch = invis(d, gBox(1.8, 1.4, 1.8), 4.6, 0.7, -2.6); ch.userData.keep = true; F.act(ch, 4.6, -2.6, () => labForge(), 2.6);
+  }
+  { // estantes da tabela periódica: os 118 elementos de verdade, 30 por estante, em ordem de número atômico (gás e líquido em frasco, sólido como pedrinha)
+    const rockG = new THREE.IcosahedronGeometry(0.075, 0), glowM = matC(0x7aff7a, true);
+    [[24, 1], [26, 31], [0, 61], [2, 91]].forEach(([k, z0]) => {
+      const a = k / 14 * Math.PI, [x, z] = twP2(a, 9.75), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
+      const gd = new THREE.Group(); gd.position.copy(g.position); gd.rotation.copy(g.rotation); d.add(gd);
+      twShelf(g, 2.4, 2.75, 0.45, twWoodD); for (let r = 1; r < 5; r++) pb(g, 2.3, 0.05, 0.4, 0, 0.1 + r * 0.52, 0.03, twWood);
+      const z1 = Math.min(118, z0 + 29); signBox(g, boardTex(`⚛ Elementos ${z0} a ${z1}`, '#2a2450', 512, 90, 40), 1.9, 0.3, 0, 2.95, 0.1);
+      for (let r = 0; r < 5; r++) { // uma plaquinha por tábua com os números e símbolos dos 6 elementos
+        const cv = canvasTex(768, 64, gg => { gg.fillStyle = '#1e1636'; gg.fillRect(0, 0, 768, 64); for (let c = 0; c < 6; c++) { const Z = z0 + r * 6 + c; if (Z > 118) continue; gg.fillStyle = PT_COL[ptCat(Z)]; gg.fillRect(c * 128 + 6, 6, 116, 52); gg.fillStyle = '#1a1424'; gg.font = 'bold 30px Georgia'; gg.textAlign = 'center'; gg.fillText(`${Z} ${PT_S[Z - 1]}`, c * 128 + 64, 43); } });
+        const tg = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.11), new THREE.MeshBasicMaterial({ map: cv })); tg.position.set(0, 0.1 + r * 0.52 + 0.04, 0.235); tg.userData.keep = true; gd.add(tg);
+      }
+      for (let i = 0; i < 30; i++) {
+        const Z = z0 + i; if (Z > 118) break; const r = Math.floor(i / 6), cx = -0.92 + (i % 6) * 0.368, cy = 0.125 + r * 0.52, st = chState(Z), col = chCol(Z);
+        if (st === 'sólido') { const rk = new THREE.Mesh(rockG, matC(col)); rk.position.set(cx, cy + 0.07, 0.02); rk.scale.set(1.3, 0.85, 1.1); rk.rotation.set(Z * 0.7, Z * 1.3, 0); g.add(rk); pb(g, 0.24, 0.02, 0.2, cx, cy + 0.01, 0.02, matC(0xe8e8ec)); } // pedrinha num pires
+        else twFlask(g, cx, cy, 0.02, col, st === 'gás' ? 0.75 : 0.85);
+        if (chRadio(Z)) { const gl = ps(gd, 0.05, cx, cy + 0.3, 0.12, glowM); gl.userData.keep = true; } // ☢ luzinha verde
+        const hit = invis(gd, gBox(0.34, 0.46, 0.4), cx, cy + 0.2, 0.12); hit.userData.keep = true; const lq = twLocalRel(gd, cx, 0, 0.15);
+        F.act(hit, lq[0], lq[2], () => labPick(chKey(Z)), 2.6);
+      }
+      F.col(x * 0.965, z * 0.965, 0.9); F.col(x * 0.965 + Math.cos(a) * 0.85, z * 0.965 - Math.sin(a) * 0.85, 0.65); F.col(x * 0.965 - Math.cos(a) * 0.85, z * 0.965 + Math.sin(a) * 0.85, 0.65);
+    });
   }
   { // prateleira de minérios, ao lado do caldeirão (cada pedra acende a carta do elemento na tabela periódica)
     const a = Math.PI * 0.714, [x, z] = twP2(a, 9.75), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a + Math.PI; s.add(g);
@@ -11786,7 +11938,17 @@ const LAB_FLASKS = [];
     F.col(x * 0.96, z * 0.96, 1.0); F.col(x * 0.96 + Math.cos(a) * 0.7, z * 0.96 - Math.sin(a) * 0.7, 0.8); F.col(x * 0.96 - Math.cos(a) * 0.7, z * 0.96 + Math.sin(a) * 0.7, 0.8);
   }
   const [wx, wz] = twP2(Math.PI * 1.5, 10.0); signBox(s, boardTex('⚠ Sódio + Água = 💥', '#5a1a1a', 512, 100, 42), 2.2, 0.45, wx, 3.0, wz).rotation.y = Math.PI * 0.5;
-  for (let k = 0; k < 3; k++) { const [x, z] = twP2(Math.PI * 1.5 + (k - 1) * 0.16, 10.0); pb(s, 0.5, 1.1, 0.1, x, 1.75, z, matC(0xf4f4f4)).rotation.y = Math.PI * 0.5; } // jalecos pendurados
+  for (let k = 0; k < 3; k++) { // jalecos pendurados de verdade: cabide, corpo, gola, mangas e bolso
+    const a = Math.PI * 1.5 + (k - 1) * 0.16, [x, z] = twP2(a, 9.95), jc = new THREE.Group(); jc.position.set(x, 0, z); jc.rotation.y = a + Math.PI; s.add(jc);
+    const white = matC(0xf6f6f2), shade = matC(0xdcdcd6);
+    pb(jc, 0.5, 0.95, 0.08, 0, 1.55, 0.06, white); pb(jc, 0.02, 0.95, 0.085, 0, 1.55, 0.065, shade); // corpo e a abertura da frente
+    for (const sx of [-1, 1]) { const sl = pb(jc, 0.12, 0.75, 0.08, sx * 0.3, 1.62, 0.06, white); sl.rotation.z = sx * 0.12; const lp = pb(jc, 0.12, 0.22, 0.02, sx * 0.08, 1.92, 0.11, shade); lp.rotation.z = -sx * 0.5; } // mangas e gola
+    pb(jc, 0.12, 0.1, 0.02, 0.13, 1.7, 0.105, shade); cyl(jc, 0.008, 0.008, 0.1, 0.15, 1.76, 0.11, matC(0x2a5ad8), 5); // bolso com caneta
+    const hg = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.012, 4, 12, Math.PI), matC(0x6a4428)); hg.position.set(0, 2.0, 0.06); jc.add(hg); cyl(jc, 0.01, 0.01, 0.1, 0, 2.25, 0.04, M.iron, 4); // cabide
+    for (const sx of [-1, 1]) { const gl = cyl(jc, 0.04, 0.04, 0.03, sx * 0.055, 2.32, 0.08, matC(0x9ad8ff), 8); gl.rotation.x = Math.PI / 2; } // óculos pendurados no gancho
+  }
+  { const [x, z] = twP2(Math.PI * 1.5, 9.85); signBox(s, boardTex('🥼 Jalecos e óculos · toque para vestir', '#1a3a5a', 640, 80, 32), 1.6, 0.2, x, 0.85, z).rotation.y = Math.PI * 0.5; }
+  { const [x, z] = twP2(Math.PI * 1.5, 9.6); F.act(F.hit(0.8, 1.4, 1.8, x, 1.6, z), x * 0.9, z * 0.9, () => labCoat(!LABCOAT.on), 2.6); for (let k = 0; k < 3; k++) { const [gx, gz] = twP2(Math.PI * 1.5 + (k - 1) * 0.16, 9.98); const gg = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 4, 12), matC(0x2a2a30)); gg.position.set(gx, 2.4, gz); gg.rotation.y = Math.PI * 0.5; s.add(gg); } } // tocar nos jalecos: veste ou tira (com os óculos pendurados em cima)
   { // vidrarias coloridas na bancada (erlenmeyer, balão e serpentina)
     const v = new THREE.Group(); v.position.set(0, 0.98, 4.6); s.add(v);
     for (const [x, c] of [[-1.85, 0xff6a5a], [-1.6, 0x6ab8ff], [1.6, 0x9aff6a]]) { cone(v, 0.13, 0.26, x, 0.13, -0.3, twGlass, 12); cone(v, 0.1, 0.16, x, 0.08, -0.3, new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.3) }), 12); cyl(v, 0.035, 0.035, 0.14, x, 0.3, -0.3, twGlass, 8); }
@@ -12101,22 +12263,39 @@ function cupUpdate(dt) {
   CUP.g.position.set(Math.min(halfW * 0.42, 0.17), -halfH * 0.5 + Math.sin(t * 1.2) * 0.003 + CUP.tilt * 0.06, -0.4 + CUP.tilt * 0.05); CUP.g.rotation.set(CUP.tilt * 0.9, -0.3, 0.05);
   if ((CUP.steamT -= dt) < 0) { CUP.steamT = 0.35; const w = CUP.g.localToWorld(V3(0, 0.07, 0)); spawnFX(TEX.smoke, w, { vel: V3(rv(0.02), 0.12, rv(0.02)), life: 1.4, size: 0.02, grow: 2.2, color: 0xffffff }); }
 }
+{ const b = document.createElement('button'); b.id = 'labCoatB'; b.className = 'pill hidden'; document.body.appendChild(b); LABCOAT.btn = b;
+  b.addEventListener('click', e => { e.stopPropagation(); markInteracted(); labCoat(!LABCOAT.on); });
+  const fx = document.createElement('div'); fx.id = 'goggleFx'; document.body.appendChild(fx); LABCOAT.fx = fx;
+  const css = document.createElement('style'); css.textContent = `#labCoatB{position:fixed;left:50%;top:calc(112px + env(safe-area-inset-top));transform:translateX(-50%);z-index:21;cursor:pointer;white-space:nowrap}
+#goggleFx{position:fixed;inset:0;z-index:11;pointer-events:none;display:none;border-radius:60px;box-shadow:inset 0 0 0 10px rgba(30,34,44,.6),inset 0 0 70px rgba(120,200,255,.28)}
+body.photo #labCoatB,body.photo #goggleFx{display:none!important}`; document.head.appendChild(css); }
+function labCoat(on, quiet) {
+  if (LABCOAT.on === on) return; LABCOAT.on = on; heroRebuild(); if (quiet) return;
+  sfx.chime(on ? [659, 880] : [880, 659], 0.05); whisper(on ? '🥼 jaleco e 🥽 óculos de proteção vestidos! Agora a fumaça não arde mais os olhos' : '👗 jaleco de volta no cabide', 3.2, true);
+}
 function labHandUpdate() {
+  const inLab = TWR.cur === 1 && mode === 'walk' && !overlayOpen() && !rpgOpen(); LABCOAT.btn.classList.toggle('hidden', !inLab);
+  const txt = LABCOAT.on ? '🥼 tirar jaleco' : '🥼 vestir jaleco e óculos'; if (LABCOAT.btn.textContent !== txt) LABCOAT.btn.textContent = txt;
+  LABCOAT.fx.style.display = LABCOAT.on && inLab && !HERO.root.visible ? 'block' : 'none'; // em 1ª pessoa: a moldura dos óculos nas bordas da tela
   const it = LABH.item, on = !!it && mode === 'walk' && !overlayOpen() && TWR.cur === 1;
   LABH.g.visible = on; LABH.el.classList.toggle('hidden', !on);
   if (!on) return;
   const halfH = 0.42 * Math.tan(BASE_FOV / 2 * deg), halfW = halfH * camera.aspect, t = uTime.value;
+  if (Math.random() < 0.12 && chRadio(chZ(it) || 1)) sfx.clop(); // radioativo na mão: o contador Geiger estala
   LABH.g.position.set(-Math.min(halfW * 0.5, 0.2), -halfH * 0.42 + Math.sin(t * 1.4) * 0.004, -0.42); LABH.g.rotation.set(0.1, 0.2, 0.1 + Math.sin(t * 1.1) * 0.03);
 }
 function labSetHand(id, mix) {
   LABH.item = id; LABH.mix = mix || null;
   const c = id === 'mix' ? labMix(mix) : new THREE.Color(LAB_R[id].c); LABH.liqM.color.copy(c); LABH.liqM.emissive.copy(c).multiplyScalar(0.35);
-  const ore = isOre(id); LABH.fl.visible = !ore; LABH.rock.visible = ore; if (ore) LABH.rockM.color.copy(c);
-  LABH.el.textContent = id === 'mix' ? `🧪 mistura do béquer (${mix.map(x => LAB_R[x].s).join(' ')}) na mão · ✕` : `${ore ? '🪨' : '🧪'} ${LAB_R[id].n} (${LAB_R[id].s}) na mão · ✕`;
+  const Zh = id === 'mix' ? 0 : chZ(id), ore = isOre(id) || (!!LAB_R[id]?.Z && chState(Zh) === 'sólido'); LABH.fl.visible = !ore; LABH.rock.visible = ore; if (ore) LABH.rockM.color.copy(c);
+  LABH.el.textContent = id === 'mix' ? `🧪 mistura do béquer (${mix.map(x => LAB_R[x].s).join(' ')}) na mão · ✕` : `${ore ? '🪨' : Zh && chState(Zh) === 'gás' ? '💨' : '🧪'} ${LAB_R[id].n} (${LAB_R[id].s}) na mão${Zh && chRadio(Zh) ? ' ☢' : ''} · ✕`;
 }
 function labPick(id) {
   if (LABH.item === id) { labDrop(true); return; }
   labSetHand(id); sfx.chime([988, 1319], 0.03);
+  const Ze = !isOre(id) && chZ(id);
+  if (Ze >= 100) { labDrop(false); spawnSparkles(V3(player.x, floorY(player.x, player.z) + 1.3, player.z), 20, 0.4, 0x9affb0); whisper(`⚛ ${PT_N[Ze - 1]} existiu por milissegundos e se desintegrou na sua mão! Os elementos super pesados só nascem em aceleradores de partículas.`, 6); ptCollect(Ze); return; }
+  if (Ze && LAB_R[id].Z) { const st = chState(Ze); whisper(`${st === 'gás' ? '💨' : st === 'líquido' ? '💧' : '🪨'} ${PT_N[Ze - 1]} (${st}) na mão · béquer ⚗ para reagir${chMetal(Ze) ? ', caldeirão 🔥 para fundir' : ''}`, 3.6, true); if (ptCollect(Ze)) setTimeout(() => toast(`⚛ carta do ${PT_N[Ze - 1]} acesa na tabela periódica`), 600); if (PT_FACT[Ze]) setTimeout(() => toast(`✦ ${PT_FACT[Ze]}`, 5000), 1200); return; }
   if (isOre(id)) { const Z = LAB_R[id].ore; whisper(`🪨 ${LAB_R[id].n}, minério de ${PT_N[Z - 1]} (${LAB_R[id].s}) · leve até o Caldeirão de Fundição 🔥`, 3.6, true); if (ptCollect(Z)) setTimeout(() => toast(`⚛ carta do ${PT_N[Z - 1]} acesa na tabela periódica`), 600); return; }
   whisper(`🧪 ${LAB_R[id].n} na mão · toque no béquer (ou na Câmara de Criação) para despejar`, 3.2, true);
 }
@@ -12166,7 +12345,7 @@ const EYE = { t: 0, el: null };
 const EYE_RX = ['boom', 'boom_k', 'so2', 'amonia', 'iodo', 'hcl', 'f_amalgama', 'f_mercurio'];
 { const el = document.createElement('div'); el.id = 'eyeSting'; document.body.appendChild(el); EYE.el = el; const css = document.createElement('style');
   css.textContent = '#eyeSting{position:fixed;inset:0;z-index:12;pointer-events:none;opacity:0;display:none;background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,0) 35%,rgba(255,150,140,.35) 70%,rgba(60,40,40,.75));backdrop-filter:blur(2.5px);-webkit-backdrop-filter:blur(2.5px)}'; document.head.appendChild(css); }
-function eyeSting(why) { const was = EYE.t > 0; EYE.t = 40; if (!was) setTimeout(() => whisper(`😣 ${why}… os olhos ardem e a vista embaçou! Corre no lava-olhos verde da parede 👁`, 5), 1800); }
+function eyeSting(why) { if (LABCOAT.on) { whisper('🥽 os óculos de proteção seguraram a fumaça. Ciência com segurança!', 3, true); return; } const was = EYE.t > 0; EYE.t = 40; if (!was) setTimeout(() => whisper(`😣 ${why}… os olhos ardem e a vista embaçou! Corre no lava-olhos verde da parede 👁`, 5), 1800); }
 function eyeUpdate(dt) { if (EYE.t <= 0) return; EYE.t = Math.max(0, EYE.t - dt); const o = Math.min(1, EYE.t / 8) * (0.85 + 0.15 * Math.sin(uTime.value * 3)); EYE.el.style.display = o > 0.01 ? 'block' : 'none'; EYE.el.style.opacity = o.toFixed(2); }
 function labEyewash(at) {
   for (let i = 0; i < 26; i++) spawnFX(TEX.glow, V3(at.x + rv(0.08), TWR.fy[1] + 1.45, at.z + rv(0.08)), { vel: V3(rv(0.25), 0.9 + Math.random() * 0.5, rv(0.25)), life: 0.7, size: 0.07, grow: 0.3, add: true, color: 0x9ad8ff, grav: 2.5 });
@@ -12179,7 +12358,9 @@ function labReact() {
   const key = labKey(LABB.list), rec = LAB_RX.find(r => labKey(r.k) === key), at = twW(0.9, 4.5), p = { x: at.x, y: TWR.fy[1] + 1.7, z: at.z };
   LABB.heat = 1.6; LABB.flame.visible = true; rpgEvent('lab_reacao');
   setTimeout(() => {
-    LABB.flame.visible = false; LABB.list = []; labBeakerShow();
+    LABB.flame.visible = false; LABB.last = LABB.list; LABB.list = []; labBeakerShow();
+    const ch = !rec && chemBeaker(LABB.last || []);
+    if (ch) { labFx(ch.fx || 'crystal', p); chEffects(ch, p); chRecord(ch); whisper(`${ch.i} ${ch.n} · ${ch.t}`, 7); if (ch.boom) { const dx = player.x - at.x, dz = player.z - at.z, dd = Math.hypot(dx, dz) || 1; if (dd < 3) { player.vx += dx / dd * 6; player.vz += dz / dd * 6; } } return; }
     if (!rec) { labFx('smoke', p); whisper('🫧 virou uma gosma sem graça… nenhuma reação conhecida. Dica: os livros do andar de estudos ensinam receitas', 5); return; }
     labFx(rec.fx, p); labDiscover(rec, 'rx'); if (EYE_RX.includes(rec.id) && Math.hypot(player.x - at.x, player.z - at.z) < 4) eyeSting(rec.id.startsWith('boom') ? 'fuligem da explosão' : 'que fumaça forte');
     if (rec.item) addItem(rec.item);
@@ -12207,7 +12388,7 @@ function forgeShow() { const n = FORGE.list.length; FORGE.liqM.color.copy(n ? la
 function labForge() {
   if (FORGE.busy) { whisper('🔥 o metal ainda está derretendo… espere um pouquinho', 2, true); return; }
   if (LABH.item) {
-    if (!isOre(LABH.item)) { whisper('🔥 só minério vai no caldeirão: frascos são para o béquer ⚗', 3, true); return; }
+    if (!isOre(LABH.item) && !LAB_R[LABH.item]?.Z && LABH.item !== 'C') { whisper('🔥 só minérios e metais vão no caldeirão: frascos são para o béquer ⚗', 3, true); return; }
     if (FORGE.list.length >= 3) { toast('🔥 o caldeirão está cheio: funda ou esvazie'); return; }
     FORGE.list.push(LABH.item); labDrop(false); forgeShow(); sfx.clop(); spawnSparkles(V3(FORGE.at.x, TWR.fy[1] + 1.1, FORGE.at.z), 10, 0.3, 0xffa040);
     whisper(`🔥 no caldeirão: ${FORGE.list.map(x => LAB_R[x].n).join(' + ')} (${FORGE.list.length}/3) · toque de mãos vazias para fundir`, 4, true); return;
@@ -12215,19 +12396,43 @@ function labForge() {
   if (!FORGE.list.length) { whisper('🔥 Caldeirão de Fundição: pegue até 3 minérios na prateleira ao lado e jogue aqui. Um sozinho vira metal puro, dois viram liga… e três, quem sabe, viram equipamento ⚒', 6.5); return; }
   showDialog('🔥 Caldeirão de Fundição', FORGE.list.map(x => LAB_R[x].n).join(' + '), 'O fogo está alto e o caldeirão, vermelho de quente.', [['🔥 Fundir', () => labForgeMelt(), true], ['🫗 Esvaziar', () => { FORGE.list = []; forgeShow(); whisper('🫗 caldeirão esvaziado', 2, true); }], ['esperar', null]]);
 }
+function labItem(key, n, i, d) { // resultado do laboratório vira item de verdade na mochila (fica salvo e reaparece ao carregar o jogo)
+  const L = LAB(); L.items = L.items || {}; let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0; const id = 'lab_' + h.toString(36);
+  const m = { n, i, d: d.length > 120 ? d.slice(0, 117) + '…' : d }; L.items[id] = m; ITEMS[id] = { p: 2, ...m, lab: true }; addItem(id); return id;
+}
+function forgeResult(icon, col, label) { // o que saiu do caldeirão pula até a mesa de resultados e fica lá para ver
+  const R = FORGE.res; if (!R) return; const g = new THREE.Group();
+  const ing = new THREE.Mesh(gBox(0.3, 0.09, 0.14), new THREE.MeshLambertMaterial({ color: col, emissive: new THREE.Color(col).multiplyScalar(0.15) })); ing.position.y = 0.035; g.add(ing);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(icon), transparent: true, depthWrite: false })); sp.scale.setScalar(0.3); sp.position.y = 0.28; g.add(sp);
+  if (label) { const tg = new THREE.Sprite(new THREE.SpriteMaterial({ map: boardTex(label, '#2a1a12', 384, 64, 26), transparent: true, depthWrite: false })); tg.scale.set(0.6, 0.1, 1); tg.position.y = 0.52; g.add(tg); g.userData.tag = tg; }
+  R.d.add(g); R.list.unshift({ g, t: 0 }); while (R.list.length > 6) { const o = R.list.pop(); R.d.remove(o.g); o.g.traverse(x => x.material?.dispose?.()); }
+  R.list.forEach((o, k) => { o.to = k; if (o.g.userData.tag) o.g.userData.tag.visible = k === 0; }); // só o mais novo mostra o nome (os outros ficam na mochila) const c = R.d.worldToLocal(V3(FORGE.at.x, TWR.fy[1] + 1.1, FORGE.at.z)); g.position.copy(c); R.list[0].from = c.clone();
+}
+function forgeResFrame(dt) { // voo em arco do caldeirão até a mesa, e os antigos deslizam para o lado
+  const R = FORGE.res; if (!R) return;
+  for (const o of R.list) { const tgt = V3(-0.62 + o.to * 0.25, 0.98, -0.05);
+    if (o.from) { o.t = Math.min(1, o.t + dt * 1.4); const k = o.t; o.g.position.lerpVectors(o.from, tgt, k); o.g.position.y += Math.sin(k * Math.PI) * 0.9; o.g.rotation.y += dt * 6; if (k >= 1) { o.from = null; o.g.rotation.y = 0; spawnSparkles(o.g.getWorldPosition(V3(0, 0, 0)), 8, 0.15, 0xffe08a); } }
+    else o.g.position.lerp(tgt, Math.min(1, dt * 5)); }
+}
 function labForgeMelt() {
-  const key = labKey(FORGE.list), rec = ORE_RX.find(r => labKey(r.k) === key), p = { x: FORGE.at.x, y: TWR.fy[1] + 1.15, z: FORGE.at.z };
+  const norm = FORGE.list.map(id => isOre(id) ? id : ORE_OF[LAB_R[id].s] || id), key = labKey(norm), rec = ORE_RX.find(r => labKey(r.k) === key), p = { x: FORGE.at.x, y: TWR.fy[1] + 1.15, z: FORGE.at.z }, ch = !rec && chemForge(FORGE.list), col = labMix(FORGE.list).lerp(new THREE.Color(0xd8d8e0), 0.25).getHex();
   FORGE.list = []; FORGE.busy = true; FORGE.heat = 1.6; sfx.crackle?.(); sfx.whoosh(0.4, 1.2);
   setTimeout(() => {
     FORGE.busy = false; forgeShow(); if (TWR.cur !== 1) return;
-    if (!rec) { labFx('smoke', p); sfx.chime([196, 165], 0.08); whisper('💨 o metal borbulhou e virou escória… essa mistura não forma liga. Tente outra combinação!', 4.5); return; }
-    const first = labDiscover(rec, 'forja');
+    const got = (id, ic) => { forgeResult(ic, col, ITEMS[id].n); setTimeout(() => toast(`${ITEMS[id].i} ${ITEMS[id].n} foi para a mochila 🎒${ITEMS[id].slot ? ' (equipe pela mochila)' : ''}`, 4500), 1100); };
+    if (ch) { if (ch.fx) labFx(ch.fx, p); else spawnSparkles(V3(p.x, p.y, p.z), 26, 0.5, 0xffc060); chEffects(ch, p); chRecord(ch); whisper(`${ch.i} ${ch.n}: ${ch.t}`, 7);
+      if (!ch.n.startsWith('Isso não')) got(labItem('forja:' + ch.n, ch.n, ch.i, ch.t), ch.i); return; }
+    if (!rec) { labFx('smoke', p); sfx.chime([196, 165], 0.08); forgeResult('🪨', 0x5a5450, 'escória'); whisper('💨 o metal borbulhou e virou escória… essa mistura não forma liga. Tente outra combinação!', 4.5); return; }
+    const first = labDiscover(rec, 'forja'), equip = rec.item && ITEMS[rec.item].slot;
     if (EYE_RX.includes(rec.id)) eyeSting('o vapor do caldeirão subiu direto no rosto'); if (rec.fx) labFx(rec.fx, p); else { spawnSparkles(V3(p.x, p.y, p.z), 30, 0.5, 0xffc060); sfx.chime([1047, 1319, 1568], 0.05); }
-    if (rec.item && first) { addItem(rec.item); setTimeout(() => toast(`${ITEMS[rec.item].i} ${ITEMS[rec.item].n} foi para a mochila 🎒${ITEMS[rec.item].slot ? ' (equipe pela mochila)' : ''}`, 4500), 900); }
-    whisper(`${rec.i} ${rec.n}: ${rec.t}${rec.item && !first ? ' (essa a senhora já fundiu: o caldeirão só dá o prêmio na primeira vez)' : ''}`, 7.5);
+    if (rec.item && (first || !equip)) { addItem(rec.item); got(rec.item, ITEMS[rec.item].i); } // lingotes saem toda vez; equipamento, só na primeira
+    else if (!rec.item && !['f_aluminio', 'f_chumbo'].includes(rec.id)) got(labItem('forja:' + rec.id, rec.n, rec.i, rec.t), rec.i);
+    else forgeResult(rec.i, col, rec.n);
+    whisper(`${rec.i} ${rec.n}: ${rec.t}${equip && !first ? ' (esse equipamento a senhora já forjou: ele só sai uma vez)' : ''}`, 7.5);
   }, 1500);
 }
 function forgeFrame(dt, t) { // brasa do fogo, metal derretido pulsando e faíscas (fortes enquanto funde)
+  forgeResFrame(dt);
   FORGE.heat = Math.max(0, FORGE.heat - dt); const hot = FORGE.heat > 0, n = FORGE.list.length;
   FORGE.fire.scale.setScalar((hot ? 1.5 : 1) * (0.92 + 0.08 * Math.sin(t * 11)));
   if (hot) FORGE.liqM.color.setHSL(0.08 + 0.03 * Math.sin(t * 8), 1, 0.55 + 0.1 * Math.sin(t * 13));
@@ -12361,10 +12566,10 @@ function ptCollect(Z) { // carta nova na coleção (e prêmio quando completa um
   if (Object.keys(L.el).length === 118) setTimeout(() => { banner('Tabela Completa!', 'os 118 elementos ✦', 4); gainXP(300, 'colecionadora de elementos'); addItem('pocao_amor'); }, 1200);
   rpgSave(); return true;
 }
-function labPeriodic(selZ) {
+function labPeriodic(selZ, pick) {
   openPanel('lab_pt', pn => {
     pn.classList.add('ptwide'); closeX(pn); const L = LAB(); L.el = L.el || {};
-    h$('h2', null, `⚛ Tabela Periódica · 🃏 ${Object.keys(L.el).length}/118`, pn); h$('div', 'sub', innerWidth < innerHeight ? 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor (deite o celular para ver maior)' : 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor ✦', pn);
+    h$('h2', null, pick ? '⚛ Escolha um elemento para levar na mão' : `⚛ Tabela Periódica · 🃏 ${Object.keys(L.el).length}/118`, pn); h$('div', 'sub', innerWidth < innerHeight ? 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor (deite o celular para ver maior)' : 'Toque nos elementos para colecionar as cartas e ver o átomo no projetor ✦', pn);
     const info = h$('div', 'ptinfo', 'Cada elemento tocado vira uma carta na sua coleção. Complete uma família inteira (as cores) para ganhar um prêmio!', pn);
     const wrap = h$('div', 'ptwrap', null, pn), grid = h$('div', 'ptab', null, wrap), cells = [];
     for (let r = 1; r <= 10; r++) for (let c = 1; c <= 18; c++) {
@@ -12381,6 +12586,7 @@ function labPeriodic(selZ) {
       info.innerHTML = ''; h$('b', null, `${nova ? '🃏 carta nova! ' : ''}${PT_S[Z - 1]} · ${PT_N[Z - 1]}`, info);
       h$('div', null, `nº ${Z} · massa ≈ ${PT_M[Z - 1].toLocaleString('pt-BR')} u · ${PT_CAT[ptCat(Z)]} · elétrons por camada: ${ptShells(Z).join(' · ')}`, info);
       if (PT_FACT[Z]) h$('div', null, '✦ ' + PT_FACT[Z], info); sfx.chime([523 + Z * 6], 0.03);
+      if (pick) { const st = chState(Z); h$('div', null, `${st === 'gás' ? '💨' : st === 'líquido' ? '💧' : '🪨'} ${st} na temperatura ambiente${chRadio(Z) ? ' · ☢ radioativo' : ''}${CH_TOX.includes(Z) ? ' · ☠ tóxico' : ''}`, info); hBtn(`🧪 Pegar ${PT_N[Z - 1]}`, 'rbtn gold', () => { closePanel(); labPick(chKey(Z)); }, info).style.marginTop = '6px'; }
     }
     famDraw(); if (selZ) show(selZ);
   });
@@ -12393,6 +12599,7 @@ function labTerminal(tab = 'desc') {
     for (const [k, n] of [['desc', '⚗ Descobertas'], ['pets', '🧬 Bestiário'], ['prog', '📊 Progresso']]) hBtn(n, 'rbtn' + (k === tab ? ' gold' : ''), () => { closePanel(); labTerminal(k); }, tb);
     const L = LAB();
     if (tab === 'desc') { h$('h3', null, '⚗ Béquer', pn); for (const r of LAB_RX) { const row = h$('div', 'labrow', null, pn); if (L.rec[r.id]) { h$('span', null, `${r.i} ${r.n}`, row); h$('span', 'q', r.k.map(x => LAB_R[x].s).join(' + '), row); } else { h$('span', 'q', '❔ reação ainda não descoberta', row); h$('span', 'q', r.k.length + ' ingredientes', row); } }
+      const C = L.comp || {}; h$('h3', null, `📒 Compostos livres (${Object.keys(C).length})`, pn); if (!Object.keys(C).length) h$('div', 'labrow', 'pegue elementos nas estantes da tabela periódica (andar de experimentos) e misture no béquer ou no caldeirão', pn); for (const k in C) { const row = h$('div', 'labrow', null, pn); h$('span', null, C[k], row); }
       h$('h3', null, '🔥 Caldeirão de Fundição', pn); for (const r of ORE_RX) { const row = h$('div', 'labrow', null, pn); if (L.rec[r.id]) { h$('span', null, `${r.i} ${r.n}`, row); h$('span', 'q', r.k.map(x => LAB_R[x].s).join(' + '), row); } else { h$('span', 'q', '❔ ainda não fundido', row); h$('span', 'q', r.k.length + (r.k.length > 1 ? ' minérios' : ' minério'), row); } } }
     if (tab === 'pets') {
       h$('div', 'sub', 'Criaturas nascidas na Câmara de Criação. Escolha quem vai com a senhora.', pn);
@@ -12402,7 +12609,7 @@ function labTerminal(tab = 'desc') {
     }
     if (tab === 'prog') {
       const n = labFound(); h$('div', 'sub', `Descobertas: ${n} de ${LAB_TOTAL}`, pn); const bar = h$('div', 'labbar', null, pn); h$('i', null, null, bar).style.width = (n / LAB_TOTAL * 100) + '%';
-      h$('div', 'labrow', `📚 livros lidos: ${Object.keys(L.books).length} de ${LAB_BOOKS.length}`, pn); h$('div', 'labrow', `🧮 cálculos resolvidos: ${L.quiz || 0}`, pn); h$('div', 'labrow', `⚛ elementos estudados: ${RPG.ev.lab_elemento || 0} de 118`, pn); h$('div', 'labrow', `🧬 criaturas: ${L.pets.length}`, pn);
+      h$('div', 'labrow', `📚 livros lidos: ${Object.keys(L.books).length} de ${LAB_BOOKS.length}`, pn); h$('div', 'labrow', `🧮 cálculos resolvidos: ${L.quiz || 0}`, pn); h$('div', 'labrow', `⚛ elementos estudados: ${RPG.ev.lab_elemento || 0} de 118`, pn); h$('div', 'labrow', `🧬 criaturas: ${L.pets.length}`, pn); h$('div', 'labrow', `📒 compostos livres criados: ${Object.keys(L.comp || {}).length}`, pn);
     }
   });
 }
@@ -12475,7 +12682,7 @@ async function twGo(i) {
   if (player.seat) { player.seat.onStand?.(); player.seat = null; }
   mode = 'busy'; sfx.chime([523, 659, 784, 1047], 0.07); fadeEl.style.opacity = 1; await waitMs(700);
   if (i !== 1) labDrop(false);
-  TWR.cur = i; TWF.forEach((f, k) => { f.g.visible = k === i; });
+  TWR.cur = i; TWF.forEach((f, k) => { f.g.visible = k === i; }); if (i !== 1) labCoat(false, true); else if (!LABCOAT.on && !LABCOAT.tip) { LABCOAT.tip = true; setTimeout(() => whisper('🥼 dica: toque em "vestir jaleco" lá em cima (ou nos jalecos da parede) para usar jaleco e óculos de proteção', 5), 2600); } // saiu do laboratório: tira o jaleco
   const q = i < 0 ? twW(0, 10.5) : twW(0, 2.6);
   Object.assign(player, { x: q.x, z: q.z, yaw: twYawOut(), pitch: i < 0 ? 0.05 : -0.05, vx: 0, vz: 0, pose: 'stand', eyeH: EYE_H });
   if (i === 2) labBoardDraw(); if (i === 4) twJarsUpdate(); mcLast.again = 3; // o andar novo aparece inteiro, sem objetos sumidos
@@ -12583,7 +12790,7 @@ function updateTower(dt) {
   if (i === 0) F.globe.rotation.y += dt * 0.2;
   if (i === 1) {
     LABB.heat = Math.max(0, LABB.heat - dt); LABC.zap = Math.max(0, (LABC.zap || 0) - dt);
-    const lv = LABC.liq; lv.scale.y += (LABC.k - lv.scale.y) * Math.min(1, dt * 3); lv.position.y = 0.6 + lv.scale.y * 1.5; LABC.liqM.opacity = 0.45 + 0.15 * Math.sin(t * 2) + LABC.zap * 0.3;
+    const lv = LABC.liq; lv.scale.y += (LABC.k - lv.scale.y) * Math.min(1, dt * 3); lv.position.y = 0.64 + lv.scale.y * 1.5; LABC.liqM.opacity = 0.45 + 0.15 * Math.sin(t * 2) + LABC.zap * 0.3;
     if (Math.random() < dt * (2 + LABC.list.length * 4)) { const c = twW(-5.2 + rv(0.8), 0.6 + rv(0.8)); spawnFX(TEX.glow, V3(c.x, TWR.fy[1] + 0.8, c.z), { vel: V3(0, 0.9, 0), life: lv.scale.y * 2.6, size: 0.07, grow: 0.3, add: true, color: LABC.liqM.color.getHex() }); }
     if (LABB.heat > 0 && Math.random() < dt * 10) { const c = twW(0.9, 4.5); spawnFX(TEX.smoke, V3(c.x, TWR.fy[1] + 1.7, c.z), { vel: V3(rv(0.1), 0.5, rv(0.1)), life: 1.6, size: 0.12, grow: 2, color: 0xe8e8e8 }); }
     forgeFrame(dt, t);
